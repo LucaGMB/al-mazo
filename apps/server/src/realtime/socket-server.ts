@@ -309,6 +309,10 @@ export function initializeSocketServer(
   try {
     const pubClient = redis.getClient();
     const subClient = pubClient.duplicate();
+    // Sin un handler de 'error', un Redis caído emite un evento no manejado y
+    // tumba el proceso entero. Con esto el adapter simplemente deja de relayar.
+    pubClient.on('error', () => {});
+    subClient.on('error', () => {});
     io.adapter(createAdapter(pubClient, subClient));
   } catch {
     // Falls back to in-memory adapter gracefully
