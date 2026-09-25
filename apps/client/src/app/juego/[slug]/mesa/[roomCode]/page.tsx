@@ -444,6 +444,7 @@ export default function MesaPage() {
             hand={hand}
             canAct={canAct}
             onExecuteAction={handleTrucoAction}
+            onPlayCard={(cardId, tapada) => handlePlay(cardId, tapada)}
             isActing={isActing}
             isTapada={isTapada}
             onToggleTapada={() => setIsTapada((prev) => !prev)}
@@ -582,7 +583,9 @@ export default function MesaPage() {
         </div>
       </div>
 
-      <Hand cards={hand} canPlay={canPlayHandCards} onPlay={(cardId) => handlePlay(cardId)} isTapada={isTapada} />
+      {!isTruco && (
+        <Hand cards={hand} canPlay={canPlayHandCards} onPlay={(cardId) => handlePlay(cardId)} isTapada={isTapada} />
+      )}
 
       <ChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>
