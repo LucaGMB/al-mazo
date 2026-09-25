@@ -21,6 +21,13 @@ function hashName(name: string): number {
   return Math.abs(h);
 }
 
+// El server no expone la duración real del turno (GameRoom.turnTimeoutSeconds
+// en apps/server/src/realtime/room.ts, hoy siempre 25 y sin override), así
+// que el aro usa esta constante como referencia del 100%.
+// ponytail: si el turno pasa a ser configurable por juego, exponerlo en
+// publicState y reemplazar esta constante.
+const TURN_TIMER_SECONDS = 25;
+
 // Adaptado de la demo: reemplaza "vida"/"maná" (ficticios, no existen en el
 // server) por cardCount real y resaltado de turno.
 export default function PlayerBadge({
@@ -81,13 +88,14 @@ export default function PlayerBadge({
   }, [hasTimer, turnExpiresAt]);
 
   const showTimer = remainingSeconds !== null;
-  const timerClasses = !showTimer
+  const ringStrokeClass = !showTimer
     ? ""
     : remainingSeconds <= 5
-      ? "bg-danger/20 border-danger/60 text-danger font-bold animate-pulse"
+      ? "stroke-danger animate-pulse"
       : remainingSeconds <= 10
-        ? "bg-warning/20 border-warning/60 text-warning"
-        : "bg-accent/15 border-accent/50 text-accent";
+        ? "stroke-warning"
+        : "stroke-accent";
+  const timerPct = showTimer ? Math.min(1, remainingSeconds / TURN_TIMER_SECONDS) : 1;
 
   return (
     <div
@@ -132,6 +140,23 @@ export default function PlayerBadge({
             +{drawPulse.amount}
           </span>
         )}
+        {showTimer && (
+          <svg viewBox="0 0 36 36" className="pointer-events-none absolute -inset-1 -rotate-90" aria-hidden>
+            <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(0,0,0,0.45)" strokeWidth="3" />
+            <circle
+              cx="18"
+              cy="18"
+              r="16"
+              fill="none"
+              strokeWidth="3"
+              strokeLinecap="butt"
+              pathLength={100}
+              strokeDasharray={100}
+              strokeDashoffset={100 - timerPct * 100}
+              className={`transition-[stroke-dashoffset] duration-500 ease-linear ${ringStrokeClass}`}
+            />
+          </svg>
+        )}
       </div>
       <div>
         <div className="font-medium text-[11px] md:text-sm text-ink inline-flex items-center gap-1">
@@ -154,14 +179,6 @@ export default function PlayerBadge({
             <span className="inline-flex items-center gap-0.5 text-danger">
  <span className="h-1.5 w-1.5 animate-pulse bg-danger" />
               desconectado
-            </span>
-          )}
-          {showTimer && (
-            <span
- className={`ml-0.5 inline-flex items-center gap-0.5 border-2 px-1.5 py-px ${timerClasses}`}
-            >
-              <Icon icon="pixelarticons:clock" width={11} height={11} aria-hidden />
-              {remainingSeconds}s
             </span>
           )}
         </div>

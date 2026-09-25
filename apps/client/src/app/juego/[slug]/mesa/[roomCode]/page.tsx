@@ -16,11 +16,15 @@ import ColorPicker from "@/components/game/ColorPicker";
 import ChatDrawer from "@/components/game/ChatDrawer";
 import TrucoTable from "@/components/game/TrucoTable";
 import CommunityTable, { getEscobaPointValue } from "@/components/game/CommunityTable";
+import CardFlight from "@/components/game/CardFlight";
+import CardView from "@/components/game/CardView";
+import CardBack from "@/components/game/CardBack";
 import { useRoom } from "@/lib/room/use-room";
 import { assignSeats } from "@/lib/room/seating";
 import { decodePlayerName } from "@/lib/room/player-name";
 import { useSound } from "@/lib/sound/use-sound";
 import { getGame } from "@/lib/api/games";
+import { canPlayDiscardCard } from "@/lib/game/can-play-card";
 import type { Card } from "@/types/engine";
 
 const SLOT_ORDER: Array<"top" | "left" | "right"> = ["top", "left", "right"];
@@ -592,6 +596,29 @@ export default function MesaPage() {
 
   return (
     <div className="relative max-w-[480px] md:max-w-3xl mx-auto h-dvh overflow-hidden flex flex-col bg-app">
+      {flight && (
+        <CardFlight
+          key={flight.key}
+          content={<CardView card={flight.card} size="md" />}
+          fromX={flight.fromX}
+          fromY={flight.fromY}
+          toX={flight.toX}
+          toY={flight.toY}
+          onDone={() => setFlight(null)}
+        />
+      )}
+      {drawFlights.map((f) => (
+        <CardFlight
+          key={f.key}
+          content={<CardBack size="sm" />}
+          fromX={f.fromX}
+          fromY={f.fromY}
+          toX={f.toX}
+          toY={f.toY}
+          growOnArrive
+          onDone={() => setDrawFlights((old) => old.filter((x) => x.key !== f.key))}
+        />
+      ))}
       {forcedDraw && (
         <div
           key={forcedDraw.key}
@@ -776,17 +803,6 @@ export default function MesaPage() {
         </div>
       )}
 
-       {isMyTurn && gameStatus === "IN_PROGRESS" && (
-         // En Truco la bandeja de acciones ya indica el turno y en celular
-         // resta espacio útil: el pill queda solo para desktop.
-         <div className={`flex-none justify-center pb-1 ${isTruco ? "hidden md:flex" : "flex"}`}>
- <div className="inline-flex animate-bounce items-center gap-2 border-2 border-warning bg-warning/15 px-4 py-1.5 font-display text-xs font-black uppercase tracking-[0.16em] text-warning shadow-[0_0_18px_rgba(255,143,77,0.3)]">
- <span className="h-2 w-2 animate-pulse bg-warning" />
-             Tu Turno
-           </div>
-         </div>
-       )}
-
       {isCommunity && isMyTurn && gameStatus === "IN_PROGRESS" && (
         <div className="flex-none px-3.5 md:px-6 pb-2">
  <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 border border-accent/40 bg-statusbar/95 p-2.5 md:p-3 shadow-[0_0_18px_rgba(32,168,216,0.18)] backdrop-blur">
@@ -958,6 +974,10 @@ export default function MesaPage() {
           canPlay={isCommunity ? canAct : canPlayHandCards}
           selectedCardId={isCommunity ? selectedHandCardId : null}
           onPlay={isCommunity ? handleHandCardClick : (cardId) => handlePlay(cardId)}
+          isCardPlayable={
+            isCommunity ? undefined : (card) => canPlayDiscardCard(card, publicState.topDiscardCard, publicState.activeColor)
+          }
+          dragToPlay={!isCommunity}
         />
       )}
 
