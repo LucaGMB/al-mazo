@@ -12,7 +12,8 @@ export type SoundName =
   | "alMazo"
   | "chat"
   | "reaction"
-  | "error";
+  | "error"
+  | "forcedDraw";
 
 const MUTE_KEY = "al-mazo:sound-muted";
 
@@ -143,6 +144,12 @@ class SoundManager {
           // Zumbido grave, dos sierras levemente desafinadas.
           this.tone({ freq: 110, type: "sawtooth", duration: 0.3, gain: 0.12 });
           this.tone({ freq: 116, type: "sawtooth", duration: 0.3, gain: 0.08 });
+          break;
+        case "forcedDraw":
+          // Dos golpes secos de cartas castigo + quejido grave descendente.
+          this.noise({ duration: 0.08, gain: 0.15, filter: 1400, filterEnd: 400 });
+          this.noise({ delay: 0.09, duration: 0.09, gain: 0.16, filter: 1400, filterEnd: 350 });
+          this.tone({ freq: 220, freqEnd: 130, type: "sawtooth", delay: 0.05, duration: 0.28, gain: 0.08 });
           break;
       }
     } catch {

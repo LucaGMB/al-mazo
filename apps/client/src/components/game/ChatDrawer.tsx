@@ -7,7 +7,7 @@ import { useRoom } from "@/lib/room/use-room";
 import { decodePlayerName } from "@/lib/room/player-name";
 
 const QUICK_REACTIONS = [
-  { icon: "pixelarticons:bullhorn", label: "¡AL MAZO!" },
+  { icon: "pixelarticons:megaphone", label: "¡AL MAZO!" },
   { icon: "pixelarticons:trophy", label: "GG" },
   { icon: "pixelarticons:zap", label: "¡Buena!" },
   { icon: "pixelarticons:heart", label: "Bien jugado" },

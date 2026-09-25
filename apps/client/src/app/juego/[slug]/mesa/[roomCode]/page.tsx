@@ -15,11 +15,15 @@ import Hand from "@/components/game/Hand";
 import ColorPicker from "@/components/game/ColorPicker";
 import ChatDrawer from "@/components/game/ChatDrawer";
 import TrucoTable from "@/components/game/TrucoTable";
+import CardFlight from "@/components/game/CardFlight";
+import CardView from "@/components/game/CardView";
+import CardBack from "@/components/game/CardBack";
 import { useRoom } from "@/lib/room/use-room";
 import { assignSeats } from "@/lib/room/seating";
 import { decodePlayerName } from "@/lib/room/player-name";
 import { useSound } from "@/lib/sound/use-sound";
 import { getGame } from "@/lib/api/games";
+import type { Card } from "@/types/engine";
 
 const SLOT_ORDER: Array<"top" | "left" | "right"> = ["top", "left", "right"];
 
@@ -31,7 +35,7 @@ const QUICK_REACTIONS = [
   { text: "¡GG!", icon: "pixelarticons:trophy" },
 ] as const;
 
-const CONFETTI_COLORS = ["#20A8D8", "#4DBD74", "#F5C518", "#F86C6B", "#9B59B6", "#E67E22"];
+const CONFETTI_COLORS = ["#ffd23f", "#33c48d", "#ff8f4d", "#ff4d6d", "#f4f1ff", "#4fa8ff"];
 const CONFETTI = Array.from({ length: 28 }, (_, i) => ({
   left: (i * 37) % 100,
   delay: (i % 10) * 130,
@@ -52,6 +56,7 @@ export default function MesaPage() {
     lastError,
     startRoom,
     addBot,
+    removeBot,
     playCard,
     drawCard,
     chooseColor,
@@ -61,6 +66,7 @@ export default function MesaPage() {
     clearUnreadChat,
     sendChatMessage,
     chatBubbles,
+    forcedDraw,
     executeAction,
   } = useRoom();
 
@@ -113,6 +119,124 @@ export default function MesaPage() {
     if (lastError && lastError !== prevErrorRef.current) play("error");
     prevErrorRef.current = lastError;
   }, [lastError, play]);
+
+  const gameAreaRef = useRef<HTMLDivElement | null>(null);
+
+  // Detecta que a un jugador (cualquiera, vos incluido) le crecieron las
+  // cartas en mano: le hace flotar un "+N" sobre su ficha y además anima una
+  // carta viajando desde el mazo hasta esa ficha (robo propio o forzado por
+  // un +2/+4 en su contra — no distingue el motivo; para el aviso puntual de
+  // "te comieron cartas" está `forcedDraw`, más abajo).
+  const [drawPulses, setDrawPulses] = useState<Record<string, { amount: number; key: number }>>({});
+  const [drawFlights, setDrawFlights] = useState<
+    Array<{ key: number; fromX: number; fromY: number; toX: number; toY: number }>
+  >([]);
+  const prevCardCountsRef = useRef<Record<string, number> | null>(null);
+  useEffect(() => {
+    if (!publicState) return;
+    const prevCounts = prevCardCountsRef.current;
+    const nextCounts: Record<string, number> = {};
+    const additions: Record<string, { amount: number; key: number }> = {};
+
+    for (const p of publicState.players) {
+      nextCounts[p.id] = p.cardCount;
+      const before = prevCounts?.[p.id];
+      if (prevCounts && before !== undefined && p.cardCount > before) {
+        additions[p.id] = { amount: p.cardCount - before, key: Date.now() + Math.random() };
+      }
+    }
+    prevCardCountsRef.current = nextCounts;
+
+    if (Object.keys(additions).length === 0) return;
+    // Diff contra el ref del render anterior, no se puede derivar en el render
+    // mismo (necesita comparar con el estado previo y expirar solo con un timer).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDrawPulses((old) => ({ ...old, ...additions }));
+    for (const [playerId, pulse] of Object.entries(additions)) {
+      window.setTimeout(() => {
+        setDrawPulses((old) => {
+          if (old[playerId]?.key !== pulse.key) return old;
+          const next = { ...old };
+          delete next[playerId];
+          return next;
+        });
+      }, 1400);
+    }
+
+    const pileEl = gameAreaRef.current?.querySelector<HTMLElement>("[data-draw-pile]");
+    if (pileEl) {
+      const pileRect = pileEl.getBoundingClientRect();
+      const newFlights: typeof drawFlights = [];
+      for (const playerId of Object.keys(additions)) {
+        const badgeEl = gameAreaRef.current?.querySelector<HTMLElement>(`[data-player-id="${playerId}"]`);
+        if (!badgeEl) continue;
+        const badgeRect = badgeEl.getBoundingClientRect();
+        newFlights.push({
+          key: Date.now() + Math.random(),
+          fromX: pileRect.left + pileRect.width / 2,
+          fromY: pileRect.top + pileRect.height / 2,
+          toX: badgeRect.left + badgeRect.width / 2,
+          toY: badgeRect.top + badgeRect.height / 2,
+        });
+      }
+      if (newFlights.length > 0) setDrawFlights((old) => [...old, ...newFlights]);
+    }
+  }, [publicState]);
+
+  // Anima la carta "volando" desde la ficha de quien la jugó hasta el mazo de
+  // descarte, pero solo cuando quien jugó fue OTRO jugador (la tuya propia ya
+  // desaparece de tu mano al instante, no hace falta mostrártela viajando).
+  // El autor se infiere: es quien tenía el turno en el estado anterior a este
+  // (el turno recién avanza después de resolverse la jugada; si quedó
+  // pendiente elegir color, sigue siendo el mismo jugador, así que también da
+  // bien ahí).
+  const prevPlayTrackingRef = useRef<{ turnPlayerId: string | null; topCardId: string | null }>({
+    turnPlayerId: null,
+    topCardId: null,
+  });
+  const [flight, setFlight] = useState<{
+    key: number;
+    card: Card;
+    fromX: number;
+    fromY: number;
+    toX: number;
+    toY: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!publicState) return;
+    const prevTracking = prevPlayTrackingRef.current;
+    const topCard = publicState.topDiscardCard;
+    const newTopId = topCard?.id ?? null;
+    const isFirstSnapshot = prevTracking.topCardId === null && prevTracking.turnPlayerId === null;
+    const actorId = prevTracking.turnPlayerId;
+
+    if (
+      !isFirstSnapshot &&
+      topCard &&
+      newTopId !== prevTracking.topCardId &&
+      actorId &&
+      actorId !== selfPlayerId &&
+      gameAreaRef.current
+    ) {
+      const fromEl = gameAreaRef.current.querySelector<HTMLElement>(`[data-player-id="${actorId}"]`);
+      const toEl = gameAreaRef.current.querySelector<HTMLElement>("[data-discard-pile]");
+      if (fromEl && toEl) {
+        const fromRect = fromEl.getBoundingClientRect();
+        const toRect = toEl.getBoundingClientRect();
+        setFlight({
+          key: Date.now(),
+          card: { ...topCard, color: publicState.activeColor ?? topCard.color },
+          fromX: fromRect.left + fromRect.width / 2,
+          fromY: fromRect.top + fromRect.height / 2,
+          toX: toRect.left + toRect.width / 2,
+          toY: toRect.top + toRect.height / 2,
+        });
+      }
+    }
+
+    prevPlayTrackingRef.current = { turnPlayerId: publicState.currentTurnPlayerId, topCardId: newTopId };
+  }, [publicState, selfPlayerId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -200,7 +324,7 @@ export default function MesaPage() {
                 </span>
               )}
             </span>
-            <IconButton icon="log-out" onClick={handleLeave} />
+            <IconButton icon="logout" onClick={handleLeave} />
           </div>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center gap-3 p-4">
@@ -211,6 +335,7 @@ export default function MesaPage() {
             maxPlayers={maxPlayers}
             onStart={() => void startRoom()}
             onAddBot={() => void addBot()}
+            onRemoveBot={(botId) => void removeBot(botId)}
           />
           {lastError && <div className="text-[13px] text-danger text-center px-4">{lastError}</div>}
         </div>
@@ -245,7 +370,7 @@ export default function MesaPage() {
           height={56}
           className="relative z-10 animate-bounce text-warning"
         />
-        <div className="relative z-10 text-xl font-black text-warning">
+        <div className="relative z-10 font-display text-xl font-black text-warning">
           {isWinner ? "¡Victoria!" : "Partida Terminada"}
         </div>
         <div className="relative z-10 text-[14px] text-ink">
@@ -305,6 +430,17 @@ export default function MesaPage() {
   const canAct = isMyTurn && !pendingChoiceForMe && !isActing;
   const canPlayHandCards = canAct && (!isTruco || !pendingBet);
 
+  async function handleTrucoAction(action: string, payload?: Record<string, unknown>) {
+    if (isActing) return;
+    setIsActing(true);
+    try {
+      await executeAction(action, payload);
+      play("reaction");
+    } finally {
+      setIsActing(false);
+    }
+  }
+
   async function handlePlay(cardId: string, tapada?: boolean) {
     if (!canAct) return;
     if (isTruco && pendingBet) return;
@@ -312,20 +448,8 @@ export default function MesaPage() {
     try {
       const playingTapada = tapada !== undefined ? tapada : isTapada;
       await playCard(cardId, undefined, playingTapada);
-      setIsTapada(false);
       play("playCard");
       triggerShake();
-    } finally {
-      setIsActing(false);
-    }
-  }
-
-  async function handleTrucoAction(action: string, payload?: Record<string, unknown>) {
-    if (isActing) return;
-    setIsActing(true);
-    try {
-      await executeAction(action, payload);
-      play("reaction");
     } finally {
       setIsActing(false);
     }
@@ -373,16 +497,28 @@ export default function MesaPage() {
   }
 
   return (
-    <div className="max-w-[480px] md:max-w-3xl mx-auto min-h-screen flex flex-col bg-app">
+    <div className="relative max-w-[480px] md:max-w-3xl mx-auto min-h-screen flex flex-col bg-app">
+      {forcedDraw && (
+        <div
+          key={forcedDraw.key}
+          className="absolute top-14 md:top-16 inset-x-0 z-40 flex justify-center px-4 pointer-events-none"
+        >
+          <div className="animate-bubble-pop flex items-center gap-2 rounded-[6px] border-2 border-danger bg-danger/20 backdrop-blur px-4 py-2 text-[13px] font-bold text-ink shadow-[0_0_18px_rgba(255,77,109,0.4)]">
+            <Icon icon="pixelarticons:arrow-down" width={16} height={16} className="text-danger" />
+            {decodePlayerName(forcedDraw.byName).display} te hizo robar {forcedDraw.count}{" "}
+            {forcedDraw.count === 1 ? "carta" : "cartas"}
+          </div>
+        </div>
+      )}
       <div className="flex-none px-3.5 md:px-6 py-2.5 md:py-4 flex items-center justify-between">
         <BackButton />
         <div className="text-center">
-          <div className="inline-flex flex-col items-center rounded-xl border border-subtle bg-statusbar/90 px-4 py-1.5 shadow-[0_0_18px_rgba(32,168,216,0.15)] backdrop-blur">
-            <div className="flex items-center gap-1.5 text-xs md:text-sm font-black uppercase tracking-wider text-ink">
+          <div className="inline-flex flex-col items-center rounded-[6px] border-2 border-subtle bg-statusbar/90 px-4 py-1.5 shadow-[3px_3px_0_0_rgba(0,0,0,0.35)]">
+            <div className="flex items-center gap-1.5 font-display text-xs md:text-sm font-black uppercase tracking-wider text-ink">
               <Icon icon="pixelarticons:gamepad" width={14} height={14} className="text-accent" />
               {slug}
             </div>
-            <div className="text-[10px] md:text-[11px] font-bold tracking-[0.25em] text-accent">
+            <div className="font-mono text-[10px] md:text-[11px] font-bold tracking-[0.25em] text-accent">
               SALA {roomCode.toUpperCase()}
             </div>
           </div>
@@ -413,7 +549,7 @@ export default function MesaPage() {
             aria-label={muted ? "Activar sonido" : "Silenciar sonido"}
             title={muted ? "Activar sonido" : "Silenciar sonido"}
           />
-          <IconButton icon="log-out" size={18} onClick={handleLeave} />
+          <IconButton icon="logout" size={18} onClick={handleLeave} />
         </div>
       </div>
 
@@ -452,6 +588,7 @@ export default function MesaPage() {
         </div>
       ) : (
         <div
+          ref={gameAreaRef}
           className={`flex-1 relative px-4.5 py-1.5 min-h-[420px] md:min-h-[560px] ${
             isShaking ? "animate-table-shake" : ""
           }`}
@@ -467,6 +604,7 @@ export default function MesaPage() {
                 publicState.currentTurnPlayerId === player.id ? publicState.turnExpiresAt : null
               }
               recentMessage={chatBubbles[player.id]?.text ?? null}
+              drawPulse={drawPulses[player.id] ?? null}
             />
           ))}
           {others.length > 3 && (
@@ -475,7 +613,11 @@ export default function MesaPage() {
             </div>
           )}
 
-          <div className="absolute top-[90px] md:top-[120px] left-1/2 -translate-x-1/2 w-[300px] h-[300px] md:w-[440px] md:h-[440px] rounded-full border-[10px] border-[#3E2723] shadow-[inset_0_0_0_2px_rgba(212,175,55,0.5),inset_0_0_30px_rgba(0,0,0,0.55),0_0_0_1px_#0B160F,0_0_24px_rgba(212,175,55,0.18)] bg-[radial-gradient(circle_at_40%_35%,#2E6F40,#1D4B2B_70%,#112B19_100%)]">
+          <div className="felt-texture absolute top-[90px] md:top-[120px] left-1/2 -translate-x-1/2 w-[300px] h-[220px] md:w-[440px] md:h-[320px] rounded-[10px] border-[6px] border-[#0b0812] shadow-[6px_6px_0_0_rgba(0,0,0,0.5)]">
+            <span className="pixel-rivet" style={{ top: 6, left: 6 }} />
+            <span className="pixel-rivet" style={{ top: 6, right: 6 }} />
+            <span className="pixel-rivet" style={{ bottom: 6, left: 6 }} />
+            <span className="pixel-rivet" style={{ bottom: 6, right: 6 }} />
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center gap-5 md:gap-8 pointer-events-auto">
               <DrawPile count={publicState.drawPileCount} disabled={!canAct} onClick={handleDraw} />
               <DiscardPile
@@ -504,6 +646,7 @@ export default function MesaPage() {
               isCurrentTurn={isMyTurn}
               turnExpiresAt={isMyTurn ? publicState.turnExpiresAt : null}
               recentMessage={chatBubbles[self.id]?.text ?? null}
+              drawPulse={drawPulses[self.id] ?? null}
             />
           )}
         </div>
@@ -511,45 +654,43 @@ export default function MesaPage() {
 
        {isMyTurn && gameStatus === "IN_PROGRESS" && (
          <div className="flex-none flex justify-center pb-1">
-           <div className="inline-flex animate-bounce items-center gap-2 rounded-full border border-warning/60 bg-[#3a2a0b] px-4 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-warning shadow-[0_0_18px_rgba(245,197,24,0.25)]">
+           <div className="inline-flex animate-bounce items-center gap-2 rounded-[6px] border-2 border-warning bg-warning/15 px-4 py-1.5 font-display text-xs font-black uppercase tracking-[0.16em] text-warning shadow-[0_0_18px_rgba(255,143,77,0.3)]">
              <span className="h-2 w-2 animate-pulse rounded-full bg-warning" />
              Tu Turno
            </div>
          </div>
        )}
 
-       {!isTruco && (
-         <div className="flex-none px-3.5 md:px-6 py-1.5 md:py-3 flex items-center justify-between">
-          <div className="flex items-center gap-1.5 font-medium text-[11px] md:text-sm text-ink">
-            <span className={`w-2 h-2 rounded-full ${isMyTurn ? "bg-accent" : "bg-ink-faint"}`} />
-            {pendingChoiceForMe
-              ? "Elegí un color"
-              : pendingChoiceForOther
-                ? "Esperando color..."
-                : isMyTurn
-                  ? "Tu turno"
-                  : "Esperando turno"}
-          </div>
-          {canAct && (
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={handlePass}>
-                Pasar turno
-              </Button>
-            </div>
-          )}
+       <div className="flex-none px-3.5 md:px-6 py-1.5 md:py-3 flex items-center justify-between">
+        <div className="flex items-center gap-1.5 font-medium text-[11px] md:text-sm text-ink">
+          <span className={`w-2 h-2 rounded-full ${isMyTurn ? "bg-accent" : "bg-ink-faint"}`} />
+          {pendingChoiceForMe
+            ? "Elegí un color"
+            : pendingChoiceForOther
+              ? "Esperando color..."
+              : isMyTurn
+                ? "Tu turno"
+                : "Esperando turno"}
         </div>
-       )}
+        {canAct && (
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={handlePass}>
+              Pasar turno
+            </Button>
+          </div>
+        )}
+      </div>
 
       {lastError && <div className="text-[12px] text-danger text-center px-4 pb-2">{lastError}</div>}
 
-      {!isTruco && self?.cardCount === 1 && !hasShouted && (
+      {self?.cardCount === 1 && !hasShouted && (
         <div className="flex-none flex justify-center pb-1">
           <button
             type="button"
             onClick={handleShout}
-            className="animate-bounce rounded-full bg-warning border-2 border-black/20 px-5 py-1.5 text-[13px] md:text-sm font-black text-black shadow-[0_0_18px_rgba(255,193,7,0.7)] cursor-pointer"
+            className="animate-bounce rounded-none bg-warning border-[3px] border-[#241a44] px-5 py-1.5 font-display text-[13px] md:text-sm font-black text-[#171a35] shadow-[0_5px_0_0_#b0521f] active:translate-y-[3px] active:shadow-[0_1px_0_0_#b0521f] cursor-pointer"
           >
-             <Icon icon="pixelarticons:bullhorn" width={18} height={18} />
+             <Icon icon="pixelarticons:megaphone" width={18} height={18} />
              ¡AL MAZO!
           </button>
         </div>
@@ -557,7 +698,7 @@ export default function MesaPage() {
 
       {shoutToast && (
         <div className="flex-none flex justify-center pb-1">
-          <span className="rounded-full bg-success px-4 py-1 text-[12px] font-bold text-white shadow-[0_0_14px_rgba(77,189,116,0.6)]">
+          <span className="rounded-[6px] border-2 border-[#241a44] bg-success px-4 py-1 text-[12px] font-bold text-[#f4f1ff] shadow-[0_0_14px_rgba(51,196,141,0.6)]">
             ¡Cantaste AL MAZO!
           </span>
         </div>
@@ -565,7 +706,7 @@ export default function MesaPage() {
 
       <div className="flex-none flex justify-center pb-1">
         <div
-          className="flex items-center justify-center gap-1.5 py-1 px-3 bg-statusbar/80 backdrop-blur rounded-full border border-subtle mx-auto"
+          className="flex items-center justify-center gap-1.5 py-1 px-3 bg-statusbar/80 rounded-[8px] border-2 border-subtle mx-auto"
           role="group"
           aria-label="Bandeja de reacciones"
         >
@@ -574,7 +715,7 @@ export default function MesaPage() {
               key={reaction.text}
               type="button"
               onClick={() => handleReaction(reaction.text)}
-              className="inline-flex cursor-pointer items-center gap-1 rounded-full border border-subtle bg-app/60 px-2 py-0.5 text-[10px] md:text-[11px] font-bold text-ink-soft transition-colors duration-150 hover:border-accent/60 hover:text-accent"
+              className="inline-flex cursor-pointer items-center gap-1 rounded-[6px] border-2 border-subtle bg-app/60 px-2 py-0.5 text-[10px] md:text-[11px] font-bold text-ink-soft transition-colors duration-150 hover:border-accent hover:text-accent"
             >
               <Icon icon={reaction.icon} width={13} height={13} aria-hidden />
               {reaction.text}
@@ -583,9 +724,32 @@ export default function MesaPage() {
         </div>
       </div>
 
-      {!isTruco && (
-        <Hand cards={hand} canPlay={canPlayHandCards} onPlay={(cardId) => handlePlay(cardId)} isTapada={isTapada} />
+      {!isTruco && <Hand cards={hand} canPlay={canPlayHandCards} onPlay={handlePlay} />}
+
+      {flight && (
+        <CardFlight
+          key={flight.key}
+          content={<CardView card={flight.card} size="md" />}
+          fromX={flight.fromX}
+          fromY={flight.fromY}
+          toX={flight.toX}
+          toY={flight.toY}
+          onDone={() => setFlight(null)}
+        />
       )}
+
+      {drawFlights.map((f) => (
+        <CardFlight
+          key={f.key}
+          content={<CardBack size="md" />}
+          fromX={f.fromX}
+          fromY={f.fromY}
+          toX={f.toX}
+          toY={f.toY}
+          growOnArrive
+          onDone={() => setDrawFlights((old) => old.filter((x) => x.key !== f.key))}
+        />
+      ))}
 
       <ChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>
