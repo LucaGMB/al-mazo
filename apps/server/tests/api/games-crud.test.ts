@@ -80,6 +80,20 @@ describe('Games CRUD API', () => {
     expect(res.statusCode).toBe(401);
   });
 
+  it('POST /api/games rejects anonymous guest tokens', async () => {
+    const guestToken = signToken({ userId: 'guest_12345', role: 'USER' });
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/games',
+      headers: { authorization: `Bearer ${guestToken}` },
+      payload: validGame,
+    });
+
+    expect(res.statusCode).toBe(401);
+    const body = JSON.parse(res.body);
+    expect(body.error).toContain('Exclusivo para jugadores registrados');
+  });
+
   it('POST /api/games creates a DRAFT game and generates a slug', async () => {
     const res = await app.inject({
       method: 'POST',

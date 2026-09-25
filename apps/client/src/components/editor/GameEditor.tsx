@@ -8,6 +8,7 @@ import MetadataSection from "./MetadataSection";
 import DeckSection from "./DeckSection";
 import RulesSection from "./RulesSection";
 import JsonModal from "./JsonModal";
+import AuthModal, { AuthForm } from "@/components/auth/AuthModal";
 import {
   DEFAULT_NEW_GAME,
   type CardTemplate,
@@ -28,8 +29,11 @@ import { validateGameClient } from "@/lib/editor/validation";
 
 type EditorTab = "metadata" | "deck" | "rules" | "validation";
 
+const LOGIN_REQUIRED_MESSAGE =
+  "Solo los jugadores registrados con usuario y clave pueden crear o publicar juegos.";
+
 export default function GameEditor() {
-  const { user, createGuest } = useSession();
+  const { user, token, isLoggedIn, isLoading } = useSession();
   const [, startTransition] = useTransition();
 
   const [activeTab, setActiveTab] = useState<EditorTab>("metadata");
@@ -58,6 +62,8 @@ export default function GameEditor() {
   const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
   const [availableGames, setAvailableGames] = useState<GameSummary[]>([]);
   const [isForkModalOpen, setIsForkModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
 
   // Fetch games list for fork options
   useEffect(() => {
@@ -109,17 +115,20 @@ export default function GameEditor() {
     };
   }, [gameData, clientValidation.valid]);
 
-  async function ensureAuthorId(): Promise<string> {
-    if (user?.id) return user.id;
-    const guest = await createGuest("Creador");
-    return guest.id;
+  function requireAuthorId(): string | null {
+    if (isLoggedIn && user) return user.id;
+    setAuthMessage(LOGIN_REQUIRED_MESSAGE);
+    setIsAuthModalOpen(true);
+    return null;
   }
 
   async function handleSaveDraft() {
+    const authorId = requireAuthorId();
+    if (!authorId) return;
+
     setIsSaving(true);
     setStatusMessage(null);
     try {
-      const authorId = await ensureAuthorId();
       const payload = {
         slug: gameData.slug,
         title: gameData.title,
@@ -129,11 +138,11 @@ export default function GameEditor() {
       };
 
       if (gameId) {
-        const res = await updateGame(gameId, payload, authorId);
+        const res = await updateGame(gameId, payload, authorId, token ?? undefined);
         setStatusMessage({ text: "¡Borrador actualizado con éxito!", type: "success" });
         if (res.game?.id) setGameId(res.game.id);
       } else {
-        const res = await createGame(payload, authorId);
+        const res = await createGame(payload, authorId, token ?? undefined);
         setStatusMessage({ text: "¡Borrador creado con éxito!", type: "success" });
         if (res.game?.id) {
           setGameId(res.game.id);
@@ -150,6 +159,9 @@ export default function GameEditor() {
   }
 
   async function handlePublish() {
+    const authorId = requireAuthorId();
+    if (!authorId) return;
+
     if (!isValid) {
       setStatusMessage({
         text: "No podés publicar un juego con errores de validación. Revisá los campos requeridos.",
@@ -162,7 +174,7 @@ export default function GameEditor() {
     setIsPublishing(true);
     setStatusMessage(null);
     try {
-      const authorId = await ensureAuthorId();
+      const authToken = token ?? undefined;
 
       // Ensure game is saved first if no id
       let targetId = gameId;
@@ -175,7 +187,8 @@ export default function GameEditor() {
             deckConfig: gameData.deckConfig,
             rules: gameData.rules,
           },
-          authorId
+          authorId,
+          authToken
         );
         targetId = createRes.game?.id;
         if (targetId) setGameId(targetId);
@@ -189,13 +202,14 @@ export default function GameEditor() {
             deckConfig: gameData.deckConfig,
             rules: gameData.rules,
           },
-          authorId
+          authorId,
+          authToken
         );
       }
 
       if (!targetId) throw new Error("No se pudo obtener el identificador del juego");
 
-      await publishGame(targetId, authorId);
+      await publishGame(targetId, authorId, authToken);
       setIsPublished(true);
       setStatusMessage({
         text: "¡Juego publicado en la comunidad! Ya está disponible en Explorar y listo para jugar en línea.",
@@ -258,6 +272,50 @@ export default function GameEditor() {
     }
   }
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-16 text-ink-faint text-xs">
+        <Icon icon="pixelarticons:loader" className="animate-spin mb-2" width={28} height={28} />
+        <span>Cargando editor...</span>
+      </div>
+    );
+  }
+
+  if (!isLoggedIn || !user || user.isAnonymous) {
+    return (
+      <div className="flex flex-col items-center justify-center px-4 py-12 md:py-16 max-w-lg mx-auto w-full text-center">
+        <div className="w-16 h-16 rounded-2xl border-2 border-accent/50 bg-accent/15 flex items-center justify-center text-accent shadow-[0_0_24px_rgba(255,210,63,0.3)] mb-4">
+          <Icon icon="pixelarticons:lock" width={32} height={32} />
+        </div>
+        <h1 className="font-display font-black text-xl md:text-2xl text-ink">
+          Acceso exclusivo para creadores
+        </h1>
+        <p className="text-xs md:text-sm text-ink-faint mt-2 mb-6 max-w-sm">
+          Los juegos personalizados solo pueden ser creados por usuarios registrados previamente.
+          Iniciá sesión o registrate para diseñar cartas, configurar reglas y publicar en la comunidad.
+        </p>
+
+        {user?.isAnonymous && (
+          <div className="mb-6 w-full rounded border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs text-warning flex items-center gap-2.5 text-left">
+            <Icon icon="pixelarticons:info-box" width={18} height={18} className="shrink-0" />
+            <span>
+              Actualmente estás jugando como invitado (<strong>{user.name}</strong>). Creá tu cuenta o iniciá sesión para desbloquear el editor.
+            </span>
+          </div>
+        )}
+
+        <div className="w-full max-w-sm rounded-[6px] border-2 border-subtle bg-statusbar/90 p-5 shadow-[4px_6px_0_0_rgba(0,0,0,0.35)] text-left">
+          <AuthForm
+            initialTab="login"
+            onSuccess={() => {
+              setStatusMessage(null);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full px-4 md:px-8 pt-6 md:pt-10 pb-28 md:pb-36">
       {/* Header bar */}
@@ -290,6 +348,25 @@ export default function GameEditor() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {isLoggedIn && user ? (
+            <span className="flex items-center gap-1.5 rounded-xl border border-success/40 bg-success/10 px-3 py-2 text-xs font-bold text-success">
+              <Icon icon="pixelarticons:user" width={16} height={16} />
+              Creador: {user.name}
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMessage(LOGIN_REQUIRED_MESSAGE);
+                setIsAuthModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 rounded-xl border border-accent/40 bg-accent/15 px-3 py-2 text-xs font-bold text-accent hover:bg-accent/25 transition-colors cursor-pointer"
+            >
+              <Icon icon="pixelarticons:login" width={16} height={16} />
+              Iniciar sesión
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setIsForkModalOpen(true)}
@@ -599,6 +676,19 @@ export default function GameEditor() {
           </Link>
         </div>
       </div>
+
+      {/* Login / Register Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        message={authMessage ?? undefined}
+        onSuccess={() =>
+          setStatusMessage({
+            text: "¡Sesión iniciada! Ya podés guardar y publicar tus juegos.",
+            type: "success",
+          })
+        }
+      />
 
       {/* JSON Inspection Modal */}
       <JsonModal
