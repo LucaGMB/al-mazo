@@ -1227,7 +1227,8 @@ export class ModularGameEngine extends GameEngine {
         bot.hand,
         this.getTopDiscardCard(),
         this.activeColor,
-        this.definition.rules
+        this.definition.rules,
+        this.pendingDrawCount
       );
       if (move) {
         this.playCard(botId, move.cardId, move.chosenColor);

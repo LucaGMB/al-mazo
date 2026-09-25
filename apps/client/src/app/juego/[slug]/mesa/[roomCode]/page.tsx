@@ -732,11 +732,17 @@ export default function MesaPage() {
               </div>
             ) : (
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center gap-5 md:gap-8 pointer-events-auto">
-                <DrawPile count={publicState.drawPileCount} disabled={!canAct} onClick={handleDraw} />
+                <DrawPile
+                  count={publicState.drawPileCount}
+                  disabled={!canAct}
+                  onClick={handleDraw}
+                  pendingDrawCount={publicState.pendingDrawCount}
+                />
                 <DiscardPile
                   topCard={publicState.topDiscardCard}
                   count={publicState.discardPileCount}
                   activeColor={publicState.activeColor}
+                  pendingDrawCount={publicState.pendingDrawCount}
                 />
               </div>
             )}

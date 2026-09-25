@@ -58,13 +58,14 @@ export function decideBotMove(
   hand: Card[],
   topDiscardCard: Card | null,
   activeColor: string | null,
-  rules: GameRulesConfig
+  rules: GameRulesConfig,
+  pendingDrawCount = 0
 ): BotMove | null {
   let best: Card | null = null;
   let bestPriority = -1;
 
   for (const card of hand) {
-    if (!validateCardPlay(card, topDiscardCard, activeColor, rules).isValid) continue;
+    if (!validateCardPlay(card, topDiscardCard, activeColor, rules, pendingDrawCount).isValid) continue;
     const cardPriority = priority(card);
     if (cardPriority > bestPriority) {
       best = card;

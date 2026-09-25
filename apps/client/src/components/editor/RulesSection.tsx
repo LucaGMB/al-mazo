@@ -8,6 +8,11 @@ interface RulesSectionProps {
   targetScore?: number;
   matchingProperties: Array<"color" | "value">;
   allowWildOnAny: boolean;
+  drawStack?: {
+    rule: "OFF" | "SAME_TYPE" | "HIGHER_OR_EQUAL" | "ALL";
+    endsTurnOnDraw?: boolean;
+    allowAnyColorDraw2OnDraw4?: boolean;
+  };
   activeZones: ZoneDefinition[];
   phases: PhaseDefinition[];
   onChange: (fields: Partial<{
@@ -15,10 +20,38 @@ interface RulesSectionProps {
     targetScore?: number;
     matchingProperties: Array<"color" | "value">;
     allowWildOnAny: boolean;
+    drawStack?: {
+      rule: "OFF" | "SAME_TYPE" | "HIGHER_OR_EQUAL" | "ALL";
+      endsTurnOnDraw?: boolean;
+      allowAnyColorDraw2OnDraw4?: boolean;
+    };
     activeZones: ZoneDefinition[];
     phases: PhaseDefinition[];
   }>) => void;
 }
+
+const DRAW_STACK_MODES = [
+  {
+    rule: "ALL" as const,
+    label: "Todo acumulable",
+    desc: "+2 y +4 combinables entre sí de cualquier forma",
+  },
+  {
+    rule: "SAME_TYPE" as const,
+    label: "Mismo tipo",
+    desc: "+2 solo sobre +2, +4 solo sobre +4",
+  },
+  {
+    rule: "HIGHER_OR_EQUAL" as const,
+    label: "Igual o mayor",
+    desc: "+4 contrarresta +2 o +4; +2 solo sobre +2",
+  },
+  {
+    rule: "OFF" as const,
+    label: "Desactivado",
+    desc: "Sin acumulación, el siguiente jugador roba de inmediato",
+  },
+];
 
 const ACTION_OPTIONS = [
   { id: "PLAY_CARD", label: "Jugar Carta", desc: "Bajar carta a la mesa o descarte" },
@@ -46,11 +79,15 @@ export default function RulesSection({
   targetScore,
   matchingProperties,
   allowWildOnAny,
+  drawStack,
   activeZones,
   phases,
   onChange,
 }: RulesSectionProps) {
   const currentActions = phases[0]?.allowedActions || ["PLAY_CARD", "DRAW_CARD", "PASS_TURN"];
+  const currentStackRule = drawStack?.rule ?? "ALL";
+  const currentEndsTurn = drawStack?.endsTurnOnDraw ?? true;
+  const currentAllowAnyColor = drawStack?.allowAnyColorDraw2OnDraw4 ?? true;
 
   function toggleAction(actionId: string) {
     const nextActions = currentActions.includes(actionId)
@@ -211,6 +248,110 @@ export default function RulesSection({
             </div>
           </label>
         </div>
+      </div>
+
+      {/* Acumulación de Cartas de Robo */}
+      <div className="rounded-xl border border-subtle bg-app/60 p-4 flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-xs font-bold text-ink">Acumulación de Cartas de Robo (+2 / +4)</div>
+            <p className="text-[11px] text-ink-faint">
+              Permite a los jugadores responder a un castigo jugando otra carta de robo
+            </p>
+          </div>
+          <span className="text-xs font-bold text-accent font-mono uppercase">
+            {currentStackRule}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+          {DRAW_STACK_MODES.map((mode) => {
+            const isSelected = currentStackRule === mode.rule;
+            return (
+              <button
+                key={mode.rule}
+                type="button"
+                onClick={() =>
+                  onChange({
+                    drawStack: {
+                      rule: mode.rule,
+                      endsTurnOnDraw: currentEndsTurn,
+                      allowAnyColorDraw2OnDraw4: currentAllowAnyColor,
+                    },
+                  })
+                }
+                className={`flex flex-col text-left p-3 rounded-lg border transition-all cursor-pointer ${
+                  isSelected
+                    ? "border-accent bg-accent/10 shadow-[0_0_12px_rgba(255,210,63,0.2)] text-ink"
+                    : "border-subtle bg-statusbar/40 text-ink-faint hover:border-medium hover:text-ink"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-black text-ink">{mode.label}</span>
+                  <Icon
+                    icon={isSelected ? "pixelarticons:check" : "pixelarticons:chevron-right"}
+                    width={14}
+                    height={14}
+                    className={isSelected ? "text-accent" : "text-ink-faint"}
+                  />
+                </div>
+                <p className="text-[10px] text-ink-faint leading-tight">{mode.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        {currentStackRule !== "OFF" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-subtle/50">
+            <label className="flex items-center gap-2.5 rounded-lg border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+              <input
+                type="checkbox"
+                checked={currentEndsTurn}
+                onChange={(e) =>
+                  onChange({
+                    drawStack: {
+                      rule: currentStackRule,
+                      endsTurnOnDraw: e.target.checked,
+                      allowAnyColorDraw2OnDraw4: currentAllowAnyColor,
+                    },
+                  })
+                }
+                className="w-4 h-4 accent-accent rounded cursor-pointer"
+              />
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-ink">Fin de turno al robar pozo</span>
+                <span className="text-[10px] text-ink-faint">
+                  Si no puede contrarrestar, roba todo el pozo y su turno termina
+                </span>
+              </div>
+            </label>
+
+            {currentStackRule === "ALL" && (
+              <label className="flex items-center gap-2.5 rounded-lg border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+                <input
+                  type="checkbox"
+                  checked={currentAllowAnyColor}
+                  onChange={(e) =>
+                    onChange({
+                      drawStack: {
+                        rule: currentStackRule,
+                        endsTurnOnDraw: currentEndsTurn,
+                        allowAnyColorDraw2OnDraw4: e.target.checked,
+                      },
+                    })
+                  }
+                  className="w-4 h-4 accent-accent rounded cursor-pointer"
+                />
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-ink">+2 comodín sobre +4</span>
+                  <span className="text-[10px] text-ink-faint">
+                    Permite responder a un +4 con un +2 de cualquier color
+                  </span>
+                </div>
+              </label>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Zonas de la Mesa */}

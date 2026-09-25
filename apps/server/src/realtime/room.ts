@@ -31,8 +31,16 @@ export class GameRoom {
     this.disconnectGraceSeconds = options?.disconnectGraceSeconds ?? 60;
     this.disconnectPolicy = options?.disconnectPolicy ?? 'DISCARD_AND_CONTINUE';
     this.turnTimeoutSeconds = options?.turnTimeoutSeconds ?? 25;
-    this.definition = definition;
-    this.engine = new ModularGameEngine(definition);
+    const effectiveRules = {
+      ...definition.rules,
+      ...(options?.drawStack ? { drawStack: options.drawStack } : {}),
+    };
+    const effectiveDefinition = {
+      ...definition,
+      rules: effectiveRules,
+    };
+    this.definition = effectiveDefinition;
+    this.engine = new ModularGameEngine(effectiveDefinition);
 
     this.addPlayer(hostPlayer.id, hostPlayer.name, hostPlayer.socketId, hostPlayer.reconnectToken);
   }

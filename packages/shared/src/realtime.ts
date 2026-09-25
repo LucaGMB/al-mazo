@@ -1,4 +1,4 @@
-import type { Card, PublicGameState } from './engine.js';
+import type { Card, DrawStackConfig, PublicGameState } from './engine.js';
 
 export interface ChatMessage {
   id: string;
@@ -18,6 +18,7 @@ export interface RoomOptions {
   disconnectGraceSeconds?: number;
   disconnectPolicy?: DisconnectPolicy;
   turnTimeoutSeconds?: number;
+  drawStack?: DrawStackConfig;
 }
 
 export interface ClientToServerEvents {
@@ -104,6 +105,7 @@ export interface ServerToClientEvents {
   'player:left': (data: { playerId: string; name: string }) => void;
   'player:disconnected': (data: { playerId: string; graceSeconds: number }) => void;
   'player:reconnected': (data: { playerId: string }) => void;
+  'player:forced_draw': (data: { count: number; byName: string }) => void;
   'game:started': () => void;
   'game:finished': (data: { winnerId: string | null }) => void;
   'error:notification': (data: { message: string }) => void;
