@@ -1,0 +1,21 @@
+{
+  "name": "al-mazo-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:server": "pnpm --filter al-mazo-server dev",
+    "dev:client": "pnpm --filter al-mazo-client dev",
+    "dev": "pnpm --filter @al-mazo/shared build && pnpm --parallel --filter al-mazo-server --filter al-mazo-client dev",
+    "build:shared": "pnpm --filter @al-mazo/shared build",
+    "build:server": "pnpm --filter al-mazo-server build",
+    "build:client": "pnpm --filter al-mazo-client build",
+    "build": "pnpm --filter @al-mazo/shared build && pnpm -r --filter !@al-mazo/shared build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint"
+  },
+  "packageManager": "pnpm@11.1.3",
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+@theme {
+  --color-app: #14171a;
+  --color-surface: #23282c;
+  --color-statusbar: #181b1d;
+  --color-subtle: #373d41;
+  --color-medium: #5c6873;
+
+  --color-ink: #f0f3f5;
+  --color-ink-soft: #9ba5ac;
+  --color-ink-faint: #73818f;
+  --color-outline: #c8ced3;
+
+  --color-accent: #20a8d8;
+  --color-accent-hover: #1b8eb7;
+  --color-success: #4dbd74;
+  --color-warning: #ffc107;
+  --color-danger: #f86c6b;
+
+  --font-sans: var(--font-roboto), "Helvetica Neue", Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--color-app);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.85); opacity: 0; }
+  70% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(32,168,216,0.35)); }
+  50% { filter: drop-shadow(0 0 16px rgba(32,168,216,0.8)); }
+}
+
+@keyframes table-shake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-4px, 3px); }
+  40% { transform: translate(4px, -3px); }
+  60% { transform: translate(-3px, -2px); }
+  80% { transform: translate(3px, 1px); }
+}
+
+@keyframes deal-in {
+  0% { transform: translateY(60px) scale(0.7); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(320px) rotate(720deg); opacity: 0; }
+}
+
+@keyframes bubble-pop {
+  0% { opacity: 0; transform: scale(0.6) translateY(6px); }
+  15% { opacity: 1; transform: scale(1.05) translateY(0); }
+  25% { transform: scale(1); }
+  80% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-10px) scale(0.9); }
+}
+
+.animate-pop-in { animation: pop-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-float { animation: float-slow 3s ease-in-out infinite; }
+.animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+.animate-table-shake { animation: table-shake 0.35s ease-in-out; }
+.animate-deal-in { animation: deal-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-bubble-pop { animation: bubble-pop 2.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }

@@ -1,0 +1,98 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum MatchMode {
+  ONLINE_ROOM
+  LOCAL_OFFLINE
+}
+
+model User {
+  id            String             @id @default(uuid())
+  email         String?            @unique
+  name          String?
+  avatarUrl     String?
+  passwordHash  String?
+  role          String             @default("USER")
+  isAnonymous   Boolean            @default(false)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  createdGames  GameDefinition[]
+  participations MatchParticipant[]
+  stats         PlayerStat[]
+
+  @@map("users")
+}
+
+model GameDefinition {
+  id          String             @id @default(uuid())
+  slug        String             @unique
+  title       String
+  description String
+  minPlayers  Int                @default(2)
+  maxPlayers  Int                @default(8)
+  isOfficial  Boolean            @default(false)
+  isPublished Boolean            @default(false)
+  status      String             @default("DRAFT")
+  version     Int                @default(1)
+  tags        String[]           @default([])
+  authorId    String?
+  author      User?              @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  // Declarative JSON schema containing rules, deck config, actions, and effects
+  schemaJson  Json
+
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  matches     Match[]
+
+  @@map("game_definitions")
+}
+
+model Match {
+  id           String             @id @default(uuid())
+  gameId       String
+  game         GameDefinition     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  mode         MatchMode
+  startedAt    DateTime
+  endedAt      DateTime           @default(now())
+  durationSec  Int
+  winnerId     String?
+  metadataJson Json?
+
+  participants MatchParticipant[]
+
+  @@map("matches")
+}
+
+model MatchParticipant {
+  id       String   @id @default(uuid())
+  matchId  String
+  match    Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId   String?
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name     String
+  isWinner Boolean  @default(false)
+  score    Int      @default(0)
+
+  @@map("match_participants")
+}
+
+model PlayerStat {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameSlug      String
+  matchesPlayed Int      @default(0)
+  matchesWon    Int      @default(0)
+
+  @@unique([userId, gameSlug])
+  @@map("player_stats")
+}

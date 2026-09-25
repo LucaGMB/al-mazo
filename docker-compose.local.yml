@@ -1,0 +1,91 @@
+services:
+  gateway:
+    image: nginx:alpine
+    container_name: al-mazo-gateway-local
+    restart: unless-stopped
+    ports:
+      - "1072:80"
+    volumes:
+      - ./docker/nginx-local.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      server:
+        condition: service_started
+      client:
+        condition: service_started
+    networks:
+      - almazo-net
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: al-mazo-postgres-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: al_mazo_db
+    volumes:
+      - postgres_local_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d al_mazo_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - almazo-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: al-mazo-redis-local
+    restart: unless-stopped
+    volumes:
+      - redis_local_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - almazo-net
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: al-mazo-server-local
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/al_mazo_db?schema=public
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGIN: "*"
+      AUTH_SECRET: local-jwt-secret-key-1072
+    networks:
+      - almazo-net
+
+  client:
+    build:
+      context: .
+      dockerfile: apps/client/Dockerfile
+    container_name: al-mazo-client-local
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    networks:
+      - almazo-net
+
+networks:
+  almazo-net:
+    driver: bridge
+
+volumes:
+  postgres_local_data:
+  redis_local_data:
