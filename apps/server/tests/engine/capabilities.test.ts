@@ -16,6 +16,8 @@ const EXPECTED_ACTIONS = [
   'CALL_BET',
   'RESPOND_BET',
   'FOLD',
+  'REVEAL_CARD',
+  'END_GAME',
 ];
 
 const EXPECTED_CONDITIONS = [
@@ -35,6 +37,8 @@ const EXPECTED_EFFECTS = [
   'AWARD_POINTS',
   'CHANGE_PHASE',
   'RESET_ROUND',
+  'REVEAL_CARD',
+  'END_GAME',
 ];
 
 describe('Capabilities Registry', () => {

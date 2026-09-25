@@ -30,7 +30,8 @@ export class GameRoom {
     this.hostId = hostPlayer.id;
     this.disconnectGraceSeconds = options?.disconnectGraceSeconds ?? 60;
     this.disconnectPolicy = options?.disconnectPolicy ?? 'DISCARD_AND_CONTINUE';
-    this.turnTimeoutSeconds = options?.turnTimeoutSeconds ?? 25;
+    this.turnTimeoutSeconds =
+      options?.turnTimeoutSeconds ?? definition.rules.turnTimeoutSeconds ?? 25;
     const effectiveRules = {
       ...definition.rules,
       ...(options?.drawStack ? { drawStack: options.drawStack } : {}),
@@ -175,6 +176,9 @@ export class GameRoom {
 
   public startTurnTimer(onTimeout: () => void): void {
     this.clearTurnTimer();
+    // A turn timeout of 0 disables the inactivity auto-pass (conversation games
+    // where players answer at their own pace).
+    if (this.turnTimeoutSeconds <= 0) return;
     this.turnExpiresAt = Date.now() + this.turnTimeoutSeconds * 1000;
     this.turnTimer = setTimeout(() => {
       this.clearTurnTimer();

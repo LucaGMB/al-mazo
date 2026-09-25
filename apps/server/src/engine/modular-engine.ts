@@ -206,12 +206,26 @@ export class ModularGameEngine extends GameEngine {
   }
 
   /**
+   * Prompt games reveal public cards instead of playing a hand; they are
+   * detected by the REVEAL_CARD action declared in their phases.
+   */
+  public isPromptGame(): boolean {
+    return Boolean(
+      this.definition.rules.phases?.some((phase) =>
+        phase.allowedActions.includes('REVEAL_CARD')
+      )
+    );
+  }
+
+  /**
    * Explains to the client which table layout/flow corresponds to this game.
    * Never infer this on the client from optional state fields: an empty
    * `tableCards` array is still truthy and made every game render as Escoba.
    */
   public get gameMode(): GameMode {
+    if (this.definition.rules.gameMode) return this.definition.rules.gameMode;
     if (this.isRoundTrickGame) return 'TRICK';
+    if (this.isPromptGame()) return 'PROMPT';
     if (this.isCommunityGame()) return 'COMMUNITY';
     return 'DISCARD';
   }
@@ -1675,6 +1689,23 @@ export class ModularGameEngine extends GameEngine {
         this.resetRound();
         return null;
 
+      case 'REVEAL_CARD': {
+        const revealed = this.deckManager.draw();
+        if (!revealed) return null;
+        this.discardPile.push(revealed);
+        if (revealed.color && revealed.color !== 'ANY') {
+          this.activeColor = revealed.color;
+        }
+        return revealed;
+      }
+
+      case 'END_GAME': {
+        const winner = String(params.winner ?? payload.winner ?? 'NONE').toUpperCase();
+        this.status = 'FINISHED';
+        this.winnerId = winner === 'ACTOR' ? actorId : null;
+        return { winnerId: this.winnerId };
+      }
+
       case 'SCORE_ENVIDO': {
         const callerId = this.envidoState.callerId;
         const challengedId = this.envidoState.challengedId;
@@ -1970,6 +2001,9 @@ export class ModularGameEngine extends GameEngine {
         const player = this.players.find((p) => p.id === playerId);
         return !!player && player.hand.length >= Number(condition.params?.min ?? 1);
       }
+
+      case 'HAS_DRAW_PILE_CARDS':
+        return this.deckManager.count > 0;
 
       case 'EVALUATE_CARD_HIERARCHY': {
         const hierarchy = this.definition.rules.cardHierarchy;

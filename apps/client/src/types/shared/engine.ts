@@ -14,8 +14,9 @@ export type TurnDirection = 1 | -1;
  * - TRICK: bazas + apuestas (truco) → cada jugador juega a la mesa central.
  * - COMMUNITY: cartas comunitarias que se capturan (escoba del 15).
  * - DISCARD: robo/descarte clásico (color-match/UNO, chinchón, descarte criollo).
+ * - PROMPT: preguntas reveladas en público, sin manos (desconectados).
  */
-export type GameMode = 'TRICK' | 'COMMUNITY' | 'DISCARD';
+export type GameMode = 'TRICK' | 'COMMUNITY' | 'DISCARD' | 'PROMPT';
 
 export interface Card {
   id: string;
@@ -78,6 +79,10 @@ export interface GameRulesConfig {
   customState?: Record<string, unknown>;
   targetScore?: number;
   roundScoring?: Record<string, unknown>;
+  /** Optional explicit table layout; when omitted the engine derives it. */
+  gameMode?: GameMode;
+  /** Seconds before the server auto-passes a human turn. 0 disables the timer. */
+  turnTimeoutSeconds?: number;
 }
 
 export interface GameSchemaDefinition {

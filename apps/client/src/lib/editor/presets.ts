@@ -43,13 +43,15 @@ export interface GameDefinitionData {
       allowAnyColorDraw2OnDraw4?: boolean;
     };
     winCondition: {
-      type: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING";
+      type: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE";
       targetScore?: number;
     };
     zones?: ZoneDefinition[];
     phases?: PhaseDefinition[];
     cardHierarchy?: Record<string, number>;
     targetScore?: number;
+    turnTimeoutSeconds?: number;
+    gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT";
     effects?: Record<string, { type: string; params?: Record<string, unknown> }>;
   };
 }
