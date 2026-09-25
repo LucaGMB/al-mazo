@@ -96,6 +96,42 @@ export const BUILTIN_ACTIONS: ActionDefinition[] = [
     requiredConditions: [{ type: 'IS_ACTIVE_PLAYER' }, { type: 'CAN_CALL_TRUCO' }],
   },
   {
+    id: 'EL_ENVIDO_ESTA_PRIMERO',
+    name: 'El Envido está primero',
+    description: 'Cantar envido en respuesta a un truco cantado en primera mano.',
+    requiredConditions: [{ type: 'CAN_CALL_ENVIDO' }],
+  },
+  {
+    id: 'CALL_FLOR',
+    name: 'Cantar Flor',
+    description: 'Declarar tener 3 cartas del mismo palo (3 puntos o desafío).',
+    requiredConditions: [{ type: 'CAN_CALL_FLOR' }],
+  },
+  {
+    id: 'CALL_CONTRA_FLOR',
+    name: 'Cantar Contraflor',
+    description: 'Redoblar el desafío de flor a 6 puntos.',
+    requiredConditions: [{ type: 'CAN_CALL_CONTRA_FLOR' }],
+  },
+  {
+    id: 'CALL_CONTRA_FLOR_AL_RESTO',
+    name: 'Contraflor al Resto',
+    description: 'Desafiar la flor por los puntos restantes para ganar el chico.',
+    requiredConditions: [{ type: 'CAN_CALL_CONTRA_FLOR' }],
+  },
+  {
+    id: 'CON_FLOR_QUIERO',
+    name: 'Con Flor Quiero',
+    description: 'Aceptar el envite de flor rival (4 o 6 puntos al ganador).',
+    requiredConditions: [{ type: 'IS_BET_PENDING' }],
+  },
+  {
+    id: 'CON_FLOR_ME_ACHICO',
+    name: 'Con Flor Me Achico',
+    description: 'Rechazar el envite de flor rival otorgando los puntos de rechazo.',
+    requiredConditions: [{ type: 'IS_BET_PENDING' }],
+  },
+  {
     id: 'QUIERO',
     name: 'Quiero',
     description: 'Aceptar la apuesta o envite en curso.',
@@ -120,6 +156,8 @@ export const BUILTIN_CONDITIONS: Array<{ type: ConditionType; description: strin
   { type: 'IS_BET_PENDING', description: 'A bet is awaiting a response.' },
   { type: 'CAN_CALL_ENVIDO', description: 'Envido can only be called in trick 1 while available.' },
   { type: 'CAN_CALL_TRUCO', description: 'Truco can only be called or raised by the player with turn or privilege.' },
+  { type: 'CAN_CALL_FLOR', description: 'Flor can be called in trick 1 if player holds 3 cards of same suit.' },
+  { type: 'CAN_CALL_CONTRA_FLOR', description: 'Contraflor can be called when challenged to Flor.' },
 ];
 
 export const BUILTIN_EFFECTS: Array<{ type: EffectType; description: string }> = [
@@ -129,6 +167,7 @@ export const BUILTIN_EFFECTS: Array<{ type: EffectType; description: string }> =
   { type: 'SET_ACTIVE_COLOR', description: 'Override the active matching color.' },
   { type: 'RESOLVE_TRICK', description: 'Score the cards currently on the trick table and determine trick winner or parda.' },
   { type: 'SCORE_ENVIDO', description: 'Calculates envido points and awards them to the highest hand or mano on tie.' },
+  { type: 'SCORE_FLOR', description: 'Calculates flor points and awards them to the highest hand or mano on tie.' },
   { type: 'RESOLVE_BET', description: 'Resolves an accepted or rejected bet and updates current stakes.' },
   { type: 'AWARD_POINTS', description: 'Add points to a player score.' },
   { type: 'CHANGE_PHASE', description: 'Transition to another game phase.' },

@@ -213,6 +213,178 @@ describe('TrucoEngine', () => {
     });
   });
 
+  describe('Flor Mechanics', () => {
+    it('awards 3 points automatically for solo Flor and cancels Envido', () => {
+      (engine as any).players[0].hand = [
+        c('1', 'ESPADAS', 'c1'),
+        c('7', 'ESPADAS', 'c2'),
+        c('4', 'ESPADAS', 'c3'),
+      ]; // Flor de espadas
+      (engine as any).players[1].hand = [
+        c('1', 'BASTOS', 'c4'),
+        c('7', 'OROS', 'c5'),
+        c('4', 'COPAS', 'c6'),
+      ]; // No flor
+
+      const res = engine.executeAction('p1', 'CALL_FLOR');
+      expect(res.success).toBe(true);
+
+      const state = engine.getPublicState();
+      expect(state.scores?.p1).toBe(3);
+      expect((state.customState as any).flor.state).toBe('RESOLVED');
+      expect((state.customState as any).envido.state).toBe('DISABLED');
+    });
+
+    it('handles Flor vs Flor when both have Flor: 4 points if accepted with Con Flor Quiero', () => {
+      // P1: 7, 6, 5 de Espadas (38 flor)
+      (engine as any).players[0].hand = [
+        c('7', 'ESPADAS', 'c1'),
+        c('6', 'ESPADAS', 'c2'),
+        c('5', 'ESPADAS', 'c3'),
+      ];
+      // P2: 4, 5, 6 de Bastos (35 flor)
+      (engine as any).players[1].hand = [
+        c('4', 'BASTOS', 'c4'),
+        c('5', 'BASTOS', 'c5'),
+        c('6', 'BASTOS', 'c6'),
+      ];
+
+      engine.executeAction('p1', 'CALL_FLOR');
+      const stateCall = engine.getPublicState();
+      expect((stateCall.customState as any).flor.state).toBe('PENDING');
+      expect(stateCall.currentTurnPlayerId).toBe('p2');
+
+      const res = engine.executeAction('p2', 'CON_FLOR_QUIERO');
+      expect(res.success).toBe(true);
+
+      const state = engine.getPublicState();
+      expect(state.scores?.p1).toBe(4); // P1 had 38 vs P2 35 -> P1 wins 4 points
+      expect((state.customState as any).flor.state).toBe('RESOLVED');
+    });
+
+    it('awards 3 points to caller when rival says Con Flor Me Achico', () => {
+      (engine as any).players[0].hand = [
+        c('7', 'ESPADAS', 'c1'),
+        c('6', 'ESPADAS', 'c2'),
+        c('5', 'ESPADAS', 'c3'),
+      ];
+      (engine as any).players[1].hand = [
+        c('4', 'BASTOS', 'c4'),
+        c('5', 'BASTOS', 'c5'),
+        c('6', 'BASTOS', 'c6'),
+      ];
+
+      engine.executeAction('p1', 'CALL_FLOR');
+      const res = engine.executeAction('p2', 'CON_FLOR_ME_ACHICO');
+      expect(res.success).toBe(true);
+
+      const state = engine.getPublicState();
+      expect(state.scores?.p1).toBe(3);
+      expect((state.customState as any).flor.state).toBe('REJECTED');
+    });
+
+    it('handles Contraflor: 6 points if accepted, 4 points if refused', () => {
+      (engine as any).players[0].hand = [
+        c('7', 'ESPADAS', 'c1'),
+        c('6', 'ESPADAS', 'c2'),
+        c('5', 'ESPADAS', 'c3'), // 38 flor
+      ];
+      (engine as any).players[1].hand = [
+        c('7', 'BASTOS', 'c4'),
+        c('6', 'BASTOS', 'c5'),
+        c('4', 'BASTOS', 'c6'), // 37 flor
+      ];
+
+      engine.executeAction('p1', 'CALL_FLOR');
+      engine.executeAction('p2', 'CALL_CONTRA_FLOR');
+
+      const stateContra = engine.getPublicState();
+      expect((stateContra.customState as any).flor.pointsAtStake).toBe(6);
+      expect((stateContra.customState as any).flor.pointsIfRefused).toBe(4);
+
+      engine.executeAction('p1', 'CON_FLOR_QUIERO');
+
+      const state = engine.getPublicState();
+      expect(state.scores?.p1).toBe(6);
+    });
+  });
+
+  describe('El Envido está primero', () => {
+    it('pauses Truco challenge on Envido call in trick 1, resolves Envido, then resumes Truco response', () => {
+      // P1: 7 espada, 6 espada, 1 copa (33 envido)
+      (engine as any).players[0].hand = [
+        c('7', 'ESPADAS', 'c1'),
+        c('6', 'ESPADAS', 'c2'),
+        c('1', 'COPAS', 'c3'),
+      ];
+      // P2: 4 bastos, 5 bastos, 2 oros (29 envido)
+      (engine as any).players[1].hand = [
+        c('4', 'BASTOS', 'c4'),
+        c('5', 'BASTOS', 'c5'),
+        c('2', 'OROS', 'c6'),
+      ];
+
+      // P1 shouts TRUCO in trick 1
+      engine.executeAction('p1', 'CALL_TRUCO');
+      expect((engine.getPublicState().customState as any).truco.state).toBe('PENDING');
+      expect(engine.getPublicState().currentTurnPlayerId).toBe('p2');
+
+      // P2 shouts "El Envido está primero"
+      const envidoRes = engine.executeAction('p2', 'EL_ENVIDO_ESTA_PRIMERO');
+      expect(envidoRes.success).toBe(true);
+
+      const stateAfterEnvidoCall = engine.getPublicState();
+      // Envido is pending for P1 to respond
+      expect((stateAfterEnvidoCall.customState as any).envido.state).toBe('PENDING');
+      expect(stateAfterEnvidoCall.currentTurnPlayerId).toBe('p1');
+
+      // P1 accepts Envido: "Quiero"
+      engine.executeAction('p1', 'QUIERO');
+
+      const stateAfterEnvidoResolved = engine.getPublicState();
+      // P1 won Envido (33 vs 29) -> +2 pts
+      expect(stateAfterEnvidoResolved.scores?.p1).toBe(2);
+      expect((stateAfterEnvidoResolved.customState as any).envido.state).toBe('RESOLVED');
+
+      // NOW: Truco challenge resumes! It is P2's turn to answer P1's Truco
+      expect((stateAfterEnvidoResolved.customState as any).truco.state).toBe('PENDING');
+      expect(stateAfterEnvidoResolved.currentTurnPlayerId).toBe('p2');
+
+      // P2 accepts Truco: "Quiero"
+      engine.executeAction('p2', 'QUIERO');
+
+      const stateAfterTrucoResolved = engine.getPublicState();
+      expect((stateAfterTrucoResolved.customState as any).truco.state).toBe('RESOLVED');
+      expect((stateAfterTrucoResolved.customState as any).truco.points).toBe(2);
+      // Turn returns to P1 to play first card
+      expect(stateAfterTrucoResolved.currentTurnPlayerId).toBe('p1');
+    });
+
+    it('ends game immediately if Envido points reach targetScore during El Envido está primero', () => {
+      // Set P1 close to target score (targetScore = 30)
+      (engine as any).scores.p1 = 29;
+      (engine as any).players[0].hand = [
+        c('7', 'ESPADAS', 'c1'),
+        c('6', 'ESPADAS', 'c2'),
+        c('1', 'COPAS', 'c3'),
+      ]; // 33 envido
+      (engine as any).players[1].hand = [
+        c('4', 'BASTOS', 'c4'),
+        c('5', 'BASTOS', 'c5'),
+        c('2', 'OROS', 'c6'),
+      ];
+
+      engine.executeAction('p1', 'CALL_TRUCO');
+      engine.executeAction('p2', 'EL_ENVIDO_ESTA_PRIMERO');
+      engine.executeAction('p1', 'QUIERO');
+
+      const state = engine.getPublicState();
+      // P1 wins 2 points -> 31 >= 30 -> Game finished immediately!
+      expect(state.status).toBe('FINISHED');
+      expect(state.winnerId).toBe('p1');
+    });
+  });
+
   describe('Bot Execution', () => {
     it('bot automatically responds to envido and plays cards', () => {
       const botEngine = new TrucoEngine(trucoDefinition);

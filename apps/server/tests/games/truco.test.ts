@@ -133,9 +133,17 @@ describe('Truco Game Definition', () => {
 
     const envido = phases.find((p) => p.id === 'ENVIDO_PHASE');
     expect(envido?.allowedActions).toEqual([
+      'CALL_FLOR',
+      'CALL_CONTRA_FLOR',
+      'CALL_CONTRA_FLOR_AL_RESTO',
+      'CON_FLOR_QUIERO',
+      'CON_FLOR_ME_ACHICO',
       'CALL_ENVIDO',
       'CALL_REAL_ENVIDO',
       'CALL_FALTA_ENVIDO',
+      'EL_ENVIDO_ESTA_PRIMERO',
+      'QUIERO',
+      'NO_QUIERO',
       'RESPOND_BET',
       'FOLD',
     ]);

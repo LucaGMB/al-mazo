@@ -13,6 +13,10 @@ import { validateCardPlay } from './validator.js';
 import {
   calculateEnvidoPoints,
   calculateFaltaEnvidoPoints,
+  checkHasFlor,
+  calculateFlorPoints,
+  resolveFlorWinner,
+  calculateFlorBetPoints,
   getCardHierarchyValue,
   resolveTrickWinner,
   resolveRoundWinner,
@@ -37,6 +41,18 @@ export interface RoundTrickRecord {
   winnerId: string | 'EMPATE' | null;
 }
 
+export interface FlorState {
+  state: 'AVAILABLE' | 'PENDING' | 'RESOLVED' | 'REJECTED' | 'DISABLED';
+  currentCall: 'FLOR' | 'CONTRA_FLOR' | 'CONTRA_FLOR_AL_RESTO' | null;
+  callerId: string | null;
+  challengedId: string | null;
+  pointsAtStake: number;
+  pointsIfRefused: number;
+  winnerId: string | null;
+  pointsAwarded: number;
+  playersWithFlor: string[];
+}
+
 export interface EnvidoState {
   state: 'AVAILABLE' | 'PENDING' | 'RESOLVED' | 'REJECTED' | 'DISABLED';
   currentCall: 'ENVIDO' | 'REAL_ENVIDO' | 'FALTA_ENVIDO' | null;
@@ -58,6 +74,7 @@ export interface TrucoBetState {
   callerId: string | null;
   challengedId: string | null;
   lastCallerId: string | null;
+  savedPreBetTurnIndex?: number;
 }
 
 export interface TrucoCustomState {
@@ -67,10 +84,11 @@ export interface TrucoCustomState {
   currentTrick: number;
   roundTricks: RoundTrickRecord[];
   trickWins: Record<string, number>;
+  flor: FlorState;
   envido: EnvidoState;
   truco: TrucoBetState;
   pendingBet: {
-    type: 'ENVIDO' | 'TRUCO';
+    type: 'FLOR' | 'ENVIDO' | 'TRUCO';
     call: string;
     callerId: string;
     challengedId: string;
@@ -97,6 +115,21 @@ export class ModularGameEngine extends GameEngine {
   protected trickLeaderId: string | null = null;
   protected lastActionText = '';
   protected preBetTurnIndex = 0;
+
+  // Truco bet state that was paused because rival responded "El envido está primero"
+  protected savedTrucoBet: TrucoBetState | null = null;
+
+  protected florState: FlorState = {
+    state: 'AVAILABLE',
+    currentCall: null,
+    callerId: null,
+    challengedId: null,
+    pointsAtStake: 0,
+    pointsIfRefused: 0,
+    winnerId: null,
+    pointsAwarded: 0,
+    playersWithFlor: [],
+  };
 
   protected envidoState: EnvidoState = {
     state: 'AVAILABLE',
@@ -138,7 +171,7 @@ export class ModularGameEngine extends GameEngine {
     const rules = this.definition.rules;
     const hasTrickActions = rules.phases?.some((p) =>
       p.allowedActions.some((a) =>
-        ['CALL_ENVIDO', 'CALL_TRUCO', 'QUIERO', 'NO_QUIERO'].includes(a)
+        ['CALL_ENVIDO', 'CALL_TRUCO', 'CALL_FLOR', 'QUIERO', 'NO_QUIERO'].includes(a)
       )
     );
     const hasOnlyTrickZone =
@@ -193,8 +226,12 @@ export class ModularGameEngine extends GameEngine {
     this.deckManager.shuffle();
 
     const handSize = this.definition.rules.initialHandSize ?? 3;
+    const playersWithFlor: string[] = [];
     for (const p of this.players) {
       p.hand = this.deckManager.drawMultiple(handSize);
+      if (checkHasFlor(p.hand)) {
+        playersWithFlor.push(p.id);
+      }
     }
 
     this.currentTrick = 1;
@@ -205,6 +242,19 @@ export class ModularGameEngine extends GameEngine {
     this.trickLeaderId = manoPlayer?.id ?? null;
     this.preBetTurnIndex = this.manoIndex;
     this.currentPhase = this.phases?.[0]?.id ?? 'ENVIDO_PHASE';
+    this.savedTrucoBet = null;
+
+    this.florState = {
+      state: 'AVAILABLE',
+      currentCall: null,
+      callerId: null,
+      challengedId: null,
+      pointsAtStake: 0,
+      pointsIfRefused: 0,
+      winnerId: null,
+      pointsAwarded: 0,
+      playersWithFlor,
+    };
 
     this.envidoState = {
       state: 'AVAILABLE',
@@ -277,7 +327,16 @@ export class ModularGameEngine extends GameEngine {
     }
 
     let pendingBet = null;
-    if (this.envidoState.state === 'PENDING') {
+    if (this.florState.state === 'PENDING') {
+      pendingBet = {
+        type: 'FLOR' as const,
+        call: this.florState.currentCall ?? 'FLOR',
+        callerId: this.florState.callerId!,
+        challengedId: this.florState.challengedId!,
+        pointsAtStake: this.florState.pointsAtStake,
+        pointsIfRefused: this.florState.pointsIfRefused,
+      };
+    } else if (this.envidoState.state === 'PENDING') {
       pendingBet = {
         type: 'ENVIDO' as const,
         call: this.envidoState.currentCall ?? 'ENVIDO',
@@ -304,6 +363,7 @@ export class ModularGameEngine extends GameEngine {
       currentTrick: this.currentTrick,
       roundTricks: this.roundTricks,
       trickWins,
+      flor: { ...this.florState },
       envido: { ...this.envidoState },
       truco: { ...this.trucoState },
       pendingBet,
@@ -332,6 +392,7 @@ export class ModularGameEngine extends GameEngine {
       scores: { ...this.scores },
       customState: customState as unknown as Record<string, unknown>,
       activeBets: {
+        flor: this.florState,
         envido: this.envidoState,
         truco: this.trucoState,
         ...this.activeBets,
@@ -389,7 +450,11 @@ export class ModularGameEngine extends GameEngine {
       throw new Error('Game is not in progress');
     }
 
-    if (this.envidoState.state === 'PENDING' || this.trucoState.state === 'PENDING') {
+    if (
+      this.florState.state === 'PENDING' ||
+      this.envidoState.state === 'PENDING' ||
+      this.trucoState.state === 'PENDING'
+    ) {
       throw new Error('Hay una apuesta pendiente que debe ser respondida primero');
     }
 
@@ -405,9 +470,10 @@ export class ModularGameEngine extends GameEngine {
 
     const [card] = currentPlayer.hand.splice(cardIndex, 1);
 
-    if (this.currentTrick === 1 && this.envidoState.state === 'AVAILABLE') {
-      if (this.trickCards.length === 1) {
-        this.envidoState.state = 'DISABLED';
+    if (this.currentTrick === 1) {
+      if (this.trickCards.length >= this.players.length - 1) {
+        if (this.envidoState.state === 'AVAILABLE') this.envidoState.state = 'DISABLED';
+        if (this.florState.state === 'AVAILABLE') this.florState.state = 'DISABLED';
       }
     }
 
@@ -510,6 +576,215 @@ export class ModularGameEngine extends GameEngine {
     return { winnerId: winner.playerId, points: 1 };
   }
 
+  /**
+   * Flor Handlers
+   */
+  protected handleCallFlor(playerId: string): { success: boolean; result?: unknown } {
+    if (this.currentTrick !== 1) {
+      throw new Error('La Flor solo se puede cantar en la primera baza');
+    }
+    const player = this.players.find((p) => p.id === playerId);
+    if (!player || !checkHasFlor(player.hand)) {
+      throw new Error('No tenés Flor (se requieren 3 cartas del mismo palo)');
+    }
+
+    // Singing flor disables envido
+    this.envidoState.state = 'DISABLED';
+
+    // If Truco was pending, suspend it
+    if (this.trucoState.state === 'PENDING') {
+      this.savedTrucoBet = {
+        ...this.trucoState,
+        savedPreBetTurnIndex: this.preBetTurnIndex,
+      };
+      this.trucoState.state = 'AVAILABLE';
+    }
+
+    const rival = this.players.find((p) => p.id !== playerId);
+    if (!rival) throw new Error('No rival found');
+
+    const rivalHasFlor = checkHasFlor(rival.hand);
+
+    if (!rivalHasFlor) {
+      // Flor solitaria: otorga 3 puntos automáticos
+      this.scores[playerId] = (this.scores[playerId] ?? 0) + 3;
+      this.florState = {
+        state: 'RESOLVED',
+        currentCall: 'FLOR',
+        callerId: playerId,
+        challengedId: rival.id,
+        pointsAtStake: 3,
+        pointsIfRefused: 3,
+        winnerId: playerId,
+        pointsAwarded: 3,
+        playersWithFlor: [playerId],
+      };
+      this.lastActionText = `¡${player.name} cantó FLOR! (+3 pts)`;
+
+      if (this.scores[playerId] >= this.targetScore) {
+        this.status = 'FINISHED';
+        this.winnerId = playerId;
+        return { success: true, result: { call: 'FLOR', points: 3, winnerId: playerId } };
+      }
+
+      if (this.savedTrucoBet) {
+        const savedPreBet = this.savedTrucoBet.savedPreBetTurnIndex;
+        this.trucoState = { ...this.savedTrucoBet };
+        this.savedTrucoBet = null;
+        if (savedPreBet !== undefined) {
+          this.preBetTurnIndex = savedPreBet;
+        }
+        this.currentTurnIndex = this.players.findIndex(
+          (p) => p.id === this.trucoState.challengedId
+        );
+        this.lastActionText += `. Ahora resta responder al ${this.trucoState.currentLevel}!`;
+      }
+
+      return { success: true, result: { call: 'FLOR', points: 3, winnerId: playerId } };
+    }
+
+    // Both players have Flor: starts Flor challenge
+    this.preBetTurnIndex = this.currentTurnIndex;
+    this.florState = {
+      state: 'PENDING',
+      currentCall: 'FLOR',
+      callerId: playerId,
+      challengedId: rival.id,
+      pointsAtStake: 4,
+      pointsIfRefused: 3,
+      winnerId: null,
+      pointsAwarded: 0,
+      playersWithFlor: [playerId, rival.id],
+    };
+
+    this.currentTurnIndex = this.players.findIndex((p) => p.id === rival.id);
+    this.lastActionText = `¡${player.name} cantó FLOR! ${rival.name} debe responder.`;
+    return { success: true, result: { call: 'FLOR', pointsAtStake: 4 } };
+  }
+
+  protected handleCallContraFlor(
+    playerId: string,
+    isAlResto = false
+  ): { success: boolean; result?: unknown } {
+    if (this.florState.state !== 'PENDING') {
+      throw new Error('Solo se puede cantar Contraflor ante un canto previo de Flor');
+    }
+    const rival = this.players.find((p) => p.id !== playerId);
+    if (!rival) throw new Error('No rival found');
+
+    const callType = isAlResto ? 'CONTRA_FLOR_AL_RESTO' : 'CONTRA_FLOR';
+    const { stake, refused } = calculateFlorBetPoints(
+      callType,
+      this.scores,
+      this.targetScore
+    );
+
+    this.florState.currentCall = callType;
+    this.florState.callerId = playerId;
+    this.florState.challengedId = rival.id;
+    this.florState.pointsAtStake = stake;
+    this.florState.pointsIfRefused = refused;
+
+    this.currentTurnIndex = this.players.findIndex((p) => p.id === rival.id);
+    const callerName = this.players.find((p) => p.id === playerId)?.name ?? 'Jugador';
+    this.lastActionText = `¡${callerName} cantó ${isAlResto ? 'CONTRAFLOR AL RESTO' : 'CONTRAFLOR'}!`;
+
+    return { success: true, result: { call: callType, pointsAtStake: stake } };
+  }
+
+  protected resolveFlorResponse(
+    playerId: string,
+    accept: boolean
+  ): { success: boolean; result?: unknown } {
+    const callerId = this.florState.callerId!;
+    const responder = this.players.find((p) => p.id === playerId);
+    const caller = this.players.find((p) => p.id === callerId);
+
+    if (accept) {
+      const p1 = this.players[0];
+      const p2 = this.players[1];
+      const flor1 = calculateFlorPoints(p1.hand);
+      const flor2 = calculateFlorPoints(p2.hand);
+      const manoId = this.players[this.manoIndex].id;
+
+      const { winnerId } = resolveFlorWinner(
+        { id: p1.id, points: flor1 },
+        { id: p2.id, points: flor2 },
+        manoId
+      );
+
+      const points = this.florState.pointsAtStake;
+      this.scores[winnerId] = (this.scores[winnerId] ?? 0) + points;
+
+      this.florState.state = 'RESOLVED';
+      this.florState.winnerId = winnerId;
+      this.florState.pointsAwarded = points;
+
+      const winnerPlayer = this.players.find((p) => p.id === winnerId);
+      this.lastActionText = `Flor querida: ${p1.name} (${flor1}) vs ${p2.name} (${flor2}). Ganó ${winnerPlayer?.name} (+${points} pts)`;
+
+      if (this.scores[winnerId] >= this.targetScore) {
+        this.status = 'FINISHED';
+        this.winnerId = winnerId;
+        return { success: true, result: { winnerId, points } };
+      }
+
+      if (this.savedTrucoBet) {
+        const savedPreBet = this.savedTrucoBet.savedPreBetTurnIndex;
+        this.trucoState = { ...this.savedTrucoBet };
+        this.savedTrucoBet = null;
+        if (savedPreBet !== undefined) {
+          this.preBetTurnIndex = savedPreBet;
+        }
+        this.currentTurnIndex = this.players.findIndex(
+          (p) => p.id === this.trucoState.challengedId
+        );
+        this.lastActionText += `. Ahora resta responder al ${this.trucoState.currentLevel}!`;
+        return { success: true, result: { winnerId, points } };
+      }
+
+      this.currentTurnIndex = this.preBetTurnIndex;
+      this.currentPhase = 'TRICK_PLAY';
+      return { success: true, result: { winnerId, points } };
+    } else {
+      const points = this.florState.pointsIfRefused;
+      this.scores[callerId] = (this.scores[callerId] ?? 0) + points;
+
+      this.florState.state = 'REJECTED';
+      this.florState.winnerId = callerId;
+      this.florState.pointsAwarded = points;
+
+      this.lastActionText = `${responder?.name} dijo: Con flor me achico. ${caller?.name} suma ${points} pt(s)`;
+
+      if (this.scores[callerId] >= this.targetScore) {
+        this.status = 'FINISHED';
+        this.winnerId = callerId;
+        return { success: true, result: { winnerId: callerId, points } };
+      }
+
+      if (this.savedTrucoBet) {
+        const savedPreBet = this.savedTrucoBet.savedPreBetTurnIndex;
+        this.trucoState = { ...this.savedTrucoBet };
+        this.savedTrucoBet = null;
+        if (savedPreBet !== undefined) {
+          this.preBetTurnIndex = savedPreBet;
+        }
+        this.currentTurnIndex = this.players.findIndex(
+          (p) => p.id === this.trucoState.challengedId
+        );
+        this.lastActionText += `. Ahora resta responder al ${this.trucoState.currentLevel}!`;
+        return { success: true, result: { winnerId: callerId, points } };
+      }
+
+      this.currentTurnIndex = this.preBetTurnIndex;
+      this.currentPhase = 'TRICK_PLAY';
+      return { success: true, result: { winnerId: callerId, points } };
+    }
+  }
+
+  /**
+   * Envido Handlers
+   */
   protected handleCallEnvido(
     playerId: string,
     callType: 'ENVIDO' | 'REAL_ENVIDO' | 'FALTA_ENVIDO'
@@ -523,6 +798,15 @@ export class ModularGameEngine extends GameEngine {
       this.envidoState.state === 'DISABLED'
     ) {
       throw new Error('El Envido ya no está disponible en esta ronda');
+    }
+
+    // "El Envido está primero": if rival shouted Truco in trick 1, suspend Truco bet!
+    if (this.trucoState.state === 'PENDING') {
+      this.savedTrucoBet = {
+        ...this.trucoState,
+        savedPreBetTurnIndex: this.preBetTurnIndex,
+      };
+      this.trucoState.state = 'AVAILABLE';
     }
 
     const rival = this.players.find((p) => p.id !== playerId);
@@ -590,6 +874,19 @@ export class ModularGameEngine extends GameEngine {
     accept: boolean,
     raise?: string
   ): { success: boolean; result?: unknown } {
+    if (this.florState.state === 'PENDING') {
+      if (this.florState.challengedId !== playerId) {
+        throw new Error('No es tu turno de responder a la Flor');
+      }
+      if (raise) {
+        const formatted = raise.startsWith('CALL_') ? raise.replace('CALL_', '') : raise;
+        if (formatted === 'CONTRA_FLOR') return this.handleCallContraFlor(playerId, false);
+        if (formatted === 'CONTRA_FLOR_AL_RESTO') return this.handleCallContraFlor(playerId, true);
+        throw new Error(`Canto no válido para subir flor: ${raise}`);
+      }
+      return this.resolveFlorResponse(playerId, accept);
+    }
+
     if (this.envidoState.state === 'PENDING') {
       if (this.envidoState.challengedId !== playerId) {
         throw new Error('No es tu turno de responder al Envido');
@@ -671,6 +968,21 @@ export class ModularGameEngine extends GameEngine {
         return { success: true, result: { winnerId: envidoWinnerId, points } };
       }
 
+      // Check if Truco was suspended by "El Envido está primero"
+      if (this.savedTrucoBet) {
+        const savedPreBet = this.savedTrucoBet.savedPreBetTurnIndex;
+        this.trucoState = { ...this.savedTrucoBet };
+        this.savedTrucoBet = null;
+        if (savedPreBet !== undefined) {
+          this.preBetTurnIndex = savedPreBet;
+        }
+        this.currentTurnIndex = this.players.findIndex(
+          (p) => p.id === this.trucoState.challengedId
+        );
+        this.lastActionText += `. Ahora resta responder al ${this.trucoState.currentLevel}!`;
+        return { success: true, result: { winnerId: envidoWinnerId, points, playerTantos } };
+      }
+
       this.currentTurnIndex = this.preBetTurnIndex;
       this.currentPhase = 'TRICK_PLAY';
       return { success: true, result: { winnerId: envidoWinnerId, points, playerTantos } };
@@ -690,12 +1002,29 @@ export class ModularGameEngine extends GameEngine {
         return { success: true, result: { winnerId: callerId, points } };
       }
 
+      if (this.savedTrucoBet) {
+        const savedPreBet = this.savedTrucoBet.savedPreBetTurnIndex;
+        this.trucoState = { ...this.savedTrucoBet };
+        this.savedTrucoBet = null;
+        if (savedPreBet !== undefined) {
+          this.preBetTurnIndex = savedPreBet;
+        }
+        this.currentTurnIndex = this.players.findIndex(
+          (p) => p.id === this.trucoState.challengedId
+        );
+        this.lastActionText += `. Ahora resta responder al ${this.trucoState.currentLevel}!`;
+        return { success: true, result: { winnerId: callerId, points } };
+      }
+
       this.currentTurnIndex = this.preBetTurnIndex;
       this.currentPhase = 'TRICK_PLAY';
       return { success: true, result: { winnerId: callerId, points } };
     }
   }
 
+  /**
+   * Truco Handlers
+   */
   protected handleCallTruco(
     playerId: string,
     level: 'TRUCO' | 'RETRUCO' | 'VALE_CUATRO'
@@ -818,7 +1147,17 @@ export class ModularGameEngine extends GameEngine {
       return;
     }
 
-    // 1. Respond to pending bet if challenged
+    // 1. Respond to pending Flor if challenged
+    if (this.florState.state === 'PENDING' && this.florState.challengedId === botId) {
+      if (checkHasFlor(bot.hand)) {
+        this.executeAction(botId, 'CON_FLOR_QUIERO');
+      } else {
+        this.executeAction(botId, 'CON_FLOR_ME_ACHICO');
+      }
+      return;
+    }
+
+    // 2. Respond to pending Envido if challenged
     if (this.envidoState.state === 'PENDING' && this.envidoState.challengedId === botId) {
       const botTantos = calculateEnvidoPoints(bot.hand);
       if (botTantos >= 26) {
@@ -829,7 +1168,17 @@ export class ModularGameEngine extends GameEngine {
       return;
     }
 
+    // 3. Respond to pending Truco if challenged
     if (this.trucoState.state === 'PENDING' && this.trucoState.challengedId === botId) {
+      // Check if bot can and wants to call "El envido está primero"
+      if (this.currentTrick === 1 && this.envidoState.state === 'AVAILABLE') {
+        const botTantos = calculateEnvidoPoints(bot.hand);
+        if (botTantos >= 28) {
+          this.executeAction(botId, 'CALL_ENVIDO');
+          return;
+        }
+      }
+
       const hierarchy = this.definition.rules.cardHierarchy ?? TRUCO_CARD_HIERARCHY;
       const highCards = bot.hand.filter((c) => getCardHierarchyValue(c, hierarchy) >= 9).length;
       if (highCards >= 1 || this.roundTricks.some((t) => t.winnerId === botId)) {
@@ -840,13 +1189,27 @@ export class ModularGameEngine extends GameEngine {
       return;
     }
 
-    // 2. Turn to play or call
+    // 4. Turn to play or call
     if (this.players[this.currentTurnIndex]?.id !== botId) return;
+
+    // Check if bot has Flor in trick 1
+    if (
+      this.currentTrick === 1 &&
+      (this.florState.state === 'AVAILABLE' || this.florState.state === 'DISABLED') &&
+      checkHasFlor(bot.hand)
+    ) {
+      this.executeAction(botId, 'CALL_FLOR');
+      return;
+    }
 
     const hierarchy = this.definition.rules.cardHierarchy ?? TRUCO_CARD_HIERARCHY;
 
     // Check if bot wants to call Envido in trick 1
-    if (this.currentTrick === 1 && this.envidoState.state === 'AVAILABLE') {
+    if (
+      this.currentTrick === 1 &&
+      this.envidoState.state === 'AVAILABLE' &&
+      !checkHasFlor(bot.hand)
+    ) {
       const botTantos = calculateEnvidoPoints(bot.hand);
       if (botTantos >= 28) {
         this.executeAction(botId, 'CALL_ENVIDO');
@@ -1000,9 +1363,18 @@ export class ModularGameEngine extends GameEngine {
         return this.resolveEnvidoResponse(challengedId, true);
       }
 
+      case 'SCORE_FLOR': {
+        const challengedId = this.florState.challengedId;
+        if (!challengedId) return null;
+        return this.resolveFlorResponse(challengedId, true);
+      }
+
       case 'RESOLVE_BET': {
         const accept = Boolean(params.accept ?? payload.accept ?? true);
-        const challengedId = this.envidoState.challengedId ?? this.trucoState.challengedId;
+        const challengedId =
+          this.florState.challengedId ??
+          this.envidoState.challengedId ??
+          this.trucoState.challengedId;
         if (!challengedId) return null;
         return this.handleRespondBet(challengedId, accept);
       }
@@ -1037,7 +1409,12 @@ export class ModularGameEngine extends GameEngine {
     if (!phase) return 'No active phase';
 
     if (this.isRoundTrickGame) {
-      if (actionType === 'QUIERO' || actionType === 'NO_QUIERO') {
+      if (
+        actionType === 'QUIERO' ||
+        actionType === 'NO_QUIERO' ||
+        actionType === 'CON_FLOR_QUIERO' ||
+        actionType === 'CON_FLOR_ME_ACHICO'
+      ) {
         if (
           phase.allowedActions.includes('RESPOND_BET') ||
           phase.allowedActions.includes(actionType)
@@ -1046,7 +1423,11 @@ export class ModularGameEngine extends GameEngine {
         }
       }
       if (actionType === 'PLAY_CARD') {
-        if (this.envidoState.state === 'PENDING' || this.trucoState.state === 'PENDING') {
+        if (
+          this.florState.state === 'PENDING' ||
+          this.envidoState.state === 'PENDING' ||
+          this.trucoState.state === 'PENDING'
+        ) {
           return 'Hay una apuesta pendiente que debe ser respondida primero';
         }
         return null;
@@ -1056,9 +1437,12 @@ export class ModularGameEngine extends GameEngine {
         actionType === 'CALL_RETRUCO' ||
         actionType === 'CALL_VALE_CUATRO'
       ) {
-        if (this.envidoState.state === 'PENDING') {
-          return 'Hay un envido pendiente';
+        if (this.florState.state === 'PENDING' || this.envidoState.state === 'PENDING') {
+          return 'Hay un envite pendiente que debe resolverse primero';
         }
+        return null;
+      }
+      if (actionType === 'EL_ENVIDO_ESTA_PRIMERO') {
         return null;
       }
     }
@@ -1108,7 +1492,23 @@ export class ModularGameEngine extends GameEngine {
         return bet;
       }
 
+      case 'CALL_FLOR':
+        return this.handleCallFlor(playerId);
+
+      case 'CALL_CONTRA_FLOR':
+        return this.handleCallContraFlor(playerId, false);
+
+      case 'CALL_CONTRA_FLOR_AL_RESTO':
+        return this.handleCallContraFlor(playerId, true);
+
+      case 'CON_FLOR_QUIERO':
+        return this.resolveFlorResponse(playerId, true);
+
+      case 'CON_FLOR_ME_ACHICO':
+        return this.resolveFlorResponse(playerId, false);
+
       case 'CALL_ENVIDO':
+      case 'EL_ENVIDO_ESTA_PRIMERO':
         return this.handleCallEnvido(playerId, 'ENVIDO');
 
       case 'CALL_REAL_ENVIDO':
@@ -1129,6 +1529,7 @@ export class ModularGameEngine extends GameEngine {
       case 'RESPOND_BET': {
         if (
           this.isRoundTrickGame ||
+          this.florState.state === 'PENDING' ||
           this.envidoState.state === 'PENDING' ||
           this.trucoState.state === 'PENDING'
         ) {
@@ -1143,9 +1544,15 @@ export class ModularGameEngine extends GameEngine {
       }
 
       case 'QUIERO':
+        if (this.florState.state === 'PENDING') {
+          return this.resolveFlorResponse(playerId, true);
+        }
         return this.handleRespondBet(playerId, true);
 
       case 'NO_QUIERO':
+        if (this.florState.state === 'PENDING') {
+          return this.resolveFlorResponse(playerId, false);
+        }
         return this.handleRespondBet(playerId, false);
 
       case 'FOLD': {
@@ -1199,11 +1606,29 @@ export class ModularGameEngine extends GameEngine {
         return !!card && card.value !== undefined && String(card.value) in hierarchy;
       }
 
+      case 'CAN_CALL_FLOR': {
+        const player = this.players.find((p) => p.id === playerId);
+        return (
+          this.currentTrick === 1 &&
+          Boolean(player && checkHasFlor(player.hand)) &&
+          (this.florState.state === 'AVAILABLE' || this.florState.state === 'DISABLED')
+        );
+      }
+
+      case 'CAN_CALL_CONTRA_FLOR':
+        return (
+          this.florState.state === 'PENDING' &&
+          this.florState.challengedId === playerId
+        );
+
       case 'CAN_CALL_ENVIDO':
         return (
           this.currentTrick === 1 &&
+          this.florState.state !== 'PENDING' &&
+          this.florState.state !== 'RESOLVED' &&
           (this.envidoState.state === 'AVAILABLE' ||
-            (this.envidoState.state === 'PENDING' && this.envidoState.challengedId === playerId))
+            (this.envidoState.state === 'PENDING' &&
+              this.envidoState.challengedId === playerId))
         );
 
       case 'CAN_CALL_TRUCO':
@@ -1216,6 +1641,7 @@ export class ModularGameEngine extends GameEngine {
 
       case 'IS_BET_PENDING':
         return (
+          this.florState.state === 'PENDING' ||
           this.envidoState.state === 'PENDING' ||
           this.trucoState.state === 'PENDING' ||
           this.customState.betPending === true

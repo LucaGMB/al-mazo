@@ -4,7 +4,12 @@ import { useState } from "react";
 import { Icon } from "@iconify/react";
 import type { Card, PublicGameState } from "@/types/engine";
 import CardView from "./CardView";
-import { calculateEnvidoScore } from "@/types/shared/truco-rules";
+import {
+  calculateEnvidoScore,
+  checkHasFlor,
+  calculateFlorPoints,
+  getCardHierarchyValue,
+} from "@/types/shared/truco-rules";
 
 type TrucoPendingBet = {
   type: "ENVIDO" | "TRUCO";
@@ -43,6 +48,28 @@ interface TrucoTableProps {
   onToggleTapada?: () => void;
 }
 
+function getCardDescription(card: Card): { title: string; subtitle: string } {
+  const v = String(card.value ?? "");
+  const c = String(card.color ?? "");
+  const suitName = c ? c.charAt(0) + c.slice(1).toLowerCase() : "";
+
+  if (v === "1" && c === "ESPADAS") return { title: "1 de Espadas", subtitle: "La Mayor (14)" };
+  if (v === "1" && c === "BASTOS") return { title: "1 de Bastos", subtitle: "2ª Mayor (13)" };
+  if (v === "7" && c === "ESPADAS") return { title: "7 de Espadas", subtitle: "Manilla (12)" };
+  if (v === "7" && c === "OROS") return { title: "7 de Oros", subtitle: "Manilla (11)" };
+  if (v === "3") return { title: `3 de ${suitName}`, subtitle: "Tres (10)" };
+  if (v === "2") return { title: `2 de ${suitName}`, subtitle: "Dos (9)" };
+  if (v === "1" && (c === "OROS" || c === "COPAS")) return { title: `1 de ${suitName}`, subtitle: "As falso (8)" };
+  if (v === "12") return { title: `12 de ${suitName}`, subtitle: "Rey (7)" };
+  if (v === "11") return { title: `11 de ${suitName}`, subtitle: "Caballo (6)" };
+  if (v === "10") return { title: `10 de ${suitName}`, subtitle: "Sota (5)" };
+  if (v === "7" && (c === "BASTOS" || c === "COPAS")) return { title: `7 de ${suitName}`, subtitle: "Siete falso (4)" };
+  if (v === "6") return { title: `6 de ${suitName}`, subtitle: "Seis (3)" };
+  if (v === "5") return { title: `5 de ${suitName}`, subtitle: "Cinco (2)" };
+  if (v === "4") return { title: `4 de ${suitName}`, subtitle: "Cuatro (1)" };
+  return { title: `${v} de ${suitName}`, subtitle: "" };
+}
+
 export default function TrucoTable({
   publicState,
   selfPlayerId,
@@ -63,6 +90,7 @@ export default function TrucoTable({
   const currentTrick = customState.currentTrick ?? 1;
   const roundTricks = customState.roundTricks ?? [];
   const envidoState = customState.envido ?? { state: "AVAILABLE" };
+  const florState = customState.flor ?? { state: "AVAILABLE" };
   const trucoState = customState.truco ?? { state: "AVAILABLE", currentLevel: null };
   const pendingBet = customState.pendingBet ?? null;
   const lastActionText = customState.lastActionText ?? "";
@@ -78,8 +106,18 @@ export default function TrucoTable({
   const isPendingForMe = pendingBet && pendingBet.challengedId === selfPlayerId;
   const isPendingForRival = pendingBet && pendingBet.callerId === selfPlayerId;
 
-  // Calculate self envido points
+  // Calculate self envido and flor points
   const selfEnvido = calculateEnvidoScore(hand);
+  const hasFlor = checkHasFlor(hand);
+  const florPoints = hasFlor ? calculateFlorPoints(hand) : 0;
+
+  // Flor bet eligibility
+  const canCallFlor =
+    canAct &&
+    !pendingBet &&
+    currentTrick === 1 &&
+    hasFlor &&
+    (florState.state === "AVAILABLE" || florState.state === "DISABLED");
 
   // Truco bet level calculations
   const trucoLevel = trucoState.currentLevel;
@@ -105,6 +143,9 @@ export default function TrucoTable({
     canAct &&
     !pendingBet &&
     currentTrick === 1 &&
+    !hasFlor &&
+    florState.state !== "RESOLVED" &&
+    florState.state !== "PENDING" &&
     envidoState.state === "AVAILABLE";
 
   async function handleAction(action: string, payload?: Record<string, unknown>) {
@@ -118,7 +159,6 @@ export default function TrucoTable({
 
   // Render matchstick box for a group of up to 5 points
   function renderMatchBox(pointsInBox: number) {
-    // 0 = empty, 1 = left, 2 = left+bottom, 3 = left+bottom+right, 4 = box, 5 = box+diagonal
     const p = Math.max(0, Math.min(5, pointsInBox));
     return (
       <div className="relative w-6 h-6 border border-subtle/40 bg-black/20 rounded-xs flex items-center justify-center">
@@ -299,67 +339,143 @@ export default function TrucoTable({
           })}
         </div>
 
-        {/* TANTOS DEL JUGADOR */}
-        <div className="mt-3 flex items-center justify-between rounded-xl border border-white/10 bg-black/40 px-3 py-1.5 text-xs">
-          <span className="text-ink-soft font-medium flex items-center gap-1.5">
-            <Icon icon="pixelarticons:cards" className="text-accent" width={14} height={14} />
-            Tus tantos de Envido:
-          </span>
-          <span className="font-black text-warning">
-            {selfEnvido.points} {selfEnvido.suit ? `(${selfEnvido.suit})` : ""}
-          </span>
+        {/* TANTOS DEL JUGADOR Y ESTADO DE FLOR */}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="text-ink-soft font-medium flex items-center gap-1.5">
+              <Icon icon="pixelarticons:cards" className="text-accent" width={14} height={14} />
+              Tantos de Envido:
+            </span>
+            <span className="font-black text-warning">
+              {selfEnvido.points} {selfEnvido.suit ? `(${selfEnvido.suit})` : ""}
+            </span>
+          </div>
+
+          {hasFlor && (
+            <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/50 px-2.5 py-0.5 text-[11px] font-black text-emerald-400 animate-pulse">
+              <Icon icon="pixelarticons:sparkles" width={13} height={13} />
+              ¡Tenés Flor! ({florPoints} pts)
+            </div>
+          )}
         </div>
       </div>
 
       {/* 4. BANDEJA DE APUESTAS Y CANTOS (ALERTA DE CANTO PENDIENTE) */}
       {isPendingForMe && (
-        <div className="rounded-2xl border-2 border-warning bg-warning/10 p-4 shadow-[0_0_20px_rgba(245,197,24,0.35)] animate-pulse">
+        <div className="rounded-2xl border-2 border-warning bg-warning/10 p-4 shadow-[0_0_20px_rgba(245,197,24,0.35)] animate-fade-in">
           <div className="text-center mb-3">
             <div className="text-xs font-black uppercase tracking-widest text-warning">
               ¡Canto en curso!
             </div>
             <div className="text-lg font-black text-white mt-0.5">
-              {rival?.name ?? "Rival"} cantó {pendingBet.call.replace("_", " ")}
+              {rival?.name ?? "Rival"} cantó {pendingBet.call.replace(/_/g, " ")}
             </div>
             <div className="text-xs text-ink-soft">
-              ¿Aceptás la apuesta? (Por {pendingBet.pointsAtStake} pts)
+              {pendingBet.type === "FLOR"
+                ? `Desafío de Flor (por ${pendingBet.pointsAtStake} pts / ${pendingBet.pointsIfRefused} si te achicás)`
+                : `¿Aceptás la apuesta? (Por ${pendingBet.pointsAtStake} pts / ${pendingBet.pointsIfRefused} al no querer)`}
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <button
-              type="button"
-              disabled={isActing}
-              onClick={() => handleAction("QUIERO")}
-              className="cursor-pointer flex-1 min-w-[120px] rounded-xl bg-success px-4 py-3 text-sm font-black text-white shadow-lg transition-transform hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5"
-            >
-              <Icon icon="pixelarticons:check" width={18} height={18} />
-              ¡QUIERO!
-            </button>
-
-            <button
-              type="button"
-              disabled={isActing}
-              onClick={() => handleAction("NO_QUIERO")}
-              className="cursor-pointer flex-1 min-w-[120px] rounded-xl bg-danger px-4 py-3 text-sm font-black text-white shadow-lg transition-transform hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5"
-            >
-              <Icon icon="pixelarticons:close" width={18} height={18} />
-              NO QUIERO
-            </button>
-          </div>
-
-          {/* Subir la apuesta si corresponde */}
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2 border-t border-white/10 pt-2.5">
-            {pendingBet.type === "ENVIDO" && pendingBet.call === "ENVIDO" && (
-              <>
+          {/* FLOR Challenge Responses */}
+          {pendingBet.type === "FLOR" && (
+            <div className="flex flex-col gap-2.5">
+              <div className="flex flex-wrap items-center justify-center gap-2">
                 <button
                   type="button"
                   disabled={isActing}
-                  onClick={() => handleAction("RESPOND_BET", { raise: "REAL_ENVIDO" })}
-                  className="cursor-pointer rounded-lg border border-warning/60 bg-black/40 px-3 py-1.5 text-xs font-bold text-warning hover:bg-warning/20"
+                  onClick={() => handleAction("CON_FLOR_QUIERO")}
+                  className="cursor-pointer flex-1 min-w-[140px] rounded-xl bg-success px-4 py-3 text-sm font-black text-white shadow-lg transition-transform hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5"
                 >
-                  Subir a Real Envido (+3)
+                  <Icon icon="pixelarticons:check" width={18} height={18} />
+                  ¡CON FLOR QUIERO!
                 </button>
+
+                <button
+                  type="button"
+                  disabled={isActing}
+                  onClick={() => handleAction("CON_FLOR_ME_ACHICO")}
+                  className="cursor-pointer flex-1 min-w-[140px] rounded-xl bg-danger px-4 py-3 text-sm font-black text-white shadow-lg transition-transform hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5"
+                >
+                  <Icon icon="pixelarticons:close" width={18} height={18} />
+                  CON FLOR ME ACHICO
+                </button>
+              </div>
+
+              {/* Redoblar la Flor */}
+              {pendingBet.call === "FLOR" && (
+                <div className="flex flex-wrap items-center justify-center gap-2 border-t border-white/10 pt-2">
+                  <button
+                    type="button"
+                    disabled={isActing}
+                    onClick={() => handleAction("CALL_CONTRA_FLOR")}
+                    className="cursor-pointer rounded-lg border border-warning/60 bg-black/40 px-3 py-1.5 text-xs font-bold text-warning hover:bg-warning/20 transition-transform active:scale-95"
+                  >
+                    ¡Contraflor! (+6)
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isActing}
+                    onClick={() => handleAction("CALL_CONTRA_FLOR_AL_RESTO")}
+                    className="cursor-pointer rounded-lg border border-warning/60 bg-black/40 px-3 py-1.5 text-xs font-bold text-warning hover:bg-warning/20 transition-transform active:scale-95"
+                  >
+                    ¡Contraflor al Resto!
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Standard Bet Responses (QUIERO / NO QUIERO) for ENVIDO or TRUCO */}
+          {pendingBet.type !== "FLOR" && (
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                disabled={isActing}
+                onClick={() => handleAction("QUIERO")}
+                className="cursor-pointer flex-1 min-w-[120px] rounded-xl bg-success px-4 py-3 text-sm font-black text-white shadow-lg transition-transform hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5"
+              >
+                <Icon icon="pixelarticons:check" width={18} height={18} />
+                ¡QUIERO!
+              </button>
+
+              <button
+                type="button"
+                disabled={isActing}
+                onClick={() => handleAction("NO_QUIERO")}
+                className="cursor-pointer flex-1 min-w-[120px] rounded-xl bg-danger px-4 py-3 text-sm font-black text-white shadow-lg transition-transform hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5"
+              >
+                <Icon icon="pixelarticons:close" width={18} height={18} />
+                NO QUIERO
+              </button>
+            </div>
+          )}
+
+          {/* Subir la apuesta de Envido */}
+          {pendingBet.type === "ENVIDO" && (
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2 border-t border-white/10 pt-2.5">
+              {pendingBet.call === "ENVIDO" && (
+                <>
+                  <button
+                    type="button"
+                    disabled={isActing}
+                    onClick={() => handleAction("RESPOND_BET", { raise: "REAL_ENVIDO" })}
+                    className="cursor-pointer rounded-lg border border-warning/60 bg-black/40 px-3 py-1.5 text-xs font-bold text-warning hover:bg-warning/20"
+                  >
+                    Subir a Real Envido (+3)
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isActing}
+                    onClick={() => handleAction("RESPOND_BET", { raise: "FALTA_ENVIDO" })}
+                    className="cursor-pointer rounded-lg border border-warning/60 bg-black/40 px-3 py-1.5 text-xs font-bold text-warning hover:bg-warning/20"
+                  >
+                    ¡Falta Envido!
+                  </button>
+                </>
+              )}
+
+              {pendingBet.call === "REAL_ENVIDO" && (
                 <button
                   type="button"
                   disabled={isActing}
@@ -368,42 +484,84 @@ export default function TrucoTable({
                 >
                   ¡Falta Envido!
                 </button>
-              </>
-            )}
+              )}
+            </div>
+          )}
 
-            {pendingBet.type === "ENVIDO" && pendingBet.call === "REAL_ENVIDO" && (
-              <button
-                type="button"
-                disabled={isActing}
-                onClick={() => handleAction("RESPOND_BET", { raise: "FALTA_ENVIDO" })}
-                className="cursor-pointer rounded-lg border border-warning/60 bg-black/40 px-3 py-1.5 text-xs font-bold text-warning hover:bg-warning/20"
-              >
-                ¡Falta Envido!
-              </button>
-            )}
+          {/* Subir la apuesta de Truco / "El Envido está primero" */}
+          {pendingBet.type === "TRUCO" && (
+            <div className="mt-3 flex flex-col gap-2 border-t border-white/10 pt-2.5">
+              {/* Retruco / Vale Cuatro */}
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {pendingBet.call === "TRUCO" && (
+                  <button
+                    type="button"
+                    disabled={isActing}
+                    onClick={() => handleAction("RESPOND_BET", { raise: "RETRUCO" })}
+                    className="cursor-pointer rounded-lg border border-accent/60 bg-accent/20 px-3 py-1.5 text-xs font-bold text-accent hover:bg-accent/30"
+                  >
+                    ¡Quiero Retruco! (+3)
+                  </button>
+                )}
 
-            {pendingBet.type === "TRUCO" && pendingBet.call === "TRUCO" && (
-              <button
-                type="button"
-                disabled={isActing}
-                onClick={() => handleAction("RESPOND_BET", { raise: "RETRUCO" })}
-                className="cursor-pointer rounded-lg border border-accent/60 bg-accent/20 px-3 py-1.5 text-xs font-bold text-accent hover:bg-accent/30"
-              >
-                ¡Quiero Retruco! (+3)
-              </button>
-            )}
+                {pendingBet.call === "RETRUCO" && (
+                  <button
+                    type="button"
+                    disabled={isActing}
+                    onClick={() => handleAction("RESPOND_BET", { raise: "VALE_CUATRO" })}
+                    className="cursor-pointer rounded-lg border border-accent/60 bg-accent/20 px-3 py-1.5 text-xs font-bold text-accent hover:bg-accent/30"
+                  >
+                    ¡Quiero Vale Cuatro! (+4)
+                  </button>
+                )}
+              </div>
 
-            {pendingBet.type === "TRUCO" && pendingBet.call === "RETRUCO" && (
-              <button
-                type="button"
-                disabled={isActing}
-                onClick={() => handleAction("RESPOND_BET", { raise: "VALE_CUATRO" })}
-                className="cursor-pointer rounded-lg border border-accent/60 bg-accent/20 px-3 py-1.5 text-xs font-bold text-accent hover:bg-accent/30"
-              >
-                ¡Quiero Vale Cuatro! (+4)
-              </button>
-            )}
-          </div>
+              {/* EL ENVIDO ESTÁ PRIMERO / FLOR ESTÁ PRIMERO */}
+              {currentTrick === 1 && (
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-1 border-t border-white/5">
+                  {hasFlor && (
+                    <button
+                      type="button"
+                      disabled={isActing}
+                      onClick={() => handleAction("CALL_FLOR")}
+                      className="cursor-pointer rounded-lg border border-emerald-500/70 bg-emerald-500/20 px-3 py-1.5 text-xs font-black text-emerald-400 hover:bg-emerald-500/30 transition-transform active:scale-95"
+                    >
+                      🌸 ¡Cantar Flor primero! (+3)
+                    </button>
+                  )}
+
+                  {!hasFlor && envidoState.state === "AVAILABLE" && (
+                    <>
+                      <button
+                        type="button"
+                        disabled={isActing}
+                        onClick={() => handleAction("EL_ENVIDO_ESTA_PRIMERO")}
+                        className="cursor-pointer rounded-lg border border-warning/60 bg-warning/20 px-3 py-1.5 text-xs font-black text-warning hover:bg-warning/30 transition-transform active:scale-95"
+                      >
+                        ⚡ ¡El Envido está primero!
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isActing}
+                        onClick={() => handleAction("CALL_REAL_ENVIDO")}
+                        className="cursor-pointer rounded-lg border border-warning/60 bg-black/40 px-3 py-1.5 text-xs font-bold text-warning hover:bg-warning/20"
+                      >
+                        Real Envido primero (+3)
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isActing}
+                        onClick={() => handleAction("CALL_FALTA_ENVIDO")}
+                        className="cursor-pointer rounded-lg border border-warning/60 bg-black/40 px-3 py-1.5 text-xs font-bold text-warning hover:bg-warning/20"
+                      >
+                        ¡Falta Envido primero!
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -438,6 +596,19 @@ export default function TrucoTable({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* Canto de Flor */}
+            {canCallFlor && (
+              <button
+                type="button"
+                disabled={isActing}
+                onClick={() => handleAction("CALL_FLOR")}
+                className="cursor-pointer rounded-xl bg-emerald-500/20 border border-emerald-500/60 px-3.5 py-2 text-xs font-black text-emerald-400 hover:bg-emerald-500/30 transition-transform active:scale-95 shadow-[0_0_12px_rgba(16,185,129,0.25)] flex items-center gap-1"
+              >
+                <Icon icon="pixelarticons:sparkles" width={14} height={14} />
+                ¡Cantar Flor! (+3)
+              </button>
+            )}
+
             {/* Cantos de Envido */}
             {canCallEnvido && (
               <>
@@ -514,6 +685,65 @@ export default function TrucoTable({
           </div>
         </div>
       )}
+
+      {/* 6. CARTAS EN MANO DEL JUGADOR */}
+      <div className="rounded-2xl border-2 border-[#b8860b]/40 bg-[#161f1a]/95 p-3.5 shadow-[0_8px_24px_rgba(0,0,0,0.6)] backdrop-blur flex flex-col gap-2.5">
+        <div className="flex items-center justify-between text-xs font-black uppercase tracking-wider text-ink border-b border-white/10 pb-2">
+          <div className="flex items-center gap-2">
+            <Icon icon="pixelarticons:cards" className="text-accent" width={18} height={18} />
+            <span>Tus Cartas ({hand.length} restantes)</span>
+          </div>
+          <span className="text-[11px] font-bold text-ink-faint">
+            {canAct && !pendingBet ? (
+              <span className="text-success font-black animate-pulse">
+                {tapadaMode ? "Hacé click para tirar TAPADA" : "Hacé click en una carta para jugarla"}
+              </span>
+            ) : pendingBet ? (
+              <span className="text-warning">Respondé al canto antes de tirar</span>
+            ) : (
+              "Esperando turno del rival..."
+            )}
+          </span>
+        </div>
+
+        {/* Hand Cards Grid / Row */}
+        <div className="flex items-center justify-center gap-3 md:gap-6 py-2">
+          {hand.map((card) => {
+            const cardDesc = getCardDescription(card);
+            const isPlayable = canAct && !pendingBet && !isActing;
+
+            return (
+              <div
+                key={card.id}
+                className="flex flex-col items-center gap-1.5 transition-all duration-150 group"
+              >
+                <div
+                  className={`transition-transform duration-150 ${
+                    isPlayable
+                      ? "hover:-translate-y-2 hover:scale-105 active:scale-95 cursor-pointer"
+                      : "opacity-80 cursor-not-allowed"
+                  }`}
+                  onClick={() => isPlayable && handleCardClick(card.id)}
+                >
+                  <CardView
+                    card={card}
+                    size="lg"
+                    selected={selectedCardId === card.id}
+                  />
+                </div>
+                <div className="text-center max-w-[90px] md:max-w-[110px]">
+                  <div className="text-[11px] font-black text-white truncate leading-tight">
+                    {cardDesc.title}
+                  </div>
+                  <div className="text-[10px] text-ink-faint font-semibold">
+                    {cardDesc.subtitle}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

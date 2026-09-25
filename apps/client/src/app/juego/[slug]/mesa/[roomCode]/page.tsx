@@ -283,15 +283,22 @@ export default function MesaPage() {
   }
 
   // IN_PROGRESS
-  const isTruco = slug === "truco";
+  const customState = (publicState.customState ?? {}) as Record<string, any>;
+  const isTruco =
+    slug === "truco" ||
+    Boolean(customState.manoPlayerId) ||
+    Boolean(customState.roundTricks) ||
+    Boolean(customState.truco) ||
+    Boolean(customState.envido) ||
+    Boolean(customState.flor) ||
+    (publicState.trickCards !== undefined && publicState.topDiscardCard === null);
   const { self, others } = assignSeats(publicState.players, selfPlayerId);
   // El server agrega al host primero (GameRoom.addPlayer), mismo criterio que RoomLobby.
   const hostPlayerId = publicState.players[0]?.id;
   const isMyTurn = publicState.currentTurnPlayerId === selfPlayerId;
   const pendingChoiceForMe = publicState.pendingChoice?.playerId === selfPlayerId;
   const pendingChoiceForOther = !!publicState.pendingChoice && !pendingChoiceForMe;
-  const customState = (publicState.customState ?? {}) as Record<string, unknown>;
-  const pendingBet = isTruco ? (customState.pendingBet ?? null) : null;
+  const pendingBet = isTruco ? customState.pendingBet ?? null : null;
   // Mientras hay un color pendiente de elegir (comodín recién jugado), el
   // turno sigue siendo del mismo jugador pero no puede jugar/robar otra carta
   // hasta resolver el color (ver GameEngine.playCard en el server).

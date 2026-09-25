@@ -26,6 +26,8 @@ export type ConditionType =
   | 'STATE_EQUALS'
   | 'CAN_CALL_ENVIDO'
   | 'CAN_CALL_TRUCO'
+  | 'CAN_CALL_FLOR'
+  | 'CAN_CALL_CONTRA_FLOR'
   | 'CUSTOM';
 
 export interface ConditionDefinition {
@@ -47,6 +49,7 @@ export type EffectType =
   | 'SET_STATE_VAR'
   | 'RESOLVE_TRICK'
   | 'SCORE_ENVIDO'
+  | 'SCORE_FLOR'
   | 'RESOLVE_BET'
   | 'AWARD_POINTS'
   | 'CHANGE_PHASE'
@@ -69,6 +72,12 @@ export type StandardActionId =
   | 'CALL_ENVIDO'
   | 'CALL_REAL_ENVIDO'
   | 'CALL_FALTA_ENVIDO'
+  | 'EL_ENVIDO_ESTA_PRIMERO'
+  | 'CALL_FLOR'
+  | 'CALL_CONTRA_FLOR'
+  | 'CALL_CONTRA_FLOR_AL_RESTO'
+  | 'CON_FLOR_QUIERO'
+  | 'CON_FLOR_ME_ACHICO'
   | 'CALL_TRUCO'
   | 'CALL_RETRUCO'
   | 'CALL_VALE_CUATRO'
