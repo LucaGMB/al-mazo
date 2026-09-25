@@ -19,3 +19,10 @@ export function decodePlayerName(raw: string): { display: string; userId?: strin
   if (idx === -1) return { display: raw };
   return { display: raw.slice(0, idx), userId: raw.slice(idx + DELIMITER.length) };
 }
+
+// Algunos textos los arma el server concatenando `player.name` (por ejemplo
+// `lastActionText`: "Ronda 1. Mano: Host::<uuid>"). Este helper limpia el
+// userId embebido en cualquier texto para mostrarlo sin el sufijo técnico.
+export function decodePlayerNamesInText(text: string): string {
+  return text.replace(/::[A-Za-z0-9_-]+/g, "");
+}

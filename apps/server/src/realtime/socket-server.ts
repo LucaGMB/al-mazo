@@ -14,7 +14,6 @@ import {
 } from './types.js';
 import { decideBotMove, decideEscobaBotMove } from '../engine/bot.js';
 import { ModularGameEngine } from '../engine/modular-engine.js';
-import { TrucoEngine } from '../games/truco/truco-engine.js';
 
 const BOT_MIN_DELAY_MS = 800;
 const BOT_MAX_DELAY_MS = 1200;
@@ -145,9 +144,30 @@ function handleHumanTurnTimeout(io: IoServer, room: GameRoom, timedOutPlayerId: 
 
   if (room.engine.isRoundTrickGame) {
     try {
+      const pendingBet = state.customState?.pendingBet as
+        | { type?: string; challengedId?: string }
+        | undefined;
+      if (pendingBet?.challengedId === timedOutPlayerId) {
+        // Si no contesta la apuesta, se achica: pierde lo apostado.
+        room.engine.executeAction(
+          timedOutPlayerId,
+          pendingBet.type === 'FLOR' ? 'CON_FLOR_ME_ACHICO' : 'NO_QUIERO'
+        );
+      } else {
+        const hand = room.getPlayerHand(timedOutPlayerId);
+        if (hand.length > 0) {
+          room.engine.playCard(timedOutPlayerId, hand[0].id);
+        }
+      }
+    } catch {
+      // turn already resolved elsewhere; nothing left to do
+    }
+  } else if (room.engine.isCommunityGame()) {
+    try {
       const hand = room.getPlayerHand(timedOutPlayerId);
       if (hand.length > 0) {
-        room.engine.playCard(timedOutPlayerId, hand[0].id);
+        // Se juega/descarta la primera carta para no trabar la ronda.
+        room.engine.executeAction(timedOutPlayerId, 'PLAY_CARD', { cardId: hand[0].id });
       }
     } catch {
       // turn already resolved elsewhere; nothing left to do
@@ -203,12 +223,10 @@ function playBotTurn(io: IoServer, room: GameRoom): void {
 
   try {
     const hand = room.getPlayerHand(botId);
-    const isEscoba =
-      room.gameSlug === 'escoba-del-15' ||
-      Boolean(room.definition.rules.zones?.some((z) => z.type === 'COMMUNITY')) ||
-      Boolean((room.engine as any).isCommunityGame?.());
+    const isEscoba = room.engine.isCommunityGame();
 
-    if (room.engine instanceof TrucoEngine) {
+    if (room.engine.isRoundTrickGame) {
+      // Bazas + apuestas: el motor decide canto de envido/flor/truco y qué carta jugar.
       room.engine.executeBotTurn(botId);
       broadcastPlayerHands(io, room);
     } else if (isEscoba) {
@@ -216,14 +234,18 @@ function playBotTurn(io: IoServer, room: GameRoom): void {
         state.tableCards ??
         ((state.customState?.tableCards as Card[]) || []);
       const move = decideEscobaBotMove(hand, tableCards);
-      if (typeof (room.engine as any).executeAction === 'function') {
-        const actionResult = (room.engine as any).executeAction(botId, move.action, {
-          cardId: move.cardId,
-          tableCardIds: move.tableCardIds,
-        });
-        if (actionResult && (actionResult as any).result?.escoba) {
-          emitSystemChat(io, room, `¡${bot.name} hizo Escoba! (+1 punto)`);
+      const actionResult = room.engine.executeAction(botId, move.action, {
+        cardId: move.cardId,
+        tableCardIds: move.tableCardIds,
+      });
+      if (!actionResult.success) {
+        // Nunca dejar el turno del bot trabado: jugar la primera carta.
+        const fallback = hand[0];
+        if (fallback) {
+          room.engine.executeAction(botId, 'PLAY_CARD', { cardId: fallback.id });
         }
+      } else if ((actionResult.result as { escoba?: boolean } | undefined)?.escoba) {
+        emitSystemChat(io, room, `¡${bot.name} hizo Escoba! (+1 punto)`);
       }
     } else {
       const modularEngine = room.engine as ModularGameEngine;
@@ -476,10 +498,7 @@ export function initializeSocketServer(
         const { room, player } = match;
 
         let result: unknown;
-        if (room.engine instanceof TrucoEngine) {
-          const res = room.engine.executeAction(player.id, action, payload as Record<string, unknown> | undefined);
-          result = res.result;
-        } else if (action === 'CAPTURE_CARDS' || action === 'DROP_CARD') {
+        if (action === 'CAPTURE_CARDS' || action === 'DROP_CARD') {
           const res = (room.engine as any).executeAction(player.id, action, payload);
           if (!res?.success) {
             return callback({ success: false, error: String(res?.result || 'Action failed') });
@@ -540,13 +559,19 @@ export function initializeSocketServer(
         const chosenColor = payload?.chosenColor;
         const isTapada = Boolean(payload?.isTapada);
 
-        const isEscoba =
-          room.gameSlug === 'escoba-del-15' ||
-          Boolean((room.engine as any).isCommunityGame?.());
-
-        if (isEscoba && typeof (room.engine as any).executeAction === 'function') {
-          const res = (room.engine as any).executeAction(player.id, 'DROP_CARD', { cardId });
-          if ((res?.result as any)?.escoba) {
+        if (room.engine.isCommunityGame()) {
+          // En juegos de mesa comunitaria "jugar" una carta puede capturar
+          // (si viene con tableCardIds) o dejarla en la mesa.
+          const res = room.engine.executeAction(player.id, 'PLAY_CARD', {
+            cardId,
+            chosenColor,
+            isTapada,
+            tableCardIds: payload?.tableCardIds,
+          });
+          if (!res.success) {
+            return callback({ success: false, error: String(res.result || 'Action failed') });
+          }
+          if ((res.result as { escoba?: boolean } | undefined)?.escoba) {
             emitSystemChat(io, room, `¡${player.name} hizo Escoba! (+1 punto)`);
           }
         } else {
@@ -587,8 +612,8 @@ export function initializeSocketServer(
         if (!match) return callback({ success: false, error: 'Not in a room' });
         const { room, player } = match;
 
-        if (room.engine.isRoundTrickGame) {
-          return callback({ success: false, error: 'Truco no permite robar cartas del mazo' });
+        if (room.engine.isRoundTrickGame || room.engine.isCommunityGame()) {
+          return callback({ success: false, error: 'Este juego no permite robar cartas del mazo' });
         }
 
         const turnBefore = room.getPublicState().currentTurnPlayerId;
@@ -661,8 +686,11 @@ export function initializeSocketServer(
         if (!match) return callback({ success: false, error: 'Not in a room' });
         const { room, player } = match;
 
-        if (room.engine.isRoundTrickGame) {
-          return callback({ success: false, error: 'Truco no permite pasar turno; debés tirar una carta o irte al mazo' });
+        if (room.engine.isRoundTrickGame || room.engine.isCommunityGame()) {
+          return callback({
+            success: false,
+            error: 'Este juego no permite pasar el turno; jugá o tirá una carta',
+          });
         }
 
         (room.engine as ModularGameEngine).passTurn(player.id);

@@ -3,16 +3,6 @@
 import type { Card } from "@/types/engine";
 import CardView from "./CardView";
 
-// Reemplaza las 5 cartas fijas con `handTransforms` hardcodeado de la demo
-// por un abanico generado dinámicamente según la cantidad real de cartas.
-function fanTransform(index: number, total: number): string {
-  const mid = (total - 1) / 2;
-  const offset = index - mid;
-  const rotate = offset * 8;
-  const lift = Math.abs(offset) * 6;
-  return `rotate(${rotate}deg) translateY(${lift}px)`;
-}
-
 // Abanico: cada carta rota un poco más cuanto más lejos está del centro de la
 // mano, con un leve descenso hacia los bordes (look de mano de naipes real).
 // El spread total se achica en manos grandes para no desparramar demasiado.

@@ -2,6 +2,7 @@ import type {
   Card,
   ConditionDefinition,
   EffectDefinition,
+  GameMode,
   GameSchemaDefinition,
   PhaseDefinition,
   PlayerPublicInfo,
@@ -204,34 +205,43 @@ export class ModularGameEngine extends GameEngine {
     );
   }
 
+  /**
+   * Explains to the client which table layout/flow corresponds to this game.
+   * Never infer this on the client from optional state fields: an empty
+   * `tableCards` array is still truthy and made every game render as Escoba.
+   */
+  public get gameMode(): GameMode {
+    if (this.isRoundTrickGame) return 'TRICK';
+    if (this.isCommunityGame()) return 'COMMUNITY';
+    return 'DISCARD';
+  }
+
   public override start(): void {
     const minPlayers = this.definition.rules.minPlayers ?? 2;
     if (this.players.length < minPlayers) {
       throw new Error(`At least ${minPlayers} players required to start`);
     }
 
+    // Initialize match-wide state BEFORE dealing: startCommunityGame() may
+    // award initial-deal Escobas that must not be overwritten afterwards.
+    this.scores = {};
+    for (const player of this.players) {
+      this.scores[player.id] = 0;
+    }
+    this.customState = { ...(this.definition.rules.customState ?? {}) };
+    this.trickCards = [];
+    this.activeBets = {};
+    this.round = 1;
+
     if (this.isRoundTrickGame) {
       this.status = 'IN_PROGRESS';
-      this.scores = {};
-      for (const p of this.players) {
-        this.scores[p.id] = 0;
-      }
       this.manoIndex = 0;
-      this.round = 1;
       this.startNewRound();
     } else if (this.isCommunityGame()) {
       this.startCommunityGame();
     } else {
       super.start();
     }
-
-    this.scores = {};
-    for (const player of this.players) {
-      this.scores[player.id] = this.scores[player.id] ?? 0;
-    }
-    this.customState = { ...(this.definition.rules.customState ?? {}) };
-    this.trickCards = [];
-    this.activeBets = {};
 
     if (this.isCommunityGame()) {
       this.syncCommunityState();
@@ -378,6 +388,7 @@ export class ModularGameEngine extends GameEngine {
             : { ...entry.card },
         })),
         activeBets: { ...this.activeBets },
+        gameMode: this.gameMode,
       };
     }
 
@@ -475,6 +486,7 @@ export class ModularGameEngine extends GameEngine {
         ...this.activeBets,
       },
       tableCards: this.tableCards.map((card) => ({ ...card })),
+      gameMode: this.gameMode,
     };
   }
 

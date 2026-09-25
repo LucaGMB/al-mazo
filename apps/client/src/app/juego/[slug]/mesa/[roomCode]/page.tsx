@@ -77,7 +77,13 @@ export default function MesaPage() {
   const [shoutToast, setShoutToast] = useState(false);
   const { play, muted, toggleMute } = useSound();
 
-  const isCommunity = Boolean(publicState?.tableCards) || slug === "escoba-del-15";
+  // El server manda el modo de mesa explícito (TRICK/COMMUNITY/DISCARD) en
+  // cada PublicGameState; usar heurísticas sobre campos opcionales (p. ej.
+  // `tableCards` vacío es truthy) hacía que todos los juegos se vieran como
+  // Escoba del 15.
+  const gameMode = publicState?.gameMode;
+  const isTruco = gameMode ? gameMode === "TRICK" : slug === "truco";
+  const isCommunity = gameMode ? gameMode === "COMMUNITY" : slug === "escoba-del-15";
   const [selectedHandCardId, setSelectedHandCardId] = useState<string | null>(null);
   const [selectedTableCardIds, setSelectedTableCardIds] = useState<string[]>([]);
 
@@ -428,14 +434,6 @@ export default function MesaPage() {
 
   // IN_PROGRESS
   const customState = (publicState.customState ?? {}) as Record<string, unknown>;
-  const isTruco =
-    slug === "truco" ||
-    Boolean(customState.manoPlayerId) ||
-    Boolean(customState.roundTricks) ||
-    Boolean(customState.truco) ||
-    Boolean(customState.envido) ||
-    Boolean(customState.flor) ||
-    (publicState.trickCards !== undefined && publicState.topDiscardCard === null);
   const { self, others } = assignSeats(publicState.players, selfPlayerId);
   // El server agrega al host primero (GameRoom.addPlayer), mismo criterio que RoomLobby.
   const hostPlayerId = publicState.players[0]?.id;
@@ -651,12 +649,12 @@ export default function MesaPage() {
 
       {isTruco ? (
         <div
-          className={`flex-1 relative px-3 py-2 overflow-y-auto ${
+          className={`flex-1 relative px-3 py-2 ${
             isShaking ? "animate-table-shake" : ""
           }`}
         >
           {others[0] && (
-            <div className="relative w-full h-11 flex justify-center mb-1">
+            <div className="relative w-full h-12 md:h-11 flex justify-center mb-1">
               <PlayerBadge
                 player={others[0]}
                 position="top"
@@ -778,7 +776,9 @@ export default function MesaPage() {
       )}
 
        {isMyTurn && gameStatus === "IN_PROGRESS" && (
-         <div className="flex-none flex justify-center pb-1">
+         // En Truco la bandeja de acciones ya indica el turno y en celular
+         // resta espacio útil: el pill queda solo para desktop.
+         <div className={`flex-none justify-center pb-1 ${isTruco ? "hidden md:flex" : "flex"}`}>
            <div className="inline-flex animate-bounce items-center gap-2 rounded-[6px] border-2 border-warning bg-warning/15 px-4 py-1.5 font-display text-xs font-black uppercase tracking-[0.16em] text-warning shadow-[0_0_18px_rgba(255,143,77,0.3)]">
              <span className="h-2 w-2 animate-pulse rounded-full bg-warning" />
              Tu Turno
@@ -930,9 +930,9 @@ export default function MesaPage() {
         </div>
       )}
 
-      <div className="flex-none flex justify-center pb-1">
+      <div className="flex-none flex justify-center px-2 pb-1">
         <div
-          className="flex items-center justify-center gap-1.5 py-1 px-3 bg-statusbar/80 rounded-[8px] border-2 border-subtle mx-auto"
+          className="flex max-w-full flex-wrap items-center justify-center gap-1 md:gap-1.5 py-1 px-2 md:px-3 bg-statusbar/80 rounded-[8px] border-2 border-subtle mx-auto"
           role="group"
           aria-label="Bandeja de reacciones"
         >
@@ -950,13 +950,15 @@ export default function MesaPage() {
         </div>
       </div>
 
-      <Hand
-        cards={hand}
-        canPlay={isCommunity ? canAct : canPlayHandCards}
-        selectedCardId={isCommunity ? selectedHandCardId : null}
-        onPlay={isCommunity ? handleHandCardClick : (cardId) => handlePlay(cardId)}
-        isTapada={isTruco ? isTapada : undefined}
-      />
+      {/* Truco renderiza su propia mano dentro de <TrucoTable />: no duplicar. */}
+      {!isTruco && (
+        <Hand
+          cards={hand}
+          canPlay={isCommunity ? canAct : canPlayHandCards}
+          selectedCardId={isCommunity ? selectedHandCardId : null}
+          onPlay={isCommunity ? handleHandCardClick : (cardId) => handlePlay(cardId)}
+        />
+      )}
 
       <ChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>

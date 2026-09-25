@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties, ReactNode } from "react";
 import type { Card } from "@/types/engine";
 import { Icon } from "@iconify/react";
 import { CARD_COLORS } from "@/lib/game/card-colors";
@@ -89,22 +90,30 @@ export default function CardView({
     : "cursor-default";
   const selectedClasses = selected ? "outline outline-[3px] outline-accent" : "";
 
+  // Una carta sin onClick es presentacional: si se renderizara como <button
+  // disabled> tragaría el click y los contenedores con onClick (mano del truco,
+  // mesas) no lo recibirían. Por eso se usa <div> en ese caso.
+  const wrapper = (className: string, content: ReactNode, style?: CSSProperties) =>
+    onClick ? (
+      <button type="button" onClick={onClick} className={className} style={style}>
+        {content}
+      </button>
+    ) : (
+      <div className={className} style={style}>
+        {content}
+      </div>
+    );
+
   // Familia B con asset real (color-match / -chaos / -blitz): sprite tal cual.
   const unoSrc = getUnoCardImageSrc(card);
   if (unoSrc) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={!onClick}
-        className={`group relative shrink-0 ${SIZE_CLASSES[size]} transition-transform duration-150 ${interactiveClasses} ${selectedClasses}`}
-      >
-        <img
-          src={unoSrc}
-          alt=""
-          className="h-full w-full [image-rendering:pixelated] drop-shadow-[3px_4px_0_rgba(0,0,0,0.4)]"
-        />
-      </button>
+    return wrapper(
+      `group relative shrink-0 ${SIZE_CLASSES[size]} transition-transform duration-150 ${interactiveClasses} ${selectedClasses}`,
+      <img
+        src={unoSrc}
+        alt=""
+        className="h-full w-full [image-rendering:pixelated] drop-shadow-[3px_4px_0_rgba(0,0,0,0.4)]"
+      />
     );
   }
 
@@ -113,30 +122,20 @@ export default function CardView({
   if (hasColorFallbackOnly(card)) {
     const bg = CARD_COLORS[card.color ?? "ANY"] ?? CARD_COLORS.ANY;
     const icon = ACTION_ICONS[card.value as string];
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={!onClick}
-        className={`group relative shrink-0 ${SIZE_CLASSES[size]} rounded-[14%] border-[3px] border-[#0b0812] flex items-center justify-center shadow-[3px_4px_0_0_rgba(0,0,0,0.4)] transition-transform duration-150 ${interactiveClasses} ${selectedClasses}`}
-        style={{ backgroundColor: bg }}
-      >
-        {icon && <Icon icon={icon} width="1.4em" height="1.4em" className="text-white" />}
-      </button>
+    return wrapper(
+      `group relative shrink-0 ${SIZE_CLASSES[size]} rounded-[14%] border-[3px] border-[#0b0812] flex items-center justify-center shadow-[3px_4px_0_0_rgba(0,0,0,0.4)] transition-transform duration-150 ${interactiveClasses} ${selectedClasses}`,
+      icon && <Icon icon={icon} width="1.4em" height="1.4em" className="text-white" />,
+      { backgroundColor: bg }
     );
   }
 
   // Familia A (naipe español real): sin cambios, mismo render de siempre.
   const fg = CARD_COLORS[card.color ?? "ANY"] ?? CARD_COLORS.ANY;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!onClick}
-      className={`group relative shrink-0 ${SIZE_CLASSES[size]} rounded-[14%] card-paper border-[3px] border-[#241a44] flex items-center justify-center transition-all duration-150 shadow-[3px_4px_0_0_rgba(0,0,0,0.4)] ${interactiveClasses} ${
-        selected ? "outline outline-[3px] outline-accent shadow-[0_0_0_3px_rgba(255,210,63,0.4),3px_4px_0_0_rgba(0,0,0,0.4)]" : ""
-      }`}
-    >
+  return wrapper(
+    `group relative shrink-0 ${SIZE_CLASSES[size]} rounded-[14%] card-paper border-[3px] border-[#241a44] flex items-center justify-center transition-all duration-150 shadow-[3px_4px_0_0_rgba(0,0,0,0.4)] ${interactiveClasses} ${
+      selected ? "outline outline-[3px] outline-accent shadow-[0_0_0_3px_rgba(255,210,63,0.4),3px_4px_0_0_rgba(0,0,0,0.4)]" : ""
+    }`,
+    <>
       <CardPip card={card} ink={fg} />
       <CardPip card={card} inverted ink={fg} />
       <span
@@ -145,6 +144,6 @@ export default function CardView({
       >
         {cardCenter(card)}
       </span>
-    </button>
+    </>
   );
 }

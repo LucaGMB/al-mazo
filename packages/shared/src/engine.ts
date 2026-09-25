@@ -9,6 +9,14 @@ export type { EffectType };
 
 export type TurnDirection = 1 | -1;
 
+/**
+ * How the table is played, independent from the specific game:
+ * - TRICK: bazas + apuestas (truco) → cada jugador juega a la mesa central.
+ * - COMMUNITY: cartas comunitarias que se capturan (escoba del 15).
+ * - DISCARD: robo/descarte clásico (color-match/UNO, chinchón, descarte criollo).
+ */
+export type GameMode = 'TRICK' | 'COMMUNITY' | 'DISCARD';
+
 export interface Card {
   id: string;
   type: string; // 'NUMBER', 'ACTION', 'WILD'
@@ -95,4 +103,6 @@ export interface PublicGameState {
   customState?: Record<string, unknown>;
   activeBets?: Record<string, unknown>;
   tableCards?: Card[];
+  /** Modo de mesa que el cliente debe renderizar para este juego. */
+  gameMode?: GameMode;
 }
