@@ -52,6 +52,12 @@ export function addBot(socket: GameSocket, data: { name?: string } = {}) {
   );
 }
 
+export function removeBot(socket: GameSocket, data: { botId?: string } = {}) {
+  return new Promise<{ success: boolean; playerId?: string; error?: string }>((resolve) =>
+    socket.emit("room:remove_bot", data, resolve),
+  );
+}
+
 export function playCard(
   socket: GameSocket,
   data: { cardId: string; chosenColor?: string; isTapada?: boolean }

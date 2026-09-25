@@ -61,6 +61,11 @@ export interface ClientToServerEvents {
     callback: (res: { success: boolean; playerId?: string; error?: string }) => void
   ) => void;
 
+  'room:remove_bot': (
+    data: { botId?: string },
+    callback: (res: { success: boolean; playerId?: string; error?: string }) => void
+  ) => void;
+
   'game:play_card': (
     data: { cardId: string; chosenColor?: string; isTapada?: boolean },
     callback: (res: { success: boolean; error?: string }) => void

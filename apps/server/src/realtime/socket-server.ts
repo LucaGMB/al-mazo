@@ -427,7 +427,7 @@ export function initializeSocketServer(
 
         const bot = room.removeBot(data?.botId);
 
-        io.to(room.code).emit('player:left', { id: bot.id, name: bot.name });
+        io.to(room.code).emit('player:left', { playerId: bot.id, name: bot.name });
         io.to(room.code).emit('room:state', room.getPublicState());
         emitSystemChat(io, room, `🤖 ${bot.name} fue removido de la sala`);
 
