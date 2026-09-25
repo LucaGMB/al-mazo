@@ -113,8 +113,17 @@ describe('ModularGameEngine - ColorMatch backward compatibility', () => {
   });
 
   it('supports executeAction for traditional actions', () => {
+    const top = engine.getTopDiscardCard()!;
+    engine.getCurrentPlayer().hand.push({
+      id: 'guaranteed_playable',
+      type: 'NUMBER',
+      color: top.color,
+      value: top.value,
+    });
+    const initialLen = engine.getPlayerHand('p1').length;
+
     expect(engine.executeAction('p1', 'DRAW_CARD').success).toBe(true);
-    expect(engine.getPlayerHand('p1').length).toBe(8);
+    expect(engine.getPlayerHand('p1').length).toBe(initialLen + 1);
 
     expect(engine.executeAction('p1', 'PASS_TURN').success).toBe(true);
     expect(engine.executeAction('p1', 'DRAW_CARD').success).toBe(false);

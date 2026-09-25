@@ -55,6 +55,30 @@ describe('RoomManager & GameRoom Lifecycle', () => {
     expect(publicBot?.isBot).toBe(true);
   });
 
+  it('removes an added bot before game starts', async () => {
+    const manager = new RoomManager();
+    const { room } = await manager.createRoom('color-match', {
+      id: 'host_1',
+      name: 'Alice',
+      socketId: 'sock_1',
+    });
+
+    const bot1 = room.addBot('Bot Uno');
+    const bot2 = room.addBot('Bot Dos');
+    expect(room.players.size).toBe(3);
+
+    const removed2 = room.removeBot(bot2.id);
+    expect(removed2.id).toBe(bot2.id);
+    expect(room.players.size).toBe(2);
+    expect(room.players.has(bot2.id)).toBe(false);
+
+    // remove last bot by omitting id
+    const removed1 = room.removeBot();
+    expect(removed1.id).toBe(bot1.id);
+    expect(room.players.size).toBe(1);
+    expect(room.players.has(bot1.id)).toBe(false);
+  });
+
   it('handles disconnect and reconnect within grace period', async () => {
     vi.useFakeTimers();
     const manager = new RoomManager();

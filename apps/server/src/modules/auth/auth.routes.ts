@@ -15,10 +15,15 @@ const registerSchema = z.object({
   name: z.string().min(1).max(30).optional(),
 });
 
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-});
+const loginSchema = z
+  .object({
+    email: z.string().optional(),
+    username: z.string().optional(),
+    password: z.string().min(1),
+  })
+  .refine((data) => Boolean(data.email || data.username), {
+    message: 'Email or username is required',
+  });
 
 export const authRoutes: FastifyPluginAsync = async (fastify) => {
   /**
@@ -108,10 +113,27 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     if (!parsed.success) {
       return reply.status(400).send({ error: 'Validation failed' });
     }
-    const { email, password } = parsed.data;
+    const { email, username, password } = parsed.data;
+    const identifier = (email ?? username)?.trim();
+    if (!identifier) {
+      return reply.status(400).send({ error: 'Debés ingresar un email o usuario' });
+    }
 
     try {
-      const user = await prisma.user.findUnique({ where: { email } });
+      let user = null;
+      if (identifier.includes('@') || typeof prisma.user.findUnique === 'function') {
+        user = await prisma.user.findUnique({ where: { email: identifier } });
+      }
+      if (!user && typeof prisma.user.findFirst === 'function') {
+        user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { email: identifier },
+              { name: identifier },
+            ],
+          },
+        });
+      }
       if (!user?.passwordHash) {
         return reply.status(401).send({ error: 'Invalid credentials' });
       }

@@ -16,6 +16,15 @@ vi.mock('../../src/db/prisma.js', () => ({
         }
         return null;
       }),
+      findFirst: vi.fn(async ({ where }: { where: any }) => {
+        for (const cond of where?.OR ?? []) {
+          if (cond.email && store.users.has(cond.email)) return store.users.get(cond.email);
+          for (const u of store.users.values()) {
+            if (cond.name && u.name === cond.name) return u;
+          }
+        }
+        return null;
+      }),
       create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
         const user = { id: `user_${++store.idCounter}`, createdAt: new Date(), ...data };
         if (user.email) store.users.set(user.email as string, user);
@@ -82,6 +91,19 @@ describe('JWT auth', () => {
     const body = JSON.parse(res.body);
     expect(body.user.email).toBe('caro@example.com');
     expect(typeof body.token).toBe('string');
+  });
+
+  it('logs in with username instead of email', async () => {
+    await register({ email: 'felix@example.com', password: 'secret123', name: 'felix' });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      payload: { username: 'felix', password: 'secret123' },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.user.name).toBe('felix');
   });
 
   it('rejects wrong password and unknown email', async () => {

@@ -1,5 +1,4 @@
 import { ModularGameEngine } from '../engine/modular-engine.js';
-import { TrucoEngine } from '../games/truco/truco-engine.js';
 import { GameSchemaDefinition, PublicGameState, Card } from '../engine/types.js';
 import { ChatMessage, DisconnectPolicy, RoomOptions, RoomPlayer } from './types.js';
 
@@ -13,7 +12,7 @@ export class GameRoom {
   public turnExpiresAt: number | null = null;
   public turnTimer?: NodeJS.Timeout;
   public readonly definition: GameSchemaDefinition;
-  public readonly engine: ModularGameEngine | TrucoEngine;
+  public readonly engine: ModularGameEngine;
   public readonly players: Map<string, RoomPlayer> = new Map();
   public readonly createdAt: Date = new Date();
   public chatHistory: ChatMessage[] = [];
@@ -33,7 +32,7 @@ export class GameRoom {
     this.disconnectPolicy = options?.disconnectPolicy ?? 'DISCARD_AND_CONTINUE';
     this.turnTimeoutSeconds = options?.turnTimeoutSeconds ?? 25;
     this.definition = definition;
-    this.engine = definition.slug === 'truco' ? new TrucoEngine(definition) : new ModularGameEngine(definition);
+    this.engine = new ModularGameEngine(definition);
 
     this.addPlayer(hostPlayer.id, hostPlayer.name, hostPlayer.socketId, hostPlayer.reconnectToken);
   }
@@ -64,6 +63,24 @@ export class GameRoom {
     this.botCounter += 1;
     const id = `bot_${this.botCounter}`;
     return this.addPlayer(id, name ?? `Bot ${this.botCounter}`, null, `bot_token_${id}`, true);
+  }
+
+  public removeBot(botId?: string): RoomPlayer {
+    if (this.engine.getPublicState().status !== 'LOBBY') {
+      throw new Error('Solo se pueden remover bots antes de iniciar la partida');
+    }
+    let target: RoomPlayer | undefined;
+    if (botId) {
+      target = this.players.get(botId);
+    } else {
+      const bots = Array.from(this.players.values()).filter((p) => p.isBot);
+      target = bots[bots.length - 1];
+    }
+    if (!target || !target.isBot) {
+      throw new Error('Bot no encontrado en la sala');
+    }
+    this.removePlayer(target.id);
+    return target;
   }
 
   public getPlayerBySocketId(socketId: string): RoomPlayer | undefined {
