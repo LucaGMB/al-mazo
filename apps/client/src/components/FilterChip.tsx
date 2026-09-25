@@ -10,14 +10,14 @@ export default function FilterChip({
   onClick?: () => void;
 }) {
   const stateClasses = active
-    ? "bg-accent border-accent text-white font-medium hover:bg-accent-hover hover:border-accent-hover"
+    ? "bg-accent border-accent text-[#171a35] font-bold hover:bg-accent-hover hover:border-accent-hover"
     : "border-medium text-outline hover:border-accent hover:text-accent";
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`shrink-0 h-7 px-3 rounded-full border text-xs whitespace-nowrap transition-colors duration-150 ${stateClasses}`}
+      className={`shrink-0 h-7 px-3 rounded-[6px] border-2 text-xs whitespace-nowrap transition-colors duration-150 ${stateClasses}`}
     >
       {label}
     </button>

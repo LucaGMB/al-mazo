@@ -10,16 +10,10 @@ const POSITION_CLASSES: Record<string, string> = {
   self: "bottom-2 left-1/2 -translate-x-1/2 pl-1 pr-3.5",
 };
 
-// Paleta para jugadores sin rol especial: se elige por hash del nombre para
-// que cada jugador tenga siempre el mismo color dentro de la partida.
-const AVATAR_GRADIENTS = [
-  "from-emerald-400 to-emerald-700",
-  "from-rose-400 to-rose-700",
-  "from-indigo-400 to-indigo-700",
-  "from-orange-400 to-orange-700",
-  "from-teal-400 to-teal-700",
-  "from-pink-400 to-pink-700",
-];
+// Paleta de "fichas" para jugadores sin rol especial: se elige por hash del
+// nombre para que cada jugador tenga siempre el mismo color dentro de la
+// partida. Tonos saturados tipo ficha de casino, no colores rústicos.
+const AVATAR_COLORS = ["#4fa8ff", "#ff8f4d", "#ff6b9d", "#33c48d", "#9b6bff", "#ffb84d"];
 
 function hashName(name: string): number {
   let h = 0;
@@ -37,6 +31,7 @@ export default function PlayerBadge({
   isCurrentTurn,
   turnExpiresAt,
   recentMessage,
+  drawPulse,
 }: {
   player: PlayerPublicInfo;
   position: "top" | "left" | "right" | "self";
@@ -45,23 +40,24 @@ export default function PlayerBadge({
   isCurrentTurn?: boolean;
   turnExpiresAt?: number | null;
   recentMessage?: string | null;
+  // Cuando el conteo de cartas de este jugador acaba de subir: hace flotar un
+  // "+N" sobre su ficha (robo propio o forzado por un +2/+4 en su contra).
+  drawPulse?: { amount: number; key: number } | null;
 }) {
   const { display } = decodePlayerName(player.name);
-  const avatarGradient = player.isBot
-    ? "from-purple-400 to-purple-700"
+  const avatarColor = player.isBot
+    ? "#33c48d"
     : isSelf
-      ? "from-cyan-400 to-cyan-700"
+      ? "#ffd23f"
       : isHost
-        ? "from-amber-300 to-amber-600"
-        : AVATAR_GRADIENTS[hashName(player.name) % AVATAR_GRADIENTS.length];
+        ? "#ff4d6d"
+        : AVATAR_COLORS[hashName(player.name) % AVATAR_COLORS.length];
   const avatarIcon = player.isBot
     ? "pixelarticons:robot"
     : isHost
       ? "pixelarticons:crown"
       : "pixelarticons:user";
-  const ringClasses = isCurrentTurn
-    ? "border-warning/80 border-2 shadow-[0_0_18px_rgba(245,197,24,0.45)]"
-    : "";
+  const ringClasses = isCurrentTurn ? "border-warning border-[3px]" : "";
   const hasTimer = isCurrentTurn && typeof turnExpiresAt === "number";
 
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
@@ -91,12 +87,13 @@ export default function PlayerBadge({
 
   return (
     <div
-      className={`absolute flex items-center gap-2 md:gap-3 bg-statusbar border border-subtle rounded-full py-1 md:py-1.5 shadow-[0_2px_6px_rgba(0,0,0,0.35)] ${POSITION_CLASSES[position]} ${ringClasses}`}
+      data-player-id={player.id}
+      className={`absolute flex items-center gap-2 md:gap-3 bg-statusbar border-2 border-subtle rounded-[8px] py-1 md:py-1.5 shadow-[3px_3px_0_0_rgba(0,0,0,0.35)] ${POSITION_CLASSES[position]} ${ringClasses}`}
     >
       {recentMessage && (
         <div
           key={recentMessage}
-          className="absolute -top-7 left-1/2 -translate-x-1/2 z-30 pointer-events-none whitespace-nowrap rounded-full border border-accent/60 bg-statusbar/95 px-2.5 py-0.5 text-[11px] font-bold text-accent shadow-[0_0_12px_rgba(32,168,216,0.4)] animate-bubble-pop"
+          className="absolute -top-7 left-1/2 -translate-x-1/2 z-30 pointer-events-none whitespace-nowrap rounded-[6px] border-2 border-accent bg-statusbar/95 px-2.5 py-0.5 text-[11px] font-bold text-accent shadow-[0_0_12px_rgba(255,210,63,0.4)] animate-bubble-pop"
         >
           {recentMessage}
           <span
@@ -105,20 +102,31 @@ export default function PlayerBadge({
           />
         </div>
       )}
+      {/* Avatar plano: círculo de color sólido + borde grueso, sin gradiente
+          ni relieve simulado. */}
       <div
-        className={`relative shrink-0 rounded-full bg-gradient-to-br ${avatarGradient} flex items-center justify-center ${
+        className={`relative shrink-0 rounded-full border-[3px] border-[#0b0812] flex items-center justify-center ${
           isSelf ? "w-7 h-7 md:w-9 md:h-9" : "w-6 h-6 md:w-8 md:h-8"
         } ${!player.isConnected ? "opacity-40" : ""}`}
+        style={{ backgroundColor: avatarColor }}
       >
         <Icon
           icon={avatarIcon}
           width={isSelf ? 16 : 14}
           height={isSelf ? 16 : 14}
-          className="text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.55)]"
+          className="text-[#f4f1ff]"
           aria-hidden
         />
         {!player.isConnected && (
-          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-pulse rounded-full border border-statusbar bg-danger shadow-[0_0_6px_rgba(248,108,107,0.9)]" />
+          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-pulse rounded-full border border-statusbar bg-danger" />
+        )}
+        {drawPulse && (
+          <span
+            key={drawPulse.key}
+            className="pointer-events-none absolute -right-1.5 -top-1.5 z-20 rounded-[6px] border-2 border-[#241a44] bg-warning px-1.5 py-0.5 font-display text-[10px] text-[#171a35] animate-draw-pulse"
+          >
+            +{drawPulse.amount}
+          </span>
         )}
       </div>
       <div>
@@ -140,7 +148,7 @@ export default function PlayerBadge({
           )}
           {showTimer && (
             <span
-              className={`ml-0.5 inline-flex items-center gap-0.5 rounded-full border px-1.5 py-px ${timerClasses}`}
+              className={`ml-0.5 inline-flex items-center gap-0.5 rounded-[6px] border-2 px-1.5 py-px ${timerClasses}`}
             >
               <Icon icon="pixelarticons:clock" width={11} height={11} aria-hidden />
               {remainingSeconds}s
