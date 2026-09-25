@@ -23,7 +23,7 @@ export default function IconButton({
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center w-10 h-10 rounded-full border transition-colors duration-150 ${stateClasses} ${className}`}
+      className={`inline-flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors duration-150 ${stateClasses} ${className}`}
       {...props}
     >
       <Icon icon={`pixelarticons:${icon}`} width={size} height={size} />

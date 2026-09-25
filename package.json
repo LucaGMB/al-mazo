@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "contributors": [
+    "ECubeCode <134395465+ECubeCode@users.noreply.github.com>"
+  ],
   "scripts": {
     "dev:server": "pnpm --filter al-mazo-server dev",
     "dev:client": "pnpm --filter al-mazo-client dev",

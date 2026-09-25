@@ -14,7 +14,7 @@ export default function GameCard({ game, compact }: { game: GameSummary; compact
       href={`/juego/${game.slug}`}
       className="group flex flex-col gap-1.5 text-inherit no-underline"
     >
-      <div className="rounded-lg border border-transparent transition-all duration-200 group-hover:-translate-y-1 group-hover:border-accent/50 group-hover:shadow-[0_0_24px_rgba(32,168,216,0.22)]">
+      <div className="rounded-lg border border-transparent transition-all duration-200 group-hover:-translate-y-1 group-hover:border-accent/50 group-hover:shadow-[0_0_24px_rgba(255,210,63,0.25)]">
         <Thumb gameSlug={game.slug} className={`w-full rounded ${compact ? "aspect-square" : "aspect-video"}`} />
       </div>
       <div className="flex items-center justify-between gap-2">

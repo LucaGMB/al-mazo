@@ -114,18 +114,18 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
   }
 
   return (
-    <div className="max-w-md w-full mx-auto my-auto p-6 md:p-8 rounded-2xl border border-subtle bg-statusbar/90 shadow-2xl backdrop-blur flex flex-col gap-5">
-      <div className="flex items-center gap-3 rounded-xl border border-subtle bg-app/60 px-4 py-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-subtle bg-gradient-to-br from-accent/30 to-accent/5 text-accent">
+    <div className="max-w-md w-full mx-auto my-auto p-6 md:p-8 border-[3px] border-subtle bg-statusbar/90 shadow-[6px_8px_0_0_rgba(0,0,0,0.35)] flex flex-col gap-5">
+      <div className="flex items-center gap-3 rounded-[6px] border-2 border-subtle bg-app/60 px-4 py-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[6px] border-2 border-subtle bg-gradient-to-br from-accent/30 to-accent/5 text-accent">
           <Icon icon="pixelarticons:gamepad" width={24} height={24} />
         </span>
         <div>
-          <div className="font-black text-ink">Mesa de Juego</div>
+          <div className="font-display font-black text-ink">Mesa de Juego</div>
           <div className="text-[11px] text-ink-faint">Armá tu sala y repartí las cartas</div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-1 rounded-xl border border-subtle bg-app/60 p-1">
+      <div className="grid grid-cols-2 gap-1 rounded-[6px] border-2 border-subtle bg-app/60 p-1">
         {(["crear", "unirse"] as Tab[]).map((t) => {
           const active = tab === t;
           return (
@@ -136,9 +136,9 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
                 setTab(t);
                 setError(null);
               }}
-              className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-[13px] font-bold transition-colors duration-150 cursor-pointer ${
+              className={`flex items-center justify-center gap-2 rounded-[4px] px-3 py-2 text-[13px] font-bold transition-colors duration-150 cursor-pointer ${
                 active
-                  ? "bg-accent text-white shadow-[0_0_14px_rgba(32,168,216,0.4)]"
+                  ? "bg-accent text-[#171a35] shadow-[0_0_14px_rgba(255,210,63,0.4)]"
                   : "text-ink-faint hover:text-ink"
               }`}
             >
@@ -186,7 +186,7 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
             placeholder="A3F9K"
             maxLength={5}
             autoComplete="off"
-            className="h-12 rounded border border-subtle bg-app/60 text-ink text-center text-lg font-black tracking-[0.5em] uppercase focus:outline-none focus:border-accent"
+            className="h-12 rounded border border-subtle bg-app/60 text-ink text-center font-mono text-lg font-black tracking-[0.5em] uppercase focus:outline-none focus:border-accent"
           />
         </label>
       )}
@@ -203,7 +203,7 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
                     key={preset.seconds}
                     type="button"
                     onClick={() => setGraceSeconds(preset.seconds)}
-                    className={`rounded-xl border px-2 py-2.5 text-center transition-colors duration-150 cursor-pointer ${
+                    className={`rounded-[6px] border-2 px-2 py-2.5 text-center transition-colors duration-150 cursor-pointer ${
                       active
                         ? "border-accent bg-accent/15 text-ink"
                         : "border-subtle text-ink-faint hover:border-medium hover:text-ink"
@@ -231,7 +231,7 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
             {showAdvanced ? "Ocultar opciones avanzadas" : "Opciones avanzadas"}
           </button>
           {showAdvanced && (
-            <label className="flex flex-col gap-1.5 rounded-xl border border-subtle p-3 text-[13px] text-ink-soft">
+            <label className="flex flex-col gap-1.5 rounded-[6px] border-2 border-subtle p-3 text-[13px] text-ink-soft">
               Si un jugador no vuelve a tiempo
               <select
                 value={policy}
@@ -256,7 +256,7 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
         fullWidth
         disabled={isSubmitting}
         onClick={tab === "crear" ? handleCreate : handleJoinNavigate}
-        className="!h-12 !text-base shadow-[0_0_18px_rgba(32,168,216,0.35)]"
+        className="!h-12 !text-base"
       >
         <Icon
           icon={tab === "crear" ? "pixelarticons:play" : "pixelarticons:arrow-right"}

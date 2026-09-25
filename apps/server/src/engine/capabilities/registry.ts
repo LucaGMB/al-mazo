@@ -96,6 +96,42 @@ export const BUILTIN_ACTIONS: ActionDefinition[] = [
     requiredConditions: [{ type: 'IS_ACTIVE_PLAYER' }, { type: 'CAN_CALL_TRUCO' }],
   },
   {
+    id: 'EL_ENVIDO_ESTA_PRIMERO',
+    name: 'El Envido está primero',
+    description: 'Cantar envido en respuesta a un truco cantado en primera mano.',
+    requiredConditions: [{ type: 'CAN_CALL_ENVIDO' }],
+  },
+  {
+    id: 'CALL_FLOR',
+    name: 'Cantar Flor',
+    description: 'Declarar tener 3 cartas del mismo palo (3 puntos o desafío).',
+    requiredConditions: [{ type: 'CAN_CALL_FLOR' }],
+  },
+  {
+    id: 'CALL_CONTRA_FLOR',
+    name: 'Cantar Contraflor',
+    description: 'Redoblar el desafío de flor a 6 puntos.',
+    requiredConditions: [{ type: 'CAN_CALL_CONTRA_FLOR' }],
+  },
+  {
+    id: 'CALL_CONTRA_FLOR_AL_RESTO',
+    name: 'Contraflor al Resto',
+    description: 'Desafiar la flor por los puntos restantes para ganar el chico.',
+    requiredConditions: [{ type: 'CAN_CALL_CONTRA_FLOR' }],
+  },
+  {
+    id: 'CON_FLOR_QUIERO',
+    name: 'Con Flor Quiero',
+    description: 'Aceptar el envite de flor rival (4 o 6 puntos al ganador).',
+    requiredConditions: [{ type: 'IS_BET_PENDING' }],
+  },
+  {
+    id: 'CON_FLOR_ME_ACHICO',
+    name: 'Con Flor Me Achico',
+    description: 'Rechazar el envite de flor rival otorgando los puntos de rechazo.',
+    requiredConditions: [{ type: 'IS_BET_PENDING' }],
+  },
+  {
     id: 'QUIERO',
     name: 'Quiero',
     description: 'Aceptar la apuesta o envite en curso.',
@@ -145,12 +181,23 @@ export const BUILTIN_CONDITIONS: Array<{ type: ConditionType; description: strin
 ];
 
 export const BUILTIN_EFFECTS: Array<{ type: EffectType; description: string }> = [
+  { type: 'SKIP', description: 'Skip the next player in the turn order.' },
+  { type: 'REVERSE', description: 'Reverse the direction of play.' },
+  { type: 'DRAW_CARDS', description: 'Make the target player draw one or more cards.' },
+  { type: 'CHOOSE_COLOR', description: 'Ask the acting player to choose a new active color.' },
+  { type: 'SWAP_HANDS', description: 'Swap the acting player hand with the next player hand.' },
+  {
+    type: 'DISCARD_ALL_COLOR',
+    description: 'Discard every card of a given color from the acting player hand.',
+  },
+  { type: 'PROMPT_CHOICE', description: 'Pause the turn until the player answers a choice prompt.' },
   { type: 'MOVE_CARD', description: 'Move a card between zones.' },
   { type: 'DEAL_CARDS', description: 'Deal cards from the draw pile.' },
   { type: 'ADVANCE_TURN', description: 'Advance the active turn by a number of steps.' },
   { type: 'SET_ACTIVE_COLOR', description: 'Override the active matching color.' },
   { type: 'RESOLVE_TRICK', description: 'Score the cards currently on the trick table and determine trick winner or parda.' },
   { type: 'SCORE_ENVIDO', description: 'Calculates envido points and awards them to the highest hand or mano on tie.' },
+  { type: 'SCORE_FLOR', description: 'Calculates flor points and awards them to the highest hand or mano on tie.' },
   { type: 'RESOLVE_BET', description: 'Resolves an accepted or rejected bet and updates current stakes.' },
   { type: 'AWARD_POINTS', description: 'Add points to a player score.' },
   { type: 'CHANGE_PHASE', description: 'Transition to another game phase.' },

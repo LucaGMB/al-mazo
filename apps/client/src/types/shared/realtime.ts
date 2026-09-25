@@ -61,8 +61,13 @@ export interface ClientToServerEvents {
     callback: (res: { success: boolean; playerId?: string; error?: string }) => void
   ) => void;
 
+  'room:remove_bot': (
+    data: { botId?: string },
+    callback: (res: { success: boolean; playerId?: string; error?: string }) => void
+  ) => void;
+
   'game:play_card': (
-    data: { cardId: string; chosenColor?: string; isTapada?: boolean },
+    data: { cardId: string; chosenColor?: string },
     callback: (res: { success: boolean; error?: string }) => void
   ) => void;
 
@@ -102,6 +107,7 @@ export interface ServerToClientEvents {
   'game:started': () => void;
   'game:finished': (data: { winnerId: string | null }) => void;
   'error:notification': (data: { message: string }) => void;
+  'player:forced_draw': (data: { count: number; byPlayerId: string; byName: string }) => void;
   'chat:message': (message: ChatMessage) => void;
   'chat:history': (messages: ChatMessage[]) => void;
 }

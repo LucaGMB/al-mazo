@@ -24,7 +24,7 @@ export default function BottomNav() {
             href={href}
             className={`flex flex-col items-center gap-0.5 no-underline transition-all duration-150 ${
               isActive
-                ? "bg-accent/15 border border-accent/40 text-accent font-bold scale-105 shadow-[0_0_14px_rgba(32,168,216,0.25)] rounded-full px-4 py-1"
+                ? "bg-accent/15 border border-accent/40 text-accent font-bold scale-105 shadow-[0_0_14px_rgba(255,210,63,0.25)] rounded-full px-4 py-1"
                 : "border border-transparent text-ink-faint hover:text-accent hover:-translate-y-0.5"
             }`}
           >

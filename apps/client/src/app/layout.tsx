@@ -1,12 +1,18 @@
 import type { Metadata } from "next";
-import { Roboto } from "next/font/google";
+import { Baloo_2, Silkscreen } from "next/font/google";
 import { SessionProvider } from "@/lib/session/session-context";
 import "./globals.css";
 
-const roboto = Roboto({
+const baloo = Baloo_2({
   subsets: ["latin"],
-  weight: ["400", "500", "700"],
-  variable: "--font-roboto",
+  weight: ["500", "600", "700", "800"],
+  variable: "--font-baloo",
+});
+
+const silkscreen = Silkscreen({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  variable: "--font-silkscreen",
 });
 
 export const metadata: Metadata = {
@@ -16,7 +22,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={roboto.variable}>
+    <html lang="es" className={`${baloo.variable} ${silkscreen.variable}`}>
       <body>
         <SessionProvider>{children}</SessionProvider>
       </body>

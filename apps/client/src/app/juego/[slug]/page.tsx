@@ -118,7 +118,7 @@ export default function GameDetailPage() {
 
         <div className="grid gap-6 md:grid-cols-2 md:gap-10 md:items-start">
           <div className="animate-float">
-            <div className="relative overflow-hidden rounded-2xl border-2 border-subtle shadow-2xl md:-rotate-2">
+            <div className="relative overflow-hidden border-[3px] border-subtle shadow-[6px_8px_0_0_rgba(0,0,0,0.4)] md:-rotate-2">
               <Thumb gameSlug={game.game.slug} className="w-full aspect-[4/3]" />
               <span className="absolute top-3 left-3 z-10 rounded-full border border-white/25 bg-black/60 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white backdrop-blur">
                 {game.isOfficial ? "Oficial" : "Comunidad"}
@@ -128,7 +128,7 @@ export default function GameDetailPage() {
 
           <div className="flex flex-col gap-5">
             <div>
-              <h1 className="text-2xl md:text-4xl font-black leading-tight text-ink">
+              <h1 className="font-display text-2xl md:text-4xl font-black leading-tight text-ink">
                 {game.game.title}
               </h1>
               {showcase && (
@@ -155,7 +155,7 @@ export default function GameDetailPage() {
             </div>
 
             {showcase && showcase.mechanics.length > 0 && (
-              <div className="rounded-2xl border border-subtle bg-statusbar/70 p-4 md:p-5">
+              <div className="rounded-[8px] border-2 border-subtle bg-statusbar/70 p-4 md:p-5">
                 <div className="flex items-center gap-2 text-sm font-bold text-ink">
                   <Icon icon="pixelarticons:notes" width={16} height={16} className="text-warning" />
                   Reglas &amp; Mecánicas
@@ -181,13 +181,13 @@ export default function GameDetailPage() {
                 to={`/juego/${game.game.slug}/mesa`}
                 variant="primary"
                 fullWidth
-                className="!h-14 !text-base !px-7 shadow-[0_0_22px_rgba(32,168,216,0.45)] md:w-auto"
+                className="!h-14 !text-base !px-7 md:w-auto"
               >
                 <Icon icon="pixelarticons:play" width={20} height={20} />
                 Jugar ahora
               </Button>
             ) : (
-              <div className="rounded-xl border border-subtle px-4 py-3 text-[13px] text-ink-faint">
+              <div className="rounded-[6px] border-2 border-subtle px-4 py-3 text-[13px] text-ink-faint">
                 Este juego todavía no se puede jugar desde el cliente.
               </div>
             )}

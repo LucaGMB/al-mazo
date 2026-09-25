@@ -9,6 +9,10 @@ import {
   resolveRoundWinner,
   generateSpanishDeckTemplates,
   envidoCardValue,
+  checkHasFlor,
+  calculateFlorPoints,
+  resolveFlorWinner,
+  calculateFlorBetPoints,
 } from '@al-mazo/shared';
 
 export {
@@ -21,6 +25,10 @@ export {
   resolveRoundWinner,
   generateSpanishDeckTemplates,
   envidoCardValue,
+  checkHasFlor,
+  calculateFlorPoints,
+  resolveFlorWinner,
+  calculateFlorBetPoints,
 };
 
 export const trucoDefinition: GameSchemaDefinition = {
@@ -50,9 +58,17 @@ export const trucoDefinition: GameSchemaDefinition = {
         id: 'ENVIDO_PHASE',
         name: 'Canto de Envido',
         allowedActions: [
+          'CALL_FLOR',
+          'CALL_CONTRA_FLOR',
+          'CALL_CONTRA_FLOR_AL_RESTO',
+          'CON_FLOR_QUIERO',
+          'CON_FLOR_ME_ACHICO',
           'CALL_ENVIDO',
           'CALL_REAL_ENVIDO',
           'CALL_FALTA_ENVIDO',
+          'EL_ENVIDO_ESTA_PRIMERO',
+          'QUIERO',
+          'NO_QUIERO',
           'RESPOND_BET',
           'FOLD',
         ],
@@ -62,9 +78,20 @@ export const trucoDefinition: GameSchemaDefinition = {
         name: 'Juego de Bazas',
         allowedActions: [
           'PLAY_CARD',
+          'CALL_FLOR',
+          'CALL_CONTRA_FLOR',
+          'CALL_CONTRA_FLOR_AL_RESTO',
+          'CON_FLOR_QUIERO',
+          'CON_FLOR_ME_ACHICO',
+          'CALL_ENVIDO',
+          'CALL_REAL_ENVIDO',
+          'CALL_FALTA_ENVIDO',
+          'EL_ENVIDO_ESTA_PRIMERO',
           'CALL_TRUCO',
           'CALL_RETRUCO',
           'CALL_VALE_CUATRO',
+          'QUIERO',
+          'NO_QUIERO',
           'RESPOND_BET',
           'FOLD',
         ],

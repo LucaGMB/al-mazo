@@ -2,20 +2,8 @@
 
 import type { Card } from "@/types/engine";
 import { Icon } from "@iconify/react";
-
-// Colores del juego (color-match), independientes de la paleta de UI del
-// theme de Tailwind: ver al-mazo-server/src/games/color-match/definition.ts.
-const CARD_COLORS: Record<string, string> = {
-  RED: "#F86C6B",
-  BLUE: "#20A8D8",
-  GREEN: "#4DBD74",
-  YELLOW: "#F5C518",
-  ESPADAS: "#2D5B88",
-  BASTOS: "#3E5C38",
-  OROS: "#C49000",
-  COPAS: "#9E2A2B",
-  ANY: "#3A3F44",
-};
+import { CARD_COLORS } from "@/lib/game/card-colors";
+import { getUnoCardImageSrc, hasColorFallbackOnly } from "@/lib/game/card-assets";
 
 const SUIT_ICONS: Record<string, string> = {
   ESPADAS: "pixelarticons:sword",
@@ -26,13 +14,13 @@ const SUIT_ICONS: Record<string, string> = {
 
 const ACTION_ICONS: Record<string, string> = {
   SKIP: "pixelarticons:close",
-  REVERSE: "pixelarticons:arrow-bar-both",
+  REVERSE: "pixelarticons:sync",
   SWAP: "pixelarticons:reload",
   DISCARD_ALL: "pixelarticons:trash",
   WILD: "pixelarticons:sparkles",
 };
 
-// Contenido de las esquinas: valor + palo (o ícono de acción).
+// Contenido de las esquinas (sólo Familia A, naipe español): valor + palo.
 function pipInfo(card: Card): { text: string | null; icon: string | null } {
   const suit = SUIT_ICONS[card.color ?? ""];
   if (suit) return { text: card.value != null ? String(card.value) : null, icon: suit };
@@ -43,17 +31,18 @@ function pipInfo(card: Card): { text: string | null; icon: string | null } {
   return { text: null, icon: ACTION_ICONS[card.value ?? ""] ?? null };
 }
 
-function CardPip({ card, inverted }: { card: Card; inverted?: boolean }) {
+function CardPip({ card, inverted, ink }: { card: Card; inverted?: boolean; ink: string }) {
   const { text, icon } = pipInfo(card);
   if (!text && !icon) return null;
   return (
     <span
-      className={`pointer-events-none absolute z-10 flex flex-col items-center gap-px font-black leading-none ${
-        inverted ? "bottom-0.5 right-0.5 rotate-180" : "top-0.5 left-0.5"
+      className={`pointer-events-none absolute z-10 flex flex-col items-center gap-px font-display font-bold leading-none ${
+        inverted ? "bottom-[5%] right-[8%] rotate-180" : "top-[5%] left-[8%]"
       }`}
+      style={{ color: ink }}
     >
-      {text && <span className="text-[0.5em]">{text}</span>}
-      {icon && <Icon icon={icon} width="0.5em" height="0.5em" />}
+      {text && <span className="text-[0.4em]">{text}</span>}
+      {icon && <Icon icon={icon} width="0.44em" height="0.44em" />}
     </span>
   );
 }
@@ -95,43 +84,65 @@ export default function CardView({
   onClick?: () => void;
   size?: keyof typeof SIZE_CLASSES;
 }) {
-  if (card.type === "TAPADA" || card.value === "TAPADA") {
+  const interactiveClasses = onClick
+    ? "cursor-pointer hover:-translate-y-2 hover:scale-105"
+    : "cursor-default";
+  const selectedClasses = selected ? "outline outline-[3px] outline-accent" : "";
+
+  // Familia B con asset real (color-match / -chaos / -blitz): sprite tal cual.
+  const unoSrc = getUnoCardImageSrc(card);
+  if (unoSrc) {
     return (
-      <div
+      <button
+        type="button"
         onClick={onClick}
-        className={`group relative shrink-0 ${SIZE_CLASSES[size]} overflow-hidden rounded-lg border-2 border-[#b8860b] bg-[#1e293b] flex items-center justify-center font-bold text-white shadow-[0_5px_12px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] ${
-          onClick ? "cursor-pointer hover:-translate-y-2 hover:scale-105" : "cursor-default"
-        }`}
-        title="Carta tapada"
+        disabled={!onClick}
+        className={`group relative shrink-0 ${SIZE_CLASSES[size]} transition-transform duration-150 ${interactiveClasses} ${selectedClasses}`}
       >
-        <span className="pointer-events-none absolute inset-[3px] rounded-md border border-[#d4af37]/40 bg-[radial-gradient(#b8860b_1px,transparent_1px)] [background-size:6px_6px] opacity-40" />
-        <span className="relative z-10 text-[0.8em] text-[#d4af37] font-black uppercase tracking-widest flex flex-col items-center">
-          <Icon icon="pixelarticons:eye-closed" width="1.4em" height="1.4em" />
-        </span>
-      </div>
+        <img
+          src={unoSrc}
+          alt=""
+          className="h-full w-full [image-rendering:pixelated] drop-shadow-[3px_4px_0_rgba(0,0,0,0.4)]"
+        />
+      </button>
     );
   }
 
-  const bg = CARD_COLORS[card.color ?? "ANY"] ?? CARD_COLORS.ANY;
+  // Familia B sin asset todavía (REVERSE / DISCARD_ALL): color plano real +
+  // ícono vectorial, sin gradiente ni blur.
+  if (hasColorFallbackOnly(card)) {
+    const bg = CARD_COLORS[card.color ?? "ANY"] ?? CARD_COLORS.ANY;
+    const icon = ACTION_ICONS[card.value as string];
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={!onClick}
+        className={`group relative shrink-0 ${SIZE_CLASSES[size]} rounded-[14%] border-[3px] border-[#0b0812] flex items-center justify-center shadow-[3px_4px_0_0_rgba(0,0,0,0.4)] transition-transform duration-150 ${interactiveClasses} ${selectedClasses}`}
+        style={{ backgroundColor: bg }}
+      >
+        {icon && <Icon icon={icon} width="1.4em" height="1.4em" className="text-white" />}
+      </button>
+    );
+  }
 
+  // Familia A (naipe español real): sin cambios, mismo render de siempre.
+  const fg = CARD_COLORS[card.color ?? "ANY"] ?? CARD_COLORS.ANY;
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={!onClick}
-      className={`group relative shrink-0 ${SIZE_CLASSES[size]} overflow-hidden rounded-lg border-2 border-white/20 flex items-center justify-center font-bold text-white shadow-[0_5px_12px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-2px_0_rgba(0,0,0,0.3)] transition-all duration-150 ${
-        onClick
-          ? "cursor-pointer hover:-translate-y-2 hover:scale-105 hover:shadow-[0_12px_24px_rgba(0,0,0,0.6)]"
-          : "cursor-default"
-      } ${selected ? "border-accent shadow-[0_0_14px_rgba(32,168,216,0.6)]" : ""}`}
-      style={{ backgroundColor: bg }}
+      className={`group relative shrink-0 ${SIZE_CLASSES[size]} rounded-[14%] card-paper border-[3px] border-[#241a44] flex items-center justify-center transition-all duration-150 shadow-[3px_4px_0_0_rgba(0,0,0,0.4)] ${interactiveClasses} ${
+        selected ? "outline outline-[3px] outline-accent shadow-[0_0_0_3px_rgba(255,210,63,0.4),3px_4px_0_0_rgba(0,0,0,0.4)]" : ""
+      }`}
     >
-      {/* Brillo diagonal sutil sobre la superficie de la carta. */}
-      <span className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/15 to-transparent" />
-      <span className="pointer-events-none absolute inset-[3px] rounded-md border border-white/20" />
-      <CardPip card={card} />
-      <CardPip card={card} inverted />
-      <span className="relative z-10 flex flex-col items-center gap-0.5 text-center text-[1.45em] leading-none">
+      <CardPip card={card} ink={fg} />
+      <CardPip card={card} inverted ink={fg} />
+      <span
+        className="relative z-10 flex flex-col items-center gap-0.5 text-center text-[1.55em] leading-none font-display font-bold [text-shadow:2px_2px_0_rgba(0,0,0,0.15)]"
+        style={{ color: fg }}
+      >
         {cardCenter(card)}
       </span>
     </button>

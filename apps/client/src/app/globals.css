@@ -1,24 +1,44 @@
 @import "tailwindcss";
 
 @theme {
-  --color-app: #14171a;
-  --color-surface: #23282c;
-  --color-statusbar: #181b1d;
-  --color-subtle: #373d41;
-  --color-medium: #5c6873;
+  /* Fondo y superficies: navy/índigo oscuro tipo arcade, no madera/café. */
+  --color-app: #171a35;
+  --color-surface: #232a5c;
+  --color-statusbar: #0a0c1f;
+  --color-subtle: #4d58a8;
+  --color-medium: #6067a0;
 
-  --color-ink: #f0f3f5;
-  --color-ink-soft: #9ba5ac;
-  --color-ink-faint: #73818f;
-  --color-outline: #c8ced3;
+  /* Texto: blanco/lila claro sobre navy, en vez de tiza sobre madera. */
+  --color-ink: #f4f1ff;
+  --color-ink-soft: #c7c9ec;
+  --color-ink-faint: #9a9fd4;
+  --color-outline: #ffd23f;
 
-  --color-accent: #20a8d8;
-  --color-accent-hover: #1b8eb7;
-  --color-success: #4dbd74;
-  --color-warning: #ffc107;
-  --color-danger: #f86c6b;
+  /* Acento único: dorado de fichas/chips, reemplaza el latón boliche. */
+  --color-accent: #ffd23f;
+  --color-accent-hover: #e0b32f;
+  --color-success: #33c48d;
+  --color-warning: #ff8f4d;
+  --color-danger: #ff4d6d;
+  --color-info: #4fa8ff;
 
-  --font-sans: var(--font-roboto), "Helvetica Neue", Arial, sans-serif;
+  /* "Mesa": panel chato con viñeta, sin madera/paño con grano — Balatro usa
+     color plano, no texturas físicas. Se reusan los nombres wood/felt de la
+     piel anterior para no tocar cada componente que ya los referencia. */
+  --color-felt: #2c3470;
+  --color-felt-dark: #0a0c1f;
+  --color-felt-light: #3a4390;
+  --color-wood: #4d58a8;
+  --color-wood-dark: #12163a;
+
+  /* Cartulina de las cartas: crema, con borde tinta oscura. */
+  --color-paper: #fff6e4;
+  --color-paper-dark: #e8dcc0;
+  --color-ink-card: #241a44;
+
+  --font-sans: var(--font-baloo), "Nunito", sans-serif;
+  --font-display: var(--font-silkscreen), "Courier New", monospace;
+  --font-mono: var(--font-silkscreen), "Courier New", monospace;
 }
 
 body {
@@ -29,6 +49,38 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ---------------------------------------------------------------------- */
+/* Grano sutil vía SVG turbulence, sin assets externos.                    */
+/* ---------------------------------------------------------------------- */
+
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.grain-light::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.35 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.card-paper {
+  background-color: var(--color-paper);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Animaciones                                                             */
+/* ---------------------------------------------------------------------- */
+
 @keyframes pop-in {
   0% { transform: scale(0.85); opacity: 0; }
   70% { transform: scale(1.05); }
@@ -36,13 +88,13 @@ body {
 }
 
 @keyframes float-slow {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-5px) rotate(2deg); }
 }
 
 @keyframes pulse-glow {
-  0%, 100% { filter: drop-shadow(0 0 6px rgba(32,168,216,0.35)); }
-  50% { filter: drop-shadow(0 0 16px rgba(32,168,216,0.8)); }
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(255,210,63,0.35)); }
+  50% { filter: drop-shadow(0 0 16px rgba(255,210,63,0.8)); }
 }
 
 @keyframes table-shake {
@@ -71,9 +123,51 @@ body {
   100% { opacity: 0; transform: translateY(-10px) scale(0.9); }
 }
 
+@keyframes chalk-flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.82; }
+}
+
+@keyframes draw-pulse {
+  0% { transform: scale(0.6) translateY(4px); opacity: 0; }
+  25% { transform: scale(1.2) translateY(0); opacity: 1; }
+  40% { transform: scale(1) translateY(0); }
+  75% { transform: scale(1) translateY(-6px); opacity: 1; }
+  100% { transform: scale(0.9) translateY(-14px); opacity: 0; }
+}
+
+@keyframes letter-bounce {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-5px) rotate(-4deg); }
+}
+
 .animate-pop-in { animation: pop-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 .animate-float { animation: float-slow 3s ease-in-out infinite; }
 .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
 .animate-table-shake { animation: table-shake 0.35s ease-in-out; }
 .animate-deal-in { animation: deal-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 .animate-bubble-pop { animation: bubble-pop 2.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-chalk-flicker { animation: chalk-flicker 2.4s ease-in-out infinite; }
+.animate-draw-pulse { animation: draw-pulse 1.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-letter-bounce { animation: letter-bounce 2.2s ease-in-out infinite; }
+
+/* ---------------------------------------------------------------------- */
+/* Mesa pixel art: fieltro con textura real (multiply), sin radial-gradient */
+/* ni tachas con gradiente. Reemplaza la mesa circular anterior.           */
+/* ---------------------------------------------------------------------- */
+
+.felt-texture {
+  background-color: var(--color-felt);
+  background-image: url(/pixel/patterns/felt.png);
+  background-size: 72px 72px;
+  background-blend-mode: multiply;
+  image-rendering: pixelated;
+}
+
+.pixel-rivet {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--color-accent);
+  border: 2px solid #0b0812;
+}

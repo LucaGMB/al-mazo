@@ -159,3 +159,53 @@ export function generateSpanishDeckTemplates(): CardTemplate[] {
 
   return templates;
 }
+
+export function checkHasFlor(cards: Card[]): boolean {
+  if (!cards || cards.length < 3) return false;
+  const suits = cards.map((c) => c.color).filter(Boolean);
+  if (suits.length < 3) return false;
+  return suits[0] === suits[1] && suits[1] === suits[2];
+}
+
+export function calculateFlorPoints(cards: Card[]): number {
+  if (!checkHasFlor(cards)) return 0;
+  const sum = cards.reduce((acc, c) => acc + envidoCardValue(c), 0);
+  return sum + 20;
+}
+
+export function resolveFlorWinner(
+  p1: { id: string; points: number },
+  p2: { id: string; points: number },
+  manoPlayerId: string
+): { winnerId: string; points: number } {
+  if (p1.points > p2.points) {
+    return { winnerId: p1.id, points: p1.points };
+  } else if (p2.points > p1.points) {
+    return { winnerId: p2.id, points: p2.points };
+  } else {
+    // Empate a favor de la mano
+    return { winnerId: manoPlayerId, points: p1.points };
+  }
+}
+
+export function calculateFlorBetPoints(
+  level: 'FLOR' | 'FLOR_VS_FLOR' | 'CONTRA_FLOR' | 'CONTRA_FLOR_AL_RESTO',
+  scores: Record<string, number>,
+  targetScore = 30
+): { stake: number; refused: number } {
+  switch (level) {
+    case 'FLOR':
+      return { stake: 3, refused: 3 };
+    case 'FLOR_VS_FLOR':
+      return { stake: 4, refused: 3 };
+    case 'CONTRA_FLOR':
+      return { stake: 6, refused: 4 };
+    case 'CONTRA_FLOR_AL_RESTO': {
+      const stake = calculateFaltaEnvidoPoints(scores, targetScore);
+      return { stake, refused: 6 };
+    }
+    default:
+      return { stake: 3, refused: 3 };
+  }
+}
+

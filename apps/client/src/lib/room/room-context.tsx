@@ -11,6 +11,7 @@ import {
 import { createSocket, type GameSocket } from "@/lib/socket/client";
 import {
   addBot as addBotAction,
+  removeBot as removeBotAction,
   chooseColor as chooseColorAction,
   drawCard as drawCardAction,
   executeGameAction,
@@ -50,6 +51,8 @@ interface RoomState {
   // su avatar. `at` es la hora de recepción en el cliente (expira a los 3s).
   chatBubbles: Record<string, { text: string; at: number }>;
   unreadChatCount: number;
+  // Último "te comiste cartas" (DRAW_2/+4 en tu contra). Se limpia solo.
+  forcedDraw: { count: number; byName: string; key: number } | null;
 }
 
 type Action =
@@ -68,7 +71,9 @@ type Action =
   | { type: "CHAT_BUBBLE_EXPIRE"; senderId: string; at: number }
   | { type: "CHAT_HISTORY"; messages: ChatMessage[] }
   | { type: "CLEAR_UNREAD_CHAT" }
-  | { type: "ERROR"; message: string };
+  | { type: "ERROR"; message: string }
+  | { type: "FORCED_DRAW"; count: number; byName: string; key: number }
+  | { type: "FORCED_DRAW_CLEAR"; key: number };
 
 function reducer(state: RoomState, action: Action): RoomState {
   switch (action.type) {
@@ -114,6 +119,14 @@ function reducer(state: RoomState, action: Action): RoomState {
       return { ...state, unreadChatCount: 0 };
     case "ERROR":
       return { ...state, connection: "error", lastError: action.message };
+    case "FORCED_DRAW":
+      return {
+        ...state,
+        forcedDraw: { count: action.count, byName: action.byName, key: action.key },
+      };
+    case "FORCED_DRAW_CLEAR":
+      if (state.forcedDraw?.key !== action.key) return state;
+      return { ...state, forcedDraw: null };
     default:
       return state;
   }
@@ -129,7 +142,11 @@ const initialState: RoomState = {
   chatMessages: [],
   chatBubbles: {},
   unreadChatCount: 0,
+  forcedDraw: null,
 };
+
+// Cuánto queda visible el aviso de "te comiste cartas" (ver FORCED_DRAW_TOAST_TTL_MS).
+const FORCED_DRAW_TOAST_TTL_MS = 3200;
 
 // Vida del globo de chat sobre el avatar (la animación bubble-pop dura 2.8s).
 const CHAT_BUBBLE_TTL_MS = 3000;
@@ -138,6 +155,7 @@ interface RoomContextValue extends RoomState {
   joinRoom: (playerName: string) => Promise<void>;
   startRoom: () => Promise<void>;
   addBot: (name?: string) => Promise<void>;
+  removeBot: (botId?: string) => Promise<void>;
   playCard: (cardId: string, chosenColor?: string, isTapada?: boolean) => Promise<void>;
   drawCard: () => Promise<void>;
   chooseColor: (color: string) => Promise<void>;
@@ -214,6 +232,12 @@ export function RoomProvider({
       });
       socket.on("chat:history", (messages) => dispatch({ type: "CHAT_HISTORY", messages }));
       socket.on("error:notification", ({ message }) => dispatch({ type: "ERROR", message }));
+      socket.on("player:forced_draw", ({ count, byName }) => {
+        const key = Date.now();
+        dispatch({ type: "FORCED_DRAW", count, byName, key });
+        soundManager.play("forcedDraw");
+        window.setTimeout(() => dispatch({ type: "FORCED_DRAW_CLEAR", key }), FORCED_DRAW_TOAST_TTL_MS);
+      });
     },
     [gameSlug, roomCode],
   );
@@ -326,6 +350,10 @@ export function RoomProvider({
     (color: string) => withSocket((s) => chooseColorAction(s, { color })),
     [withSocket],
   );
+  const removeBot = useCallback(
+    (botId?: string) => withSocket((s) => removeBotAction(s, { botId })),
+    [withSocket],
+  );
   const playCard = useCallback(
     (cardId: string, chosenColor?: string, isTapada?: boolean) =>
       withSocket((s) => playCardAction(s, { cardId, chosenColor, isTapada })),
@@ -344,7 +372,6 @@ export function RoomProvider({
     },
     [],
   );
-
   const leaveRoom = useCallback(async () => {
     const socket = socketRef.current;
     if (!socket) return;
@@ -371,6 +398,7 @@ export function RoomProvider({
         joinRoom,
         startRoom,
         addBot,
+        removeBot,
         playCard,
         drawCard,
         chooseColor,

@@ -13,6 +13,7 @@ export default function RoomLobby({
   maxPlayers,
   onStart,
   onAddBot,
+  onRemoveBot,
 }: {
   roomCode: string;
   publicState: PublicGameState;
@@ -20,6 +21,7 @@ export default function RoomLobby({
   maxPlayers?: number;
   onStart: () => void;
   onAddBot: () => void;
+  onRemoveBot?: (botId: string) => void;
 }) {
   const isFull = maxPlayers !== undefined && publicState.players.length >= maxPlayers;
   const [copied, setCopied] = useState(false);
@@ -43,8 +45,8 @@ export default function RoomLobby({
   }
 
   return (
-    <div className="max-w-lg w-full mx-auto my-auto p-6 md:p-8 rounded-2xl border border-subtle bg-statusbar/95 shadow-2xl backdrop-blur text-center flex flex-col items-center gap-5">
-      <div className="flex items-center gap-2 text-lg font-black text-ink">
+    <div className="max-w-lg w-full mx-auto my-auto p-6 md:p-8 border-[3px] border-subtle bg-statusbar/95 shadow-[6px_8px_0_0_rgba(0,0,0,0.35)] text-center flex flex-col items-center gap-5">
+      <div className="flex items-center gap-2 font-display text-lg font-black text-ink">
         <Icon icon="pixelarticons:users" width={22} height={22} className="text-accent" />
         Sala de espera
       </div>
@@ -53,7 +55,7 @@ export default function RoomLobby({
         <div className="text-[11px] uppercase tracking-[0.25em] text-ink-faint">
           Código de la sala
         </div>
-        <div className="text-4xl md:text-5xl font-black tracking-[0.3em] text-accent [text-shadow:0_0_18px_rgba(32,168,216,0.65)]">
+        <div className="font-mono text-4xl md:text-5xl font-black tracking-[0.3em] text-accent [text-shadow:3px_3px_0_rgba(0,0,0,0.35)]">
           {roomCode}
         </div>
         <div className="flex flex-wrap items-center justify-center gap-2">
@@ -74,12 +76,12 @@ export default function RoomLobby({
           return (
             <div
               key={p.id}
-              className="flex w-full items-center gap-3 rounded-xl border border-subtle bg-app/50 px-3 py-2.5 text-left"
+              className="flex w-full items-center gap-3 rounded-[6px] border-2 border-subtle bg-app/50 px-3 py-2.5 text-left"
             >
               <span
                 className={`h-2.5 w-2.5 shrink-0 rounded-full ${
                   p.isConnected
-                    ? "animate-pulse bg-success shadow-[0_0_8px_rgba(77,189,116,0.9)]"
+                    ? "animate-pulse bg-success shadow-[0_0_8px_rgba(51,196,141,0.9)]"
                     : "bg-ink-faint"
                 }`}
                 aria-hidden
@@ -88,16 +90,27 @@ export default function RoomLobby({
                 {decodePlayerName(p.name).display}
               </span>
               {isHostPlayer && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-warning/50 bg-warning/15 px-2 py-0.5 text-[10px] font-bold text-warning">
+                <span className="inline-flex items-center gap-1 rounded-[6px] border-2 border-warning/60 bg-warning/15 px-2 py-0.5 text-[10px] font-bold text-warning">
                   <Icon icon="pixelarticons:crown" width={12} height={12} />
                   HOST
                 </span>
               )}
               {p.isBot && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-accent/50 bg-accent/15 px-2 py-0.5 text-[10px] font-bold text-accent">
+                <span className="inline-flex items-center gap-1 rounded-[6px] border-2 border-accent/60 bg-accent/15 px-2 py-0.5 text-[10px] font-bold text-accent">
                   <Icon icon="pixelarticons:robot" width={12} height={12} />
                   BOT
                 </span>
+              )}
+              {isHost && p.isBot && onRemoveBot && (
+                <button
+                  type="button"
+                  onClick={() => onRemoveBot(p.id)}
+                  aria-label="Eliminar bot"
+                  title="Eliminar bot"
+                  className="inline-flex items-center justify-center w-6 h-6 rounded border border-danger/40 bg-danger/10 text-danger hover:bg-danger/25 hover:border-danger transition-colors cursor-pointer text-xs font-bold"
+                >
+                  <Icon icon="pixelarticons:close" width={14} height={14} />
+                </button>
               )}
             </div>
           );
@@ -117,7 +130,7 @@ export default function RoomLobby({
             fullWidth
             onClick={onStart}
             disabled={publicState.players.length < 2}
-            className="!h-12 !text-base shadow-[0_0_18px_rgba(32,168,216,0.35)]"
+            className="!h-12 !text-base"
           >
             <Icon icon="pixelarticons:play" width={18} height={18} />
             Iniciar partida

@@ -61,18 +61,28 @@ Implementación oficial de un juego de descarte de 108 cartas por color o valor 
 * Acciones especiales: `SKIP` (salto), `REVERSE` (cambio de sentido), `DRAW_2` (robar 2 y saltar).
 * Comodines: `WILD` (elección de color) y `WILD_DRAW_4` (color + roba 4).
 
-### 3. Información Oculta (Anti-Cheat / Fog of War)
+### 3. Segundo Juego Oficial: Truco Argentino Criollo (Bazas, Envido, Flor y Jerarquía)
+Implementación 100% fiel al reglamento oficial de Bureau de Juegos:
+* Baraja española de 40 cartas tradicional y jerarquía oficial (del As de Espadas al 4).
+* Mecánica de 3 bazas por ronda con desempates por mano y parda.
+* Envite completo de Envido con prioridad de cobro sobre el truco.
+* Regla de **La Flor** (3 cartas del mismo palo): Flor solitaria (+3 pts automáticos), Flor vs Flor (+4 / +3 me achico), Contraflor (+6 / +4) y Contraflor al resto. Anula Envido.
+* Regla de **"El Envido está primero"**: Pausa automática de la apuesta de truco en 1ª baza al cantar envido, con reanudación posterior del truco.
+* Soporte para **Carta Tapada** (fuerza 0).
+* Todas las acciones, condiciones y efectos están desacoplados como capacidades modulares para el Editor Visual de Juegos (`/editor`).
+
+### 4. Información Oculta (Anti-Cheat / Fog of War)
 El servidor es autoritativo:
 * **Estado Público (`room:state`)**: Se transmite a todos los jugadores (carta superior en descarte, color activo, turno actual, sentido y **conteo numérico** de cartas restantes de cada jugador).
 * **Mano Privada (`player:hand`)**: Solo se transmite de forma directa y cifrada al socket del jugador propietario.
 
-### 4. Resiliencia ante Desconexiones en Móviles
+### 5. Resiliencia ante Desconexiones en Móviles
 * Cada jugador recibe un `reconnectToken` secreto al unirse a la sala.
 * Si el socket se desconecta (por caída de red móvil o bloqueo de pantalla), se inicia una **ventana de gracia configurable** (default: 60s).
 * Si el jugador se reconecta antes de que expire, retoma su mano y su asiento automáticamente.
 * Si vence la ventana de gracia, se ejecuta la política configurada por la sala (`DISCARD_AND_CONTINUE`, `AUTO_PASS`, o `ABORT_MATCH`).
 
-### 5. Modo Local y Sincronización Offline
+### 6. Modo Local y Sincronización Offline
 El frontend puede ejecutar el motor de forma 100% desconectada. Al recuperar conexión, envía el reporte de la partida a `POST /api/matches/sync` para persistir el historial y actualizar estadísticas.
 
 ---
