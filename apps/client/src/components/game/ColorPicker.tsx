@@ -34,7 +34,7 @@ export default function ColorPicker({
 
   return (
     <div
-      className="absolute inset-0 z-20 flex items-center justify-center rounded-full bg-black/65 backdrop-blur-sm"
+ className="absolute inset-0 z-20 flex items-center justify-center bg-black/65 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="color-picker-title"
@@ -56,7 +56,7 @@ export default function ColorPicker({
               aria-label={c.label}
             >
               <span
-                className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/60 shadow-[0_0_0_5px_rgba(255,255,255,0.08),0_0_18px_currentColor]"
+ className="flex h-12 w-12 items-center justify-center border-2 border-white/60 shadow-[0_0_0_5px_rgba(255,255,255,0.08),0_0_18px_currentColor]"
                 style={{ backgroundColor: c.hex, color: c.hex }}
               >
                 {c.icon && <Icon icon={c.icon} width={25} height={25} className="text-white" />}

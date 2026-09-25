@@ -15,7 +15,7 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="md:hidden flex-none h-16 backdrop-blur-lg bg-surface/90 border-t border-white/10 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] flex items-center justify-around sticky bottom-0 z-30 px-2">
+    <nav className="md:hidden flex-none h-16 bg-surface border-t-2 border-subtle shadow-[0_-4px_0_0_rgba(0,0,0,0.35)] flex items-center justify-around sticky bottom-0 z-30 px-2">
       {items.map(({ href, icon, label, end }) => {
         const isActive = end ? pathname === href : pathname.startsWith(href);
         return (
@@ -24,7 +24,7 @@ export default function BottomNav() {
             href={href}
             className={`flex flex-col items-center gap-0.5 no-underline transition-all duration-150 ${
               isActive
-                ? "bg-accent/15 border border-accent/40 text-accent font-bold scale-105 shadow-[0_0_14px_rgba(255,210,63,0.25)] rounded-full px-4 py-1"
+ ? "bg-accent/15 border border-accent/40 text-accent font-bold scale-105 shadow-[2px_2px_0_0_rgba(0,0,0,0.3)] px-4 py-1"
                 : "border border-transparent text-ink-faint hover:text-accent hover:-translate-y-0.5"
             }`}
           >

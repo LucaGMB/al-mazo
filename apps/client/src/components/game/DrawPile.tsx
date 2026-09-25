@@ -31,9 +31,9 @@ export default function DrawPile({
         }`}
       >
         {/* Grosor 3D: varias cartas superpuestas bajo la de arriba. */}
-        <div className="absolute inset-0 translate-x-1.5 translate-y-3 rounded-[14%] bg-wood-dark border-2 border-[#241a44]" />
-        <div className="absolute inset-0 translate-x-1 translate-y-2 rounded-[14%] bg-wood-dark border-2 border-[#241a44]" />
-        <div className="absolute inset-0 translate-x-0.5 translate-y-1 rounded-[14%] bg-surface border-2 border-[#241a44]" />
+ <div className="absolute inset-0 translate-x-1.5 translate-y-3 bg-wood-dark border-2 border-[#241a44]" />
+ <div className="absolute inset-0 translate-x-1 translate-y-2 bg-wood-dark border-2 border-[#241a44]" />
+ <div className="absolute inset-0 translate-x-0.5 translate-y-1 bg-surface border-2 border-[#241a44]" />
         <CardBack size="md" interactive={interactive} glow={interactive} />
         {interactive && (
           <span

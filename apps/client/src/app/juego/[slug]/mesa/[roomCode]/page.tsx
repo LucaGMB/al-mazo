@@ -16,12 +16,16 @@ import ColorPicker from "@/components/game/ColorPicker";
 import ChatDrawer from "@/components/game/ChatDrawer";
 import TrucoTable from "@/components/game/TrucoTable";
 import CommunityTable, { getEscobaPointValue } from "@/components/game/CommunityTable";
+import CardFlight from "@/components/game/CardFlight";
+import CardView from "@/components/game/CardView";
+import CardBack from "@/components/game/CardBack";
 import DesconectadosTable from "@/components/game/DesconectadosTable";
 import { useRoom } from "@/lib/room/use-room";
 import { assignSeats } from "@/lib/room/seating";
 import { decodePlayerName } from "@/lib/room/player-name";
 import { useSound } from "@/lib/sound/use-sound";
 import { getGame } from "@/lib/api/games";
+import { canPlayDiscardCard } from "@/lib/game/can-play-card";
 import type { Card } from "@/types/engine";
 
 const SLOT_ORDER: Array<"top" | "left" | "right"> = ["top", "left", "right"];
@@ -345,7 +349,7 @@ export default function MesaPage() {
                 title="Chat"
               />
               {unreadChatCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-danger text-[10px] font-bold text-ink flex items-center justify-center">
+ <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 bg-danger text-[10px] font-bold text-ink flex items-center justify-center">
                   {unreadChatCount > 9 ? "9+" : unreadChatCount}
                 </span>
               )}
@@ -380,7 +384,7 @@ export default function MesaPage() {
           {CONFETTI.map((c, i) => (
             <span
               key={i}
-              className="absolute top-0 rounded-sm"
+ className="absolute top-0 "
               style={{
                 left: `${c.left}%`,
                 width: c.size,
@@ -612,12 +616,35 @@ export default function MesaPage() {
 
   return (
     <div className="relative max-w-[480px] md:max-w-3xl mx-auto h-dvh overflow-hidden flex flex-col bg-app">
+      {flight && (
+        <CardFlight
+          key={flight.key}
+          content={<CardView card={flight.card} size="md" />}
+          fromX={flight.fromX}
+          fromY={flight.fromY}
+          toX={flight.toX}
+          toY={flight.toY}
+          onDone={() => setFlight(null)}
+        />
+      )}
+      {drawFlights.map((f) => (
+        <CardFlight
+          key={f.key}
+          content={<CardBack size="sm" />}
+          fromX={f.fromX}
+          fromY={f.fromY}
+          toX={f.toX}
+          toY={f.toY}
+          growOnArrive
+          onDone={() => setDrawFlights((old) => old.filter((x) => x.key !== f.key))}
+        />
+      ))}
       {forcedDraw && (
         <div
           key={forcedDraw.key}
           className="absolute top-14 md:top-16 inset-x-0 z-40 flex justify-center px-4 pointer-events-none"
         >
-          <div className="animate-bubble-pop flex items-center gap-2 rounded-[6px] border-2 border-danger bg-danger/20 backdrop-blur px-4 py-2 text-[13px] font-bold text-ink shadow-[0_0_18px_rgba(255,77,109,0.4)]">
+ <div className="animate-bubble-pop flex items-center gap-2 border-2 border-danger bg-danger/20 backdrop-blur px-4 py-2 text-[13px] font-bold text-ink shadow-[0_0_18px_rgba(255,77,109,0.4)]">
             <Icon icon="pixelarticons:arrow-down" width={16} height={16} className="text-danger" />
             {decodePlayerName(forcedDraw.byName).display} te hizo robar {forcedDraw.count}{" "}
             {forcedDraw.count === 1 ? "carta" : "cartas"}
@@ -627,7 +654,7 @@ export default function MesaPage() {
       <div className="flex-none px-3.5 md:px-6 py-2.5 md:py-4 flex items-center justify-between">
         <BackButton />
         <div className="text-center">
-          <div className="inline-flex flex-col items-center rounded-[6px] border-2 border-subtle bg-statusbar/90 px-4 py-1.5 shadow-[3px_3px_0_0_rgba(0,0,0,0.35)]">
+ <div className="inline-flex flex-col items-center border-2 border-subtle bg-statusbar/90 px-4 py-1.5 shadow-[3px_3px_0_0_rgba(0,0,0,0.35)]">
             <div className="flex items-center gap-1.5 font-display text-xs md:text-sm font-black uppercase tracking-wider text-ink">
               <Icon icon="pixelarticons:gamepad" width={14} height={14} className="text-accent" />
               {slug}
@@ -651,7 +678,7 @@ export default function MesaPage() {
               title="Chat"
             />
             {unreadChatCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-danger text-[10px] font-bold text-ink flex items-center justify-center">
+ <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 bg-danger text-[10px] font-bold text-ink flex items-center justify-center">
                 {unreadChatCount > 9 ? "9+" : unreadChatCount}
               </span>
             )}
@@ -743,10 +770,11 @@ export default function MesaPage() {
             </div>
           )}
 
-          <div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-[10px] border-[#3E2723] shadow-[inset_0_0_0_2px_rgba(212,175,55,0.5),inset_0_0_30px_rgba(0,0,0,0.55),0_0_0_1px_#0B160F,0_0_24px_rgba(212,175,55,0.18)] bg-[radial-gradient(circle_at_40%_35%,#2E6F40,#1D4B2B_70%,#112B19_100%)]"
-            style={{ width: "min(300px, 85%, 85svh)", height: "min(300px, 85%, 85svh)" }}
-          >
+ <div className="felt-texture absolute top-[90px] md:top-[120px] left-1/2 -translate-x-1/2 w-[300px] h-[220px] md:w-[440px] md:h-[320px] border-[6px] border-[#0b0812] shadow-[6px_6px_0_0_rgba(0,0,0,0.5)]">
+            <span className="pixel-rivet" style={{ top: 6, left: 6 }} />
+            <span className="pixel-rivet" style={{ top: 6, right: 6 }} />
+            <span className="pixel-rivet" style={{ bottom: 6, left: 6 }} />
+            <span className="pixel-rivet" style={{ bottom: 6, right: 6 }} />
             {isCommunity ? (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
                 <CommunityTable
@@ -808,20 +836,9 @@ export default function MesaPage() {
         </div>
       )}
 
-       {isMyTurn && gameStatus === "IN_PROGRESS" && (
-         // En Truco la bandeja de acciones ya indica el turno y en celular
-         // resta espacio útil: el pill queda solo para desktop.
-         <div className={`flex-none justify-center pb-1 ${isTruco ? "hidden md:flex" : "flex"}`}>
-           <div className="inline-flex animate-bounce items-center gap-2 rounded-[6px] border-2 border-warning bg-warning/15 px-4 py-1.5 font-display text-xs font-black uppercase tracking-[0.16em] text-warning shadow-[0_0_18px_rgba(255,143,77,0.3)]">
-             <span className="h-2 w-2 animate-pulse rounded-full bg-warning" />
-             Tu Turno
-           </div>
-         </div>
-       )}
-
       {isCommunity && isMyTurn && gameStatus === "IN_PROGRESS" && (
         <div className="flex-none px-3.5 md:px-6 pb-2">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 rounded-xl border border-accent/40 bg-statusbar/95 p-2.5 md:p-3 shadow-[0_0_18px_rgba(32,168,216,0.18)] backdrop-blur">
+ <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 border border-accent/40 bg-statusbar/95 p-2.5 md:p-3 shadow-[0_0_18px_rgba(32,168,216,0.18)] backdrop-blur">
             <div className="flex items-center gap-2 text-xs md:text-sm">
               {!selectedHandCard && selectedTableCards.length === 0 && (
                 <span className="text-ink-faint">
@@ -855,7 +872,7 @@ export default function MesaPage() {
                     / 15
                   </span>
                   {isTargetSum ? (
-                    <span className="rounded-full bg-success/20 border border-success/60 px-2 py-0.5 text-[10px] font-black text-success animate-pulse">
+ <span className=" bg-success/20 border border-success/60 px-2 py-0.5 text-[10px] font-black text-success animate-pulse">
                       {isSweepEscoba ? "🧹 ¡ESCOBA!" : "✓ ¡Suma 15!"}
                     </span>
                   ) : (
@@ -921,7 +938,7 @@ export default function MesaPage() {
       {!isTruco && !isPromptGame && (
         <div className="flex-none px-3.5 md:px-6 py-1.5 md:py-3 flex items-center justify-between">
           <div className="flex items-center gap-1.5 font-medium text-[11px] md:text-sm text-ink">
-            <span className={`w-2 h-2 rounded-full ${isMyTurn ? "bg-accent" : "bg-ink-faint"}`} />
+ <span className={`w-2 h-2 ${isMyTurn ? "bg-accent" : "bg-ink-faint"}`} />
             {pendingChoiceForMe
               ? "Elegí un color"
               : pendingChoiceForOther
@@ -947,7 +964,7 @@ export default function MesaPage() {
           <button
             type="button"
             onClick={handleShout}
-            className="animate-bounce rounded-none bg-warning border-[3px] border-[#241a44] px-5 py-1.5 font-display text-[13px] md:text-sm font-black text-[#171a35] shadow-[0_5px_0_0_#b0521f] active:translate-y-[3px] active:shadow-[0_1px_0_0_#b0521f] cursor-pointer"
+ className="animate-bounce rounded-none bg-warning border-[3px] border-[#241a44] px-5 py-1.5 font-display text-[13px] md:text-sm font-black text-[#171a35] shadow-[0_5px_0_0_#b0521f] active:translate-y-[3px] active:shadow-[0_1px_0_0_#b0521f] cursor-pointer"
           >
              <Icon icon="pixelarticons:megaphone" width={18} height={18} />
              ¡AL MAZO!
@@ -957,7 +974,7 @@ export default function MesaPage() {
 
       {shoutToast && (
         <div className="flex-none flex justify-center pb-1">
-          <span className="rounded-[6px] border-2 border-[#241a44] bg-success px-4 py-1 text-[12px] font-bold text-[#f4f1ff] shadow-[0_0_14px_rgba(51,196,141,0.6)]">
+ <span className=" border-2 border-[#241a44] bg-success px-4 py-1 text-[12px] font-bold text-[#f4f1ff] shadow-[0_0_14px_rgba(51,196,141,0.6)]">
             ¡Cantaste AL MAZO!
           </span>
         </div>
@@ -965,7 +982,7 @@ export default function MesaPage() {
 
       <div className="flex-none flex justify-center px-2 pb-1">
         <div
-          className="flex max-w-full flex-wrap items-center justify-center gap-1 md:gap-1.5 py-1 px-2 md:px-3 bg-statusbar/80 rounded-[8px] border-2 border-subtle mx-auto"
+ className="flex max-w-full flex-wrap items-center justify-center gap-1 md:gap-1.5 py-1 px-2 md:px-3 bg-statusbar/80 border-2 border-subtle mx-auto"
           role="group"
           aria-label="Bandeja de reacciones"
         >
@@ -974,7 +991,7 @@ export default function MesaPage() {
               key={reaction.text}
               type="button"
               onClick={() => handleReaction(reaction.text)}
-              className="inline-flex cursor-pointer items-center gap-1 rounded-[6px] border-2 border-subtle bg-app/60 px-2 py-0.5 text-[10px] md:text-[11px] font-bold text-ink-soft transition-colors duration-150 hover:border-accent hover:text-accent"
+ className="inline-flex cursor-pointer items-center gap-1 border-2 border-subtle bg-app/60 px-2 py-0.5 text-[10px] md:text-[11px] font-bold text-ink-soft transition-colors duration-150 hover:border-accent hover:text-accent"
             >
               <Icon icon={reaction.icon} width={13} height={13} aria-hidden />
               {reaction.text}
@@ -990,6 +1007,10 @@ export default function MesaPage() {
           canPlay={isCommunity ? canAct : canPlayHandCards}
           selectedCardId={isCommunity ? selectedHandCardId : null}
           onPlay={isCommunity ? handleHandCardClick : (cardId) => handlePlay(cardId)}
+          isCardPlayable={
+            isCommunity ? undefined : (card) => canPlayDiscardCard(card, publicState.topDiscardCard, publicState.activeColor)
+          }
+          dragToPlay={!isCommunity}
         />
       )}
 

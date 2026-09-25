@@ -43,9 +43,9 @@ export default function MetadataSection({
   }
 
   return (
-    <div className="flex flex-col gap-5 rounded-2xl border border-subtle bg-statusbar/80 p-5 md:p-6 backdrop-blur">
+ <div className="flex flex-col gap-5 border-2 border-subtle bg-statusbar p-5 md:p-6 shadow-[4px_4px_0_0_rgba(0,0,0,0.3)]">
       <div className="flex items-center gap-3 pb-3 border-b border-subtle">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-accent/40 bg-accent/15 text-accent shadow-[0_0_12px_rgba(32,168,216,0.2)]">
+ <span className="flex h-10 w-10 items-center justify-center border border-accent/40 bg-accent/15 text-accent shadow-[0_0_12px_rgba(32,168,216,0.2)]">
           <Icon icon="pixelarticons:edit" width={20} height={20} />
         </span>
         <div>
@@ -62,7 +62,7 @@ export default function MetadataSection({
             value={title}
             onChange={(e) => handleTitleChange(e.target.value)}
             placeholder="Ej: Descarte Relámpago"
-            className="h-11 rounded-xl border border-subtle bg-app/80 px-3.5 text-sm text-ink focus:border-accent focus:outline-none transition-colors"
+ className="h-11 border border-subtle bg-app/80 px-3.5 text-sm text-ink focus:border-accent focus:outline-none transition-colors"
           />
         </label>
 
@@ -79,7 +79,7 @@ export default function MetadataSection({
                 })
               }
               placeholder="descarte-relampago"
-              className="h-11 w-full rounded-xl border border-subtle bg-app/80 px-3.5 text-sm font-mono text-ink disabled:opacity-60 focus:border-accent focus:outline-none transition-colors"
+ className="h-11 w-full border border-subtle bg-app/80 px-3.5 text-sm font-mono text-ink disabled:opacity-60 focus:border-accent focus:outline-none transition-colors"
             />
             {isExisting && (
               <span className="absolute right-3 text-[10px] text-ink-faint uppercase font-bold tracking-wider">
@@ -97,12 +97,12 @@ export default function MetadataSection({
           value={description}
           onChange={(e) => onChange({ description: e.target.value })}
           placeholder="Explicá en pocas líneas de qué trata tu juego, cómo se gana y qué lo hace único..."
-          className="rounded-xl border border-subtle bg-app/80 p-3.5 text-sm text-ink focus:border-accent focus:outline-none transition-colors resize-none"
+ className=" border border-subtle bg-app/80 p-3.5 text-sm text-ink focus:border-accent focus:outline-none transition-colors resize-none"
         />
       </label>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-        <div className="flex flex-col gap-2 rounded-xl border border-subtle bg-app/50 p-4">
+ <div className="flex flex-col gap-2 border border-subtle bg-app/50 p-4">
           <div className="flex justify-between items-center text-xs">
             <span className="font-bold text-ink-soft">Mínimo de Jugadores</span>
             <span className="font-black text-accent text-sm">{minPlayers}</span>
@@ -124,7 +124,7 @@ export default function MetadataSection({
           <span className="text-[10px] text-ink-faint">Mínimo permitido por mesa</span>
         </div>
 
-        <div className="flex flex-col gap-2 rounded-xl border border-subtle bg-app/50 p-4">
+ <div className="flex flex-col gap-2 border border-subtle bg-app/50 p-4">
           <div className="flex justify-between items-center text-xs">
             <span className="font-bold text-ink-soft">Máximo de Jugadores</span>
             <span className="font-black text-accent text-sm">{maxPlayers}</span>

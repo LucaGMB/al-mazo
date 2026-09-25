@@ -21,6 +21,13 @@ function hashName(name: string): number {
   return Math.abs(h);
 }
 
+// El server no expone la duración real del turno (GameRoom.turnTimeoutSeconds
+// en apps/server/src/realtime/room.ts, hoy siempre 25 y sin override), así
+// que el aro usa esta constante como referencia del 100%.
+// ponytail: si el turno pasa a ser configurable por juego, exponerlo en
+// publicState y reemplazar esta constante.
+const TURN_TIMER_SECONDS = 25;
+
 // Adaptado de la demo: reemplaza "vida"/"maná" (ficticios, no existen en el
 // server) por cardCount real y resaltado de turno.
 export default function PlayerBadge({
@@ -81,23 +88,24 @@ export default function PlayerBadge({
   }, [hasTimer, turnExpiresAt]);
 
   const showTimer = remainingSeconds !== null;
-  const timerClasses = !showTimer
+  const ringStrokeClass = !showTimer
     ? ""
     : remainingSeconds <= 5
-      ? "bg-danger/20 border-danger/60 text-danger font-bold animate-pulse"
+      ? "stroke-danger animate-pulse"
       : remainingSeconds <= 10
-        ? "bg-warning/20 border-warning/60 text-warning"
-        : "bg-accent/15 border-accent/50 text-accent";
+        ? "stroke-warning"
+        : "stroke-accent";
+  const timerPct = showTimer ? Math.min(1, remainingSeconds / TURN_TIMER_SECONDS) : 1;
 
   return (
     <div
       data-player-id={player.id}
-      className={`absolute flex items-center gap-2 md:gap-3 bg-statusbar border-2 border-subtle rounded-[8px] py-1 md:py-1.5 shadow-[3px_3px_0_0_rgba(0,0,0,0.35)] ${POSITION_CLASSES[position]} ${ringClasses}`}
+ className={`absolute flex items-center gap-2 md:gap-3 bg-statusbar border-2 border-subtle py-1 md:py-1.5 shadow-[3px_3px_0_0_rgba(0,0,0,0.35)] ${POSITION_CLASSES[position]} ${ringClasses}`}
     >
       {recentMessage && (
         <div
           key={recentMessage}
-          className="absolute -top-7 left-1/2 -translate-x-1/2 z-30 pointer-events-none whitespace-nowrap rounded-[6px] border-2 border-accent bg-statusbar/95 px-2.5 py-0.5 text-[11px] font-bold text-accent shadow-[0_0_12px_rgba(255,210,63,0.4)] animate-bubble-pop"
+ className="absolute -top-7 left-1/2 -translate-x-1/2 z-30 pointer-events-none whitespace-nowrap border-2 border-accent bg-statusbar/95 px-2.5 py-0.5 text-[11px] font-bold text-accent shadow-[0_0_12px_rgba(255,210,63,0.4)] animate-bubble-pop"
         >
           {recentMessage}
           <span
@@ -109,7 +117,7 @@ export default function PlayerBadge({
       {/* Avatar plano: círculo de color sólido + borde grueso, sin gradiente
           ni relieve simulado. */}
       <div
-        className={`relative shrink-0 rounded-full border-[3px] border-[#0b0812] flex items-center justify-center ${
+ className={`relative shrink-0 border-[3px] border-[#0b0812] flex items-center justify-center ${
           isSelf ? "w-7 h-7 md:w-9 md:h-9" : "w-6 h-6 md:w-8 md:h-8"
         } ${!player.isConnected ? "opacity-40" : ""}`}
         style={{ backgroundColor: avatarColor }}
@@ -122,15 +130,32 @@ export default function PlayerBadge({
           aria-hidden
         />
         {!player.isConnected && (
-          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-pulse rounded-full border border-statusbar bg-danger" />
+ <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-pulse border border-statusbar bg-danger" />
         )}
         {drawPulse && (
           <span
             key={drawPulse.key}
-            className="pointer-events-none absolute -right-1.5 -top-1.5 z-20 rounded-[6px] border-2 border-[#241a44] bg-warning px-1.5 py-0.5 font-display text-[10px] text-[#171a35] animate-draw-pulse"
+ className="pointer-events-none absolute -right-1.5 -top-1.5 z-20 border-2 border-[#241a44] bg-warning px-1.5 py-0.5 font-display text-[10px] text-[#171a35] animate-draw-pulse"
           >
             +{drawPulse.amount}
           </span>
+        )}
+        {showTimer && (
+          <svg viewBox="0 0 36 36" className="pointer-events-none absolute -inset-1 -rotate-90" aria-hidden>
+            <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(0,0,0,0.45)" strokeWidth="3" />
+            <circle
+              cx="18"
+              cy="18"
+              r="16"
+              fill="none"
+              strokeWidth="3"
+              strokeLinecap="butt"
+              pathLength={100}
+              strokeDasharray={100}
+              strokeDashoffset={100 - timerPct * 100}
+              className={`transition-[stroke-dashoffset] duration-500 ease-linear ${ringStrokeClass}`}
+            />
+          </svg>
         )}
       </div>
       <div>
@@ -152,16 +177,8 @@ export default function PlayerBadge({
           )}
           {!player.isConnected && (
             <span className="inline-flex items-center gap-0.5 text-danger">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-danger" />
+ <span className="h-1.5 w-1.5 animate-pulse bg-danger" />
               desconectado
-            </span>
-          )}
-          {showTimer && (
-            <span
-              className={`ml-0.5 inline-flex items-center gap-0.5 rounded-[6px] border-2 px-1.5 py-px ${timerClasses}`}
-            >
-              <Icon icon="pixelarticons:clock" width={11} height={11} aria-hidden />
-              {remainingSeconds}s
             </span>
           )}
         </div>

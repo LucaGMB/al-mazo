@@ -22,6 +22,7 @@ export default function CardBack({
     <img
       src={CARD_BACK_SRC}
       alt=""
+      draggable={false}
       className={`${SIZE_CLASSES[size]} [image-rendering:pixelated] drop-shadow-[3px_4px_0_rgba(0,0,0,0.4)] ${
         interactive ? "hover:brightness-110" : ""
       } ${glow ? "animate-pulse-glow" : ""}`}

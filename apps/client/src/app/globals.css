@@ -47,6 +47,22 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Evita el menú nativo de "guardar imagen" al mantener apretado en mobile,
+   y que el navegador arrastre la <img> en vez de nuestro drag-and-drop. */
+img {
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -171,3 +187,20 @@ body {
   background: var(--color-accent);
   border: 2px solid #0b0812;
 }
+
+/* ---------------------------------------------------------------------- */
+/* Botones: panel pixel-art (9-slice) en vez de color plano de Tailwind.    */
+/* border-image-slice "fill" pinta también el centro con el mismo asset.   */
+/* ---------------------------------------------------------------------- */
+
+.btn-panel {
+  border-style: solid;
+  border-image-slice: 16 fill;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+  background: none;
+}
+.btn-panel-yellow { border-image-source: url(/pixel/ui/panel_yellow.png); }
+.btn-panel-yellow:active { border-image-source: url(/pixel/ui/panel_yellow_pressed.png); }
+.btn-panel-grey { border-image-source: url(/pixel/ui/panel_grey.png); }
+.btn-panel-grey:active { border-image-source: url(/pixel/ui/panel_grey_pressed.png); }

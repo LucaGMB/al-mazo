@@ -78,11 +78,11 @@ export function AuthForm({
   }
 
   const inputClass =
-    "h-11 w-full rounded border border-subtle bg-app/60 text-ink text-sm px-3 focus:outline-none focus:border-accent";
+ "h-11 w-full border border-subtle bg-app/60 text-ink text-sm px-3 focus:outline-none focus:border-accent";
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-1 rounded-[6px] border-2 border-subtle bg-app/60 p-1">
+ <div className="grid grid-cols-2 gap-1 border-2 border-subtle bg-app/60 p-1">
         {(["login", "register"] as AuthTab[]).map((t) => {
           const active = tab === t;
           return (
@@ -90,7 +90,7 @@ export function AuthForm({
               key={t}
               type="button"
               onClick={() => switchTab(t)}
-              className={`flex items-center justify-center gap-2 rounded-[4px] px-3 py-2 text-[13px] font-bold transition-colors duration-150 cursor-pointer ${
+ className={`flex items-center justify-center gap-2 px-3 py-2 text-[13px] font-bold transition-colors duration-150 cursor-pointer ${
                 active
                   ? "bg-accent text-[#171a35] shadow-[0_0_14px_rgba(255,210,63,0.4)]"
                   : "text-ink-faint hover:text-ink"
@@ -203,7 +203,7 @@ export default function AuthModal({
       aria-modal="true"
       aria-label="Iniciar sesión o registrarse"
     >
-      <div className="flex flex-col w-full max-w-md rounded-2xl border border-subtle bg-statusbar shadow-2xl overflow-hidden">
+ <div className="flex flex-col w-full max-w-md border border-subtle bg-statusbar shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-subtle bg-surface">
           <div className="flex items-center gap-2.5">
             <Icon icon="pixelarticons:lock" width={20} height={20} className="text-accent" />
@@ -213,7 +213,7 @@ export default function AuthModal({
             type="button"
             onClick={onClose}
             aria-label="Cerrar"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-subtle text-ink-faint hover:text-ink cursor-pointer"
+ className="flex h-8 w-8 items-center justify-center border border-subtle text-ink-faint hover:text-ink cursor-pointer"
           >
             <Icon icon="pixelarticons:close" width={18} height={18} />
           </button>
@@ -221,7 +221,7 @@ export default function AuthModal({
 
         <div className="flex flex-col gap-4 p-5">
           {message && (
-            <div className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs text-ink-soft">
+ <div className="flex items-start gap-2 border border-warning/40 bg-warning/10 p-3 text-xs text-ink-soft">
               <Icon
                 icon="pixelarticons:info-box"
                 width={16}
