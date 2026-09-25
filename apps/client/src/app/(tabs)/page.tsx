@@ -72,14 +72,12 @@ export default function Hub() {
 
       <div className="relative overflow-hidden border-[3px] border-accent bg-wood px-5 py-7 shadow-[6px_8px_0_0_rgba(0,0,0,0.35)] md:px-9 md:py-10">
         <div className="pointer-events-none absolute inset-0 grain" />
-        <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-warning/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-16 right-20 h-40 w-40 rounded-full bg-felt-light/25 blur-3xl" />
         <div className="pointer-events-none absolute -right-3 top-5 hidden h-40 w-32 rotate-12 border-2 border-paper/20 bg-paper/5 shadow-[12px_12px_0_rgba(0,0,0,0.2)] md:block">
           <div className="absolute inset-3 border border-paper/25" />
         </div>
         <div className="relative flex max-w-xl flex-col gap-3 md:gap-4">
           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em] text-warning">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-warning" /> Mesa abierta
+ <span className="h-2 w-2 animate-pulse bg-warning" /> Mesa abierta
           </div>
           <h2 className="font-display text-2xl font-black uppercase tracking-tight text-ink md:text-4xl">AL MAZO: Partidas en Vivo</h2>
           <p className="text-[13px] text-ink-soft md:text-[15px]">
@@ -87,7 +85,7 @@ export default function Hub() {
           </p>
           <div className="flex flex-wrap gap-2.5 pt-1">
             <Button to="/juego/color-match-blitz"><Icon icon="pixelarticons:zap" width={16} height={16} /> Partida Rápida</Button>
-            <form onSubmit={joinRoom} className="flex h-11 overflow-hidden rounded border border-paper/25 bg-black/25">
+ <form onSubmit={joinRoom} className="flex h-11 overflow-hidden border border-paper/25 bg-black/25">
               <label htmlFor="room-code" className="sr-only">Código de sala</label>
               <input
                 id="room-code"
@@ -106,9 +104,9 @@ export default function Hub() {
       </div>
 
       {user && (
-        <div className="flex flex-wrap items-center gap-4 rounded-[6px] border-2 border-success/40 bg-success/10 px-4 py-3 md:gap-6 md:px-5">
+ <div className="flex flex-wrap items-center gap-4 border-2 border-success/40 bg-success/10 px-4 py-3 md:gap-6 md:px-5">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-success/40 bg-success/20 text-success"><Icon icon="pixelarticons:user" width={19} height={19} /></div>
+ <div className="flex h-9 w-9 items-center justify-center border border-success/40 bg-success/20 text-success"><Icon icon="pixelarticons:user" width={19} height={19} /></div>
             <div><div className="text-sm font-bold text-ink">¡Hola, {user.name}!</div><div className="text-[11px] text-success">Nivel {level}</div></div>
           </div>
           <div className="h-8 w-px bg-success/20" />
@@ -123,7 +121,7 @@ export default function Hub() {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-wrap gap-2">
           {filters.map((item) => (
-            <button key={item.id} type="button" onClick={() => setFilter(item.id)} className={`inline-flex items-center gap-1.5 rounded-[6px] border-2 px-3 py-1.5 text-[11px] font-bold transition-colors ${filter === item.id ? "border-accent bg-accent/15 text-accent" : "border-subtle bg-surface text-ink-faint hover:border-medium hover:text-ink"}`}>
+ <button key={item.id} type="button" onClick={() => setFilter(item.id)} className={`inline-flex items-center gap-1.5 border-2 px-3 py-1.5 text-[11px] font-bold transition-colors ${filter === item.id ? "border-accent bg-accent/15 text-accent" : "border-subtle bg-surface text-ink-faint hover:border-medium hover:text-ink"}`}>
               <Icon icon={`pixelarticons:${item.icon}`} width={14} height={14} /> {item.label}
             </button>
           ))}
@@ -140,7 +138,7 @@ export default function Hub() {
 
       {games && (
         <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2"><h2 className="text-base font-bold text-ink">Catálogo de Juegos</h2><span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-bold text-accent">4 Modos</span></div>
+ <div className="flex items-center gap-2"><h2 className="text-base font-bold text-ink">Catálogo de Juegos</h2><span className=" bg-accent/15 px-2 py-0.5 text-[10px] font-bold text-accent">4 Modos</span></div>
           {filtered.length === 0 ? (
             <div className="text-[13px] text-ink-faint">No encontramos juegos con ese criterio.</div>
           ) : (

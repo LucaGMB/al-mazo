@@ -14,8 +14,8 @@ export default function GameCard({ game, compact }: { game: GameSummary; compact
       href={`/juego/${game.slug}`}
       className="group flex flex-col gap-1.5 text-inherit no-underline"
     >
-      <div className="rounded-lg border border-transparent transition-all duration-200 group-hover:-translate-y-1 group-hover:border-accent/50 group-hover:shadow-[0_0_24px_rgba(255,210,63,0.25)]">
-        <Thumb gameSlug={game.slug} className={`w-full rounded ${compact ? "aspect-square" : "aspect-video"}`} />
+ <div className=" border border-transparent transition-all duration-200 group-hover:-translate-y-1 group-hover:border-accent/50 group-hover:shadow-[4px_4px_0_0_rgba(0,0,0,0.35)]">
+ <Thumb gameSlug={game.slug} className={`w-full ${compact ? "aspect-square" : "aspect-video"}`} />
       </div>
       <div className="flex items-center justify-between gap-2">
       <div
@@ -25,10 +25,10 @@ export default function GameCard({ game, compact }: { game: GameSummary; compact
       >
         {game.title}
       </div>
-        {!compact && <span className="rounded-full bg-warning/10 px-1.5 py-0.5 text-[9px] font-black tracking-wider text-warning">{badge}</span>}
+ {!compact && <span className=" bg-warning/10 px-1.5 py-0.5 text-[9px] font-black tracking-wider text-warning">{badge}</span>}
       </div>
       {!compact && (
-          <div className="inline-flex w-fit items-center gap-1 rounded-full border border-subtle bg-surface px-2 py-0.5 text-[11px] text-ink-faint">
+ <div className="inline-flex w-fit items-center gap-1 border border-subtle bg-surface px-2 py-0.5 text-[11px] text-ink-faint">
             <Icon icon="pixelarticons:users" width={13} height={13} />
             {game.minPlayers}–{game.maxPlayers} jugadores
           </div>

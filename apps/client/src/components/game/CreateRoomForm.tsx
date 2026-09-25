@@ -115,8 +115,8 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
 
   return (
     <div className="max-w-md w-full mx-auto my-auto p-6 md:p-8 border-[3px] border-subtle bg-statusbar/90 shadow-[6px_8px_0_0_rgba(0,0,0,0.35)] flex flex-col gap-5">
-      <div className="flex items-center gap-3 rounded-[6px] border-2 border-subtle bg-app/60 px-4 py-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[6px] border-2 border-subtle bg-gradient-to-br from-accent/30 to-accent/5 text-accent">
+ <div className="flex items-center gap-3 border-2 border-subtle bg-app/60 px-4 py-3">
+ <span className="flex h-11 w-11 shrink-0 items-center justify-center border-2 border-subtle bg-gradient-to-br from-accent/30 to-accent/5 text-accent">
           <Icon icon="pixelarticons:gamepad" width={24} height={24} />
         </span>
         <div>
@@ -125,7 +125,7 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-1 rounded-[6px] border-2 border-subtle bg-app/60 p-1">
+ <div className="grid grid-cols-2 gap-1 border-2 border-subtle bg-app/60 p-1">
         {(["crear", "unirse"] as Tab[]).map((t) => {
           const active = tab === t;
           return (
@@ -136,7 +136,7 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
                 setTab(t);
                 setError(null);
               }}
-              className={`flex items-center justify-center gap-2 rounded-[4px] px-3 py-2 text-[13px] font-bold transition-colors duration-150 cursor-pointer ${
+ className={`flex items-center justify-center gap-2 px-3 py-2 text-[13px] font-bold transition-colors duration-150 cursor-pointer ${
                 active
                   ? "bg-accent text-[#171a35] shadow-[0_0_14px_rgba(255,210,63,0.4)]"
                   : "text-ink-faint hover:text-ink"
@@ -156,21 +156,21 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
       <label className="flex flex-col gap-1.5 text-[13px] text-ink-soft">
         Tu nombre
         <div className="flex items-center gap-2">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-subtle bg-app/60 text-ink-faint">
+ <span className="flex h-10 w-10 shrink-0 items-center justify-center border border-subtle bg-app/60 text-ink-faint">
             <Icon icon="pixelarticons:user" width={20} height={20} />
           </span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Ej: Ana"
-            className="h-10 min-w-0 flex-1 rounded border border-subtle bg-app/60 text-ink text-sm px-3 focus:outline-none focus:border-accent"
+ className="h-10 min-w-0 flex-1 border border-subtle bg-app/60 text-ink text-sm px-3 focus:outline-none focus:border-accent"
           />
           <button
             type="button"
             onClick={randomizeName}
             aria-label="Nombre al azar"
             title="Nombre al azar"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded border border-subtle text-ink-faint transition-colors duration-150 hover:border-accent hover:text-accent cursor-pointer"
+ className="flex h-10 w-10 shrink-0 items-center justify-center border border-subtle text-ink-faint transition-colors duration-150 hover:border-accent hover:text-accent cursor-pointer"
           >
             <Icon icon="pixelarticons:shuffle" width={18} height={18} />
           </button>
@@ -186,7 +186,7 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
             placeholder="A3F9K"
             maxLength={5}
             autoComplete="off"
-            className="h-12 rounded border border-subtle bg-app/60 text-ink text-center font-mono text-lg font-black tracking-[0.5em] uppercase focus:outline-none focus:border-accent"
+ className="h-12 border border-subtle bg-app/60 text-ink text-center font-mono text-lg font-black tracking-[0.5em] uppercase focus:outline-none focus:border-accent"
           />
         </label>
       )}
@@ -203,7 +203,7 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
                     key={preset.seconds}
                     type="button"
                     onClick={() => setGraceSeconds(preset.seconds)}
-                    className={`rounded-[6px] border-2 px-2 py-2.5 text-center transition-colors duration-150 cursor-pointer ${
+ className={` border-2 px-2 py-2.5 text-center transition-colors duration-150 cursor-pointer ${
                       active
                         ? "border-accent bg-accent/15 text-ink"
                         : "border-subtle text-ink-faint hover:border-medium hover:text-ink"
@@ -231,12 +231,12 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
             {showAdvanced ? "Ocultar opciones avanzadas" : "Opciones avanzadas"}
           </button>
           {showAdvanced && (
-            <label className="flex flex-col gap-1.5 rounded-[6px] border-2 border-subtle p-3 text-[13px] text-ink-soft">
+ <label className="flex flex-col gap-1.5 border-2 border-subtle p-3 text-[13px] text-ink-soft">
               Si un jugador no vuelve a tiempo
               <select
                 value={policy}
                 onChange={(e) => setPolicy(e.target.value as DisconnectPolicy)}
-                className="h-10 rounded border border-subtle bg-app/60 text-ink text-sm px-3 focus:outline-none focus:border-accent"
+ className="h-10 border border-subtle bg-app/60 text-ink text-sm px-3 focus:outline-none focus:border-accent"
               >
                 {DISCONNECT_POLICIES.map((p) => (
                   <option key={p.value} value={p.value}>

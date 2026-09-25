@@ -85,7 +85,7 @@ export default function ChatDrawer({ isOpen, onClose }: { isOpen: boolean; onClo
                   </span>
                 )}
                 <div
-                  className={`rounded-lg px-3 py-1.5 text-[13px] break-words ${
+ className={` px-3 py-1.5 text-[13px] break-words ${
                     isOwn
                       ? "bg-accent/20 border border-accent/40 text-ink"
                       : "bg-app border border-subtle text-ink"
@@ -106,7 +106,7 @@ export default function ChatDrawer({ isOpen, onClose }: { isOpen: boolean; onClo
                 key={reaction.label}
                 type="button"
                 onClick={() => void handleSend(reaction.label)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-subtle px-2.5 py-1 text-[11px] text-ink hover:border-accent hover:bg-subtle transition-colors"
+ className="inline-flex items-center gap-1.5 border border-subtle px-2.5 py-1 text-[11px] text-ink hover:border-accent hover:bg-subtle transition-colors"
               >
                 <Icon icon={reaction.icon} width={14} height={14} />
                 {reaction.label}
@@ -126,7 +126,7 @@ export default function ChatDrawer({ isOpen, onClose }: { isOpen: boolean; onClo
               onChange={(e) => setText(e.target.value)}
               maxLength={200}
               placeholder="Escribí un mensaje..."
-              className="flex-1 min-w-0 rounded border border-subtle bg-app px-3 py-2 text-[13px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent"
+ className="flex-1 min-w-0 border border-subtle bg-app px-3 py-2 text-[13px] text-ink placeholder:text-ink-faint focus:outline-none focus:border-accent"
             />
             <IconButton
               icon="send"

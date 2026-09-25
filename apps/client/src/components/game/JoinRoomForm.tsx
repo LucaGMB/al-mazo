@@ -36,7 +36,7 @@ export default function JoinRoomForm({ roomCode }: { roomCode: string }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Ej: Ana"
-          className="h-10 rounded border border-subtle bg-statusbar text-ink text-sm px-3 focus:outline-none focus:border-accent"
+ className="h-10 border border-subtle bg-statusbar text-ink text-sm px-3 focus:outline-none focus:border-accent"
         />
       </label>
 

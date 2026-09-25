@@ -12,7 +12,7 @@ export default function Avatar({
 }) {
   return (
     <div
-      className={`shrink-0 rounded-full bg-subtle border border-medium ${sizeClasses[size] ?? ""} ${className}`}
+ className={`shrink-0 bg-subtle border border-medium ${sizeClasses[size] ?? ""} ${className}`}
     />
   );
 }

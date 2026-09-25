@@ -36,7 +36,7 @@ export default function Hand({
       }`}
     >
       {isTapada && (
-        <div className="absolute top-1 text-[11px] font-black text-warning bg-black/85 px-3 py-0.5 rounded-full border border-warning/60 shadow-[0_0_10px_rgba(245,197,24,0.4)] animate-pulse z-30 pointer-events-none">
+ <div className="absolute top-1 text-[11px] font-black text-warning bg-black/85 px-3 py-0.5 border border-warning/60 shadow-[0_0_10px_rgba(245,197,24,0.4)] animate-pulse z-30 pointer-events-none">
           MODO TAPADA: Elegí la carta a tirar boca abajo
         </div>
       )}
@@ -53,7 +53,7 @@ export default function Hand({
             <div
               className={`animate-deal-in opacity-0 ${
                 canPlay
-                  ? "rounded-xl ring-2 ring-warning/50 shadow-[0_0_12px_rgba(245,197,24,0.35)] group-hover:ring-warning group-hover:shadow-[0_0_20px_rgba(245,197,24,0.65)]"
+ ? " ring-2 ring-warning/50 shadow-[0_0_12px_rgba(245,197,24,0.35)] group-hover:ring-warning group-hover:shadow-[0_0_20px_rgba(245,197,24,0.65)]"
                   : ""
               }`}
               style={{ animationDelay: `${i * 60}ms` }}

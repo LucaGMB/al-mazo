@@ -17,7 +17,7 @@ export default function FilterChip({
     <button
       type="button"
       onClick={onClick}
-      className={`shrink-0 h-7 px-3 rounded-[6px] border-2 text-xs whitespace-nowrap transition-colors duration-150 ${stateClasses}`}
+ className={`shrink-0 h-7 px-3 border-2 text-xs whitespace-nowrap transition-colors duration-150 ${stateClasses}`}
     >
       {label}
     </button>

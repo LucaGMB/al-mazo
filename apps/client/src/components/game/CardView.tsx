@@ -123,7 +123,7 @@ export default function CardView({
     const bg = CARD_COLORS[card.color ?? "ANY"] ?? CARD_COLORS.ANY;
     const icon = ACTION_ICONS[card.value as string];
     return wrapper(
-      `group relative shrink-0 ${SIZE_CLASSES[size]} rounded-[14%] border-[3px] border-[#0b0812] flex items-center justify-center shadow-[3px_4px_0_0_rgba(0,0,0,0.4)] transition-transform duration-150 ${interactiveClasses} ${selectedClasses}`,
+ `group relative shrink-0 ${SIZE_CLASSES[size]} border-[3px] border-[#0b0812] flex items-center justify-center shadow-[3px_4px_0_0_rgba(0,0,0,0.4)] transition-transform duration-150 ${interactiveClasses} ${selectedClasses}`,
       icon && <Icon icon={icon} width="1.4em" height="1.4em" className="text-white" />,
       { backgroundColor: bg }
     );
@@ -132,7 +132,7 @@ export default function CardView({
   // Familia A (naipe español real): sin cambios, mismo render de siempre.
   const fg = CARD_COLORS[card.color ?? "ANY"] ?? CARD_COLORS.ANY;
   return wrapper(
-    `group relative shrink-0 ${SIZE_CLASSES[size]} rounded-[14%] card-paper border-[3px] border-[#241a44] flex items-center justify-center transition-all duration-150 shadow-[3px_4px_0_0_rgba(0,0,0,0.4)] ${interactiveClasses} ${
+ `group relative shrink-0 ${SIZE_CLASSES[size]} card-paper border-[3px] border-[#241a44] flex items-center justify-center transition-all duration-150 shadow-[3px_4px_0_0_rgba(0,0,0,0.4)] ${interactiveClasses} ${
       selected ? "outline outline-[3px] outline-accent shadow-[0_0_0_3px_rgba(255,210,63,0.4),3px_4px_0_0_rgba(0,0,0,0.4)]" : ""
     }`,
     <>

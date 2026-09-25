@@ -87,9 +87,9 @@ export default function RulesSection({
   }
 
   return (
-    <div className="flex flex-col gap-5 rounded-2xl border border-subtle bg-statusbar/80 p-5 md:p-6 backdrop-blur">
+ <div className="flex flex-col gap-5 border-2 border-subtle bg-statusbar p-5 md:p-6 shadow-[4px_4px_0_0_rgba(0,0,0,0.3)]">
       <div className="flex items-center gap-3 pb-3 border-b border-subtle">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-success/40 bg-success/15 text-success shadow-[0_0_12px_rgba(77,189,116,0.2)]">
+ <span className="flex h-10 w-10 items-center justify-center border border-success/40 bg-success/15 text-success shadow-[0_0_12px_rgba(77,189,116,0.2)]">
           <Icon icon="pixelarticons:sliders" width={20} height={20} />
         </span>
         <div>
@@ -128,7 +128,7 @@ export default function RulesSection({
                 key={item.type}
                 type="button"
                 onClick={() => onChange({ winConditionType: item.type })}
-                className={`flex flex-col text-left p-3.5 rounded-xl border transition-all cursor-pointer ${
+ className={`flex flex-col text-left p-3.5 border transition-all cursor-pointer ${
                   isSelected
                     ? "border-success bg-success/10 shadow-[0_0_14px_rgba(77,189,116,0.25)]"
                     : "border-subtle bg-app/50 hover:border-medium hover:bg-app/80"
@@ -158,26 +158,26 @@ export default function RulesSection({
               max={10000}
               value={targetScore ?? 30}
               onChange={(e) => onChange({ targetScore: Number(e.target.value) })}
-              className="h-10 rounded-xl border border-subtle bg-app/80 px-3 text-sm text-ink focus:border-accent focus:outline-none transition-colors"
+ className="h-10 border border-subtle bg-app/80 px-3 text-sm text-ink focus:border-accent focus:outline-none transition-colors"
             />
           </label>
         )}
       </div>
 
       {/* Coincidencia de Cartas */}
-      <div className="rounded-xl border border-subtle bg-app/60 p-4 flex flex-col gap-3">
+ <div className=" border border-subtle bg-app/60 p-4 flex flex-col gap-3">
         <div className="text-xs font-bold text-ink">Reglas de Descarte &amp; Coincidencia</div>
         <p className="text-[11px] text-ink-faint -mt-1">
           Habilita cómo los jugadores pueden jugar cartas sobre la mesa
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <label className="flex items-center gap-2.5 rounded-lg border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+ <label className="flex items-center gap-2.5 border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
             <input
               type="checkbox"
               checked={matchingProperties.includes("color")}
               onChange={() => toggleMatchProperty("color")}
-              className="w-4 h-4 accent-accent rounded cursor-pointer"
+ className="w-4 h-4 accent-accent cursor-pointer"
             />
             <div className="flex flex-col">
               <span className="text-xs font-bold text-ink">Coincidir Color / Palo</span>
@@ -185,12 +185,12 @@ export default function RulesSection({
             </div>
           </label>
 
-          <label className="flex items-center gap-2.5 rounded-lg border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+ <label className="flex items-center gap-2.5 border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
             <input
               type="checkbox"
               checked={matchingProperties.includes("value")}
               onChange={() => toggleMatchProperty("value")}
-              className="w-4 h-4 accent-accent rounded cursor-pointer"
+ className="w-4 h-4 accent-accent cursor-pointer"
             />
             <div className="flex flex-col">
               <span className="text-xs font-bold text-ink">Coincidir Valor / Número</span>
@@ -198,12 +198,12 @@ export default function RulesSection({
             </div>
           </label>
 
-          <label className="flex items-center gap-2.5 rounded-lg border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+ <label className="flex items-center gap-2.5 border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
             <input
               type="checkbox"
               checked={allowWildOnAny}
               onChange={(e) => onChange({ allowWildOnAny: e.target.checked })}
-              className="w-4 h-4 accent-accent rounded cursor-pointer"
+ className="w-4 h-4 accent-accent cursor-pointer"
             />
             <div className="flex flex-col">
               <span className="text-xs font-bold text-ink">Comodín Universal</span>
@@ -214,7 +214,7 @@ export default function RulesSection({
       </div>
 
       {/* Zonas de la Mesa */}
-      <div className="rounded-xl border border-subtle bg-app/60 p-4 flex flex-col gap-3">
+ <div className=" border border-subtle bg-app/60 p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div>
             <div className="text-xs font-bold text-ink">Zonas de Juego en Mesa</div>
@@ -235,7 +235,7 @@ export default function RulesSection({
                 key={zone.id}
                 type="button"
                 onClick={() => toggleZone(zone)}
-                className={`flex items-center justify-between p-2.5 rounded-lg border text-left cursor-pointer transition-colors ${
+ className={`flex items-center justify-between p-2.5 border text-left cursor-pointer transition-colors ${
                   isActive
                     ? "border-success/50 bg-success/10 text-ink"
                     : "border-subtle bg-statusbar/40 text-ink-faint hover:text-ink"
@@ -260,7 +260,7 @@ export default function RulesSection({
       </div>
 
       {/* Acciones Permitidas */}
-      <div className="rounded-xl border border-subtle bg-app/60 p-4 flex flex-col gap-3">
+ <div className=" border border-subtle bg-app/60 p-4 flex flex-col gap-3">
         <div>
           <div className="text-xs font-bold text-ink">Acciones Permitidas en Turno</div>
           <div className="text-[10px] text-ink-faint">
@@ -276,7 +276,7 @@ export default function RulesSection({
                 key={action.id}
                 type="button"
                 onClick={() => toggleAction(action.id)}
-                className={`flex items-center justify-between p-2.5 rounded-lg border text-left cursor-pointer transition-colors ${
+ className={`flex items-center justify-between p-2.5 border text-left cursor-pointer transition-colors ${
                   isAllowed
                     ? "border-accent/50 bg-accent/10 text-ink"
                     : "border-subtle bg-statusbar/40 text-ink-faint hover:text-ink"

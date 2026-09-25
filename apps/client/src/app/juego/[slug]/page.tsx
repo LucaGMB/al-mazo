@@ -120,7 +120,7 @@ export default function GameDetailPage() {
           <div className="animate-float">
             <div className="relative overflow-hidden border-[3px] border-subtle shadow-[6px_8px_0_0_rgba(0,0,0,0.4)] md:-rotate-2">
               <Thumb gameSlug={game.game.slug} className="w-full aspect-[4/3]" />
-              <span className="absolute top-3 left-3 z-10 rounded-full border border-white/25 bg-black/60 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white backdrop-blur">
+ <span className="absolute top-3 left-3 z-10 border border-white/25 bg-black/60 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white backdrop-blur">
                 {game.isOfficial ? "Oficial" : "Comunidad"}
               </span>
             </div>
@@ -137,11 +137,11 @@ export default function GameDetailPage() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full border border-subtle bg-statusbar px-3 py-1.5 text-[12px] md:text-[13px] font-medium text-ink-soft">
+ <span className="inline-flex items-center gap-2 border border-subtle bg-statusbar px-3 py-1.5 text-[12px] md:text-[13px] font-medium text-ink-soft">
                 <Icon icon="pixelarticons:users" width={16} height={16} className="text-accent" />
                 {game.game.rules.minPlayers}–{game.game.rules.maxPlayers} jugadores
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-subtle bg-statusbar px-3 py-1.5 text-[12px] md:text-[13px] font-medium text-ink-soft">
+ <span className="inline-flex items-center gap-2 border border-subtle bg-statusbar px-3 py-1.5 text-[12px] md:text-[13px] font-medium text-ink-soft">
                 <Icon icon="pixelarticons:gamepad" width={16} height={16} className="text-accent" />
                 Multijugador online
               </span>
@@ -155,7 +155,7 @@ export default function GameDetailPage() {
             </div>
 
             {showcase && showcase.mechanics.length > 0 && (
-              <div className="rounded-[8px] border-2 border-subtle bg-statusbar/70 p-4 md:p-5">
+ <div className=" border-2 border-subtle bg-statusbar/70 p-4 md:p-5">
                 <div className="flex items-center gap-2 text-sm font-bold text-ink">
                   <Icon icon="pixelarticons:notes" width={16} height={16} className="text-warning" />
                   Reglas &amp; Mecánicas
@@ -187,7 +187,7 @@ export default function GameDetailPage() {
                 Jugar ahora
               </Button>
             ) : (
-              <div className="rounded-[6px] border-2 border-subtle px-4 py-3 text-[13px] text-ink-faint">
+ <div className=" border-2 border-subtle px-4 py-3 text-[13px] text-ink-faint">
                 Este juego todavía no se puede jugar desde el cliente.
               </div>
             )}

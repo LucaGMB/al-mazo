@@ -171,3 +171,20 @@ body {
   background: var(--color-accent);
   border: 2px solid #0b0812;
 }
+
+/* ---------------------------------------------------------------------- */
+/* Botones: panel pixel-art (9-slice) en vez de color plano de Tailwind.    */
+/* border-image-slice "fill" pinta también el centro con el mismo asset.   */
+/* ---------------------------------------------------------------------- */
+
+.btn-panel {
+  border-style: solid;
+  border-image-slice: 16 fill;
+  border-image-repeat: stretch;
+  image-rendering: pixelated;
+  background: none;
+}
+.btn-panel-yellow { border-image-source: url(/pixel/ui/panel_yellow.png); }
+.btn-panel-yellow:active { border-image-source: url(/pixel/ui/panel_yellow_pressed.png); }
+.btn-panel-grey { border-image-source: url(/pixel/ui/panel_grey.png); }
+.btn-panel-grey:active { border-image-source: url(/pixel/ui/panel_grey_pressed.png); }

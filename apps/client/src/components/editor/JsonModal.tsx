@@ -40,8 +40,8 @@ export default function JsonModal({ gameData, isOpen, onClose, onImport }: JsonM
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="flex flex-col w-full max-w-2xl max-h-[85vh] rounded-2xl border border-subtle bg-statusbar shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85">
+ <div className="flex flex-col w-full max-w-2xl max-h-[85vh] border-2 border-subtle bg-statusbar shadow-[6px_6px_0_0_rgba(0,0,0,0.4)] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-subtle bg-surface">
           <div className="flex items-center gap-2.5">
@@ -51,7 +51,7 @@ export default function JsonModal({ gameData, isOpen, onClose, onImport }: JsonM
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-subtle text-ink-faint hover:text-ink cursor-pointer"
+ className="flex h-8 w-8 items-center justify-center border border-subtle text-ink-faint hover:text-ink cursor-pointer"
           >
             <Icon icon="pixelarticons:close" width={18} height={18} />
           </button>
@@ -82,7 +82,7 @@ export default function JsonModal({ gameData, isOpen, onClose, onImport }: JsonM
               setJsonText(e.target.value);
               setParseError(null);
             }}
-            className="w-full font-mono text-xs rounded-xl border border-subtle bg-app/90 p-3 text-ink focus:border-accent focus:outline-none resize-none leading-relaxed"
+ className="w-full font-mono text-xs border border-subtle bg-app/90 p-3 text-ink focus:border-accent focus:outline-none resize-none leading-relaxed"
           />
 
           {parseError && (

@@ -284,7 +284,7 @@ export default function GameEditor() {
   if (!isLoggedIn || !user || user.isAnonymous) {
     return (
       <div className="flex flex-col items-center justify-center px-4 py-12 md:py-16 max-w-lg mx-auto w-full text-center">
-        <div className="w-16 h-16 rounded-2xl border-2 border-accent/50 bg-accent/15 flex items-center justify-center text-accent shadow-[0_0_24px_rgba(255,210,63,0.3)] mb-4">
+ <div className="w-16 h-16 border-2 border-accent/50 bg-accent/15 flex items-center justify-center text-accent shadow-[0_0_24px_rgba(255,210,63,0.3)] mb-4">
           <Icon icon="pixelarticons:lock" width={32} height={32} />
         </div>
         <h1 className="font-display font-black text-xl md:text-2xl text-ink">
@@ -296,7 +296,7 @@ export default function GameEditor() {
         </p>
 
         {user?.isAnonymous && (
-          <div className="mb-6 w-full rounded border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs text-warning flex items-center gap-2.5 text-left">
+ <div className="mb-6 w-full border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs text-warning flex items-center gap-2.5 text-left">
             <Icon icon="pixelarticons:info-box" width={18} height={18} className="shrink-0" />
             <span>
               Actualmente estás jugando como invitado (<strong>{user.name}</strong>). Creá tu cuenta o iniciá sesión para desbloquear el editor.
@@ -304,7 +304,7 @@ export default function GameEditor() {
           </div>
         )}
 
-        <div className="w-full max-w-sm rounded-[6px] border-2 border-subtle bg-statusbar/90 p-5 shadow-[4px_6px_0_0_rgba(0,0,0,0.35)] text-left">
+ <div className="w-full max-w-sm border-2 border-subtle bg-statusbar/90 p-5 shadow-[4px_6px_0_0_rgba(0,0,0,0.35)] text-left">
           <AuthForm
             initialTab="login"
             onSuccess={() => {
@@ -321,22 +321,22 @@ export default function GameEditor() {
       {/* Header bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-subtle pb-5">
         <div className="flex items-center gap-3.5">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 border-accent/60 bg-accent/15 text-accent shadow-[0_0_18px_rgba(32,168,216,0.3)]">
+ <span className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-accent/60 bg-accent/15 text-accent shadow-[0_0_18px_rgba(32,168,216,0.3)]">
             <Icon icon="pixelarticons:sliders" width={26} height={26} />
           </span>
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl md:text-2xl font-black text-ink">Editor de Juegos</h1>
               {isPublished ? (
-                <span className="rounded-full border border-success/40 bg-success/15 px-2.5 py-0.5 text-[10px] font-black uppercase text-success">
+ <span className=" border border-success/40 bg-success/15 px-2.5 py-0.5 text-[10px] font-black uppercase text-success">
                   Publicado
                 </span>
               ) : gameId ? (
-                <span className="rounded-full border border-warning/40 bg-warning/15 px-2.5 py-0.5 text-[10px] font-black uppercase text-warning">
+ <span className=" border border-warning/40 bg-warning/15 px-2.5 py-0.5 text-[10px] font-black uppercase text-warning">
                   Borrador Guardado
                 </span>
               ) : (
-                <span className="rounded-full border border-subtle bg-app/80 px-2.5 py-0.5 text-[10px] font-bold uppercase text-ink-faint">
+ <span className=" border border-subtle bg-app/80 px-2.5 py-0.5 text-[10px] font-bold uppercase text-ink-faint">
                   Nuevo
                 </span>
               )}
@@ -349,7 +349,7 @@ export default function GameEditor() {
 
         <div className="flex flex-wrap items-center gap-2">
           {isLoggedIn && user ? (
-            <span className="flex items-center gap-1.5 rounded-xl border border-success/40 bg-success/10 px-3 py-2 text-xs font-bold text-success">
+ <span className="flex items-center gap-1.5 border border-success/40 bg-success/10 px-3 py-2 text-xs font-bold text-success">
               <Icon icon="pixelarticons:user" width={16} height={16} />
               Creador: {user.name}
             </span>
@@ -360,7 +360,7 @@ export default function GameEditor() {
                 setAuthMessage(LOGIN_REQUIRED_MESSAGE);
                 setIsAuthModalOpen(true);
               }}
-              className="flex items-center gap-1.5 rounded-xl border border-accent/40 bg-accent/15 px-3 py-2 text-xs font-bold text-accent hover:bg-accent/25 transition-colors cursor-pointer"
+ className="flex items-center gap-1.5 border border-accent/40 bg-accent/15 px-3 py-2 text-xs font-bold text-accent hover:bg-accent/25 transition-colors cursor-pointer"
             >
               <Icon icon="pixelarticons:login" width={16} height={16} />
               Iniciar sesión
@@ -370,7 +370,7 @@ export default function GameEditor() {
           <button
             type="button"
             onClick={() => setIsForkModalOpen(true)}
-            className="flex items-center gap-1.5 rounded-xl border border-subtle bg-statusbar/80 px-3 py-2 text-xs font-bold text-ink-soft hover:border-accent hover:text-ink transition-colors cursor-pointer"
+ className="flex items-center gap-1.5 border border-subtle bg-statusbar/80 px-3 py-2 text-xs font-bold text-ink-soft hover:border-accent hover:text-ink transition-colors cursor-pointer"
           >
             <Icon icon="pixelarticons:copy" width={16} height={16} className="text-warning" />
             Cargar Plantilla
@@ -379,7 +379,7 @@ export default function GameEditor() {
           <button
             type="button"
             onClick={() => setIsJsonModalOpen(true)}
-            className="flex items-center gap-1.5 rounded-xl border border-subtle bg-statusbar/80 px-3 py-2 text-xs font-bold text-ink-soft hover:border-accent hover:text-ink transition-colors cursor-pointer"
+ className="flex items-center gap-1.5 border border-subtle bg-statusbar/80 px-3 py-2 text-xs font-bold text-ink-soft hover:border-accent hover:text-ink transition-colors cursor-pointer"
           >
             <Icon icon="pixelarticons:code" width={16} height={16} className="text-accent" />
             Ver JSON
@@ -389,7 +389,7 @@ export default function GameEditor() {
             type="button"
             onClick={handleReset}
             title="Reiniciar formulario"
-            className="flex items-center justify-center h-9 w-9 rounded-xl border border-subtle bg-statusbar/80 text-ink-faint hover:text-danger hover:border-danger/40 transition-colors cursor-pointer"
+ className="flex items-center justify-center h-9 w-9 border border-subtle bg-statusbar/80 text-ink-faint hover:text-danger hover:border-danger/40 transition-colors cursor-pointer"
           >
             <Icon icon="pixelarticons:reload" width={16} height={16} />
           </button>
@@ -399,7 +399,7 @@ export default function GameEditor() {
       {/* Status banner */}
       {statusMessage && (
         <div
-          className={`flex items-center justify-between p-3.5 rounded-xl border text-xs font-medium ${
+ className={`flex items-center justify-between p-3.5 border text-xs font-medium ${
             statusMessage.type === "success"
               ? "border-success/50 bg-success/15 text-success"
               : "border-danger/50 bg-danger/15 text-danger"
@@ -453,7 +453,7 @@ export default function GameEditor() {
               {tab.label}
               {tab.id === "validation" && (
                 <span
-                  className={`h-2 w-2 rounded-full ${
+ className={`h-2 w-2 ${
                     isValid ? "bg-success shadow-[0_0_6px_rgba(77,189,116,0.8)]" : "bg-danger"
                   }`}
                 />
@@ -544,10 +544,10 @@ export default function GameEditor() {
         )}
 
         {activeTab === "validation" && (
-          <div className="flex flex-col gap-5 rounded-2xl border border-subtle bg-statusbar/80 p-5 md:p-6 backdrop-blur">
+ <div className="flex flex-col gap-5 border-2 border-subtle bg-statusbar p-5 md:p-6 shadow-[4px_4px_0_0_rgba(0,0,0,0.3)]">
             <div className="flex items-center gap-3 pb-3 border-b border-subtle">
               <span
-                className={`flex h-10 w-10 items-center justify-center rounded-xl border ${
+ className={`flex h-10 w-10 items-center justify-center border ${
                   isValid
                     ? "border-success/40 bg-success/15 text-success"
                     : "border-danger/40 bg-danger/15 text-danger"
@@ -574,7 +574,7 @@ export default function GameEditor() {
             </div>
 
             {isValid ? (
-              <div className="rounded-xl border border-success/40 bg-success/10 p-4 flex items-start gap-3 text-xs text-ink-soft">
+ <div className=" border border-success/40 bg-success/10 p-4 flex items-start gap-3 text-xs text-ink-soft">
                 <Icon
                   icon="pixelarticons:check-double"
                   width={20}
@@ -595,7 +595,7 @@ export default function GameEditor() {
                   {validationErrors.map((err, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center gap-2 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
+ className="flex items-center gap-2 border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
                     >
                       <Icon icon="pixelarticons:close" width={14} height={14} className="shrink-0" />
                       <span>{err}</span>
@@ -606,7 +606,7 @@ export default function GameEditor() {
             )}
 
             {/* Quick summary of the game */}
-            <div className="rounded-xl border border-subtle bg-app/60 p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+ <div className=" border border-subtle bg-app/60 p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
               <div>
                 <span className="text-ink-faint block text-[10px]">Identificador</span>
                 <span className="font-mono font-bold text-ink">{gameData.slug}</span>
@@ -633,10 +633,10 @@ export default function GameEditor() {
       </div>
 
       {/* Bottom Sticky Action Bar */}
-      <div className="sticky bottom-4 z-20 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-subtle bg-statusbar/95 p-4 shadow-2xl backdrop-blur">
+ <div className="sticky bottom-4 z-20 flex flex-wrap items-center justify-between gap-3 border-2 border-subtle bg-statusbar p-4 shadow-[0_-4px_0_0_rgba(0,0,0,0.35)]">
         <div className="flex items-center gap-2 text-xs">
           <span
-            className={`h-2.5 w-2.5 rounded-full ${
+ className={`h-2.5 w-2.5 ${
               isValid ? "bg-success shadow-[0_0_8px_rgba(77,189,116,0.8)]" : "bg-warning"
             }`}
           />
@@ -669,7 +669,7 @@ export default function GameEditor() {
           <Link
             href={`/juego/${gameData.slug}/mesa`}
             target="_blank"
-            className="inline-flex items-center gap-1.5 h-10 px-4 rounded-xl border border-accent/40 bg-accent/15 text-accent text-xs font-bold hover:bg-accent/25 transition-all no-underline shadow-[0_0_12px_rgba(32,168,216,0.2)]"
+ className="inline-flex items-center gap-1.5 h-10 px-4 border border-accent/40 bg-accent/15 text-accent text-xs font-bold hover:bg-accent/25 transition-all no-underline shadow-[0_0_12px_rgba(32,168,216,0.2)]"
           >
             <Icon icon="pixelarticons:play" width={16} height={16} />
             Probar Mesa
@@ -703,8 +703,8 @@ export default function GameEditor() {
 
       {/* Fork / Template Selection Modal */}
       {isForkModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="flex flex-col w-full max-w-lg max-h-[80vh] rounded-2xl border border-subtle bg-statusbar shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85">
+ <div className="flex flex-col w-full max-w-lg max-h-[80vh] border-2 border-subtle bg-statusbar shadow-[6px_6px_0_0_rgba(0,0,0,0.4)] overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-subtle bg-surface">
               <div className="flex items-center gap-2">
                 <Icon icon="pixelarticons:copy" width={20} height={20} className="text-warning" />
@@ -713,7 +713,7 @@ export default function GameEditor() {
               <button
                 type="button"
                 onClick={() => setIsForkModalOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-subtle text-ink-faint hover:text-ink cursor-pointer"
+ className="flex h-8 w-8 items-center justify-center border border-subtle text-ink-faint hover:text-ink cursor-pointer"
               >
                 <Icon icon="pixelarticons:close" width={18} height={18} />
               </button>
@@ -728,7 +728,7 @@ export default function GameEditor() {
                   key={game.slug}
                   type="button"
                   onClick={() => handleLoadTemplate(game.slug)}
-                  className="flex items-center justify-between p-3 rounded-xl border border-subtle bg-app/50 hover:border-accent hover:bg-app/80 text-left transition-colors cursor-pointer"
+ className="flex items-center justify-between p-3 border border-subtle bg-app/50 hover:border-accent hover:bg-app/80 text-left transition-colors cursor-pointer"
                 >
                   <div className="flex flex-col">
                     <span className="text-xs font-bold text-ink">{game.title}</span>
@@ -736,7 +736,7 @@ export default function GameEditor() {
                       {game.description}
                     </span>
                   </div>
-                  <span className="text-[10px] font-bold text-accent rounded px-2 py-0.5 bg-accent/15 shrink-0 ml-2">
+ <span className="text-[10px] font-bold text-accent px-2 py-0.5 bg-accent/15 shrink-0 ml-2">
                     {game.isOfficial ? "Oficial" : "Comunidad"}
                   </span>
                 </button>

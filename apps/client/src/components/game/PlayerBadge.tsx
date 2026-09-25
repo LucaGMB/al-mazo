@@ -92,12 +92,12 @@ export default function PlayerBadge({
   return (
     <div
       data-player-id={player.id}
-      className={`absolute flex items-center gap-2 md:gap-3 bg-statusbar border-2 border-subtle rounded-[8px] py-1 md:py-1.5 shadow-[3px_3px_0_0_rgba(0,0,0,0.35)] ${POSITION_CLASSES[position]} ${ringClasses}`}
+ className={`absolute flex items-center gap-2 md:gap-3 bg-statusbar border-2 border-subtle py-1 md:py-1.5 shadow-[3px_3px_0_0_rgba(0,0,0,0.35)] ${POSITION_CLASSES[position]} ${ringClasses}`}
     >
       {recentMessage && (
         <div
           key={recentMessage}
-          className="absolute -top-7 left-1/2 -translate-x-1/2 z-30 pointer-events-none whitespace-nowrap rounded-[6px] border-2 border-accent bg-statusbar/95 px-2.5 py-0.5 text-[11px] font-bold text-accent shadow-[0_0_12px_rgba(255,210,63,0.4)] animate-bubble-pop"
+ className="absolute -top-7 left-1/2 -translate-x-1/2 z-30 pointer-events-none whitespace-nowrap border-2 border-accent bg-statusbar/95 px-2.5 py-0.5 text-[11px] font-bold text-accent shadow-[0_0_12px_rgba(255,210,63,0.4)] animate-bubble-pop"
         >
           {recentMessage}
           <span
@@ -109,7 +109,7 @@ export default function PlayerBadge({
       {/* Avatar plano: círculo de color sólido + borde grueso, sin gradiente
           ni relieve simulado. */}
       <div
-        className={`relative shrink-0 rounded-full border-[3px] border-[#0b0812] flex items-center justify-center ${
+ className={`relative shrink-0 border-[3px] border-[#0b0812] flex items-center justify-center ${
           isSelf ? "w-7 h-7 md:w-9 md:h-9" : "w-6 h-6 md:w-8 md:h-8"
         } ${!player.isConnected ? "opacity-40" : ""}`}
         style={{ backgroundColor: avatarColor }}
@@ -122,12 +122,12 @@ export default function PlayerBadge({
           aria-hidden
         />
         {!player.isConnected && (
-          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-pulse rounded-full border border-statusbar bg-danger" />
+ <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-pulse border border-statusbar bg-danger" />
         )}
         {drawPulse && (
           <span
             key={drawPulse.key}
-            className="pointer-events-none absolute -right-1.5 -top-1.5 z-20 rounded-[6px] border-2 border-[#241a44] bg-warning px-1.5 py-0.5 font-display text-[10px] text-[#171a35] animate-draw-pulse"
+ className="pointer-events-none absolute -right-1.5 -top-1.5 z-20 border-2 border-[#241a44] bg-warning px-1.5 py-0.5 font-display text-[10px] text-[#171a35] animate-draw-pulse"
           >
             +{drawPulse.amount}
           </span>
@@ -152,13 +152,13 @@ export default function PlayerBadge({
           )}
           {!player.isConnected && (
             <span className="inline-flex items-center gap-0.5 text-danger">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-danger" />
+ <span className="h-1.5 w-1.5 animate-pulse bg-danger" />
               desconectado
             </span>
           )}
           {showTimer && (
             <span
-              className={`ml-0.5 inline-flex items-center gap-0.5 rounded-[6px] border-2 px-1.5 py-px ${timerClasses}`}
+ className={`ml-0.5 inline-flex items-center gap-0.5 border-2 px-1.5 py-px ${timerClasses}`}
             >
               <Icon icon="pixelarticons:clock" width={11} height={11} aria-hidden />
               {remainingSeconds}s

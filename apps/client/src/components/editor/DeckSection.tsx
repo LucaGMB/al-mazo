@@ -73,9 +73,9 @@ export default function DeckSection({
   }
 
   return (
-    <div className="flex flex-col gap-5 rounded-2xl border border-subtle bg-statusbar/80 p-5 md:p-6 backdrop-blur">
+ <div className="flex flex-col gap-5 border-2 border-subtle bg-statusbar p-5 md:p-6 shadow-[4px_4px_0_0_rgba(0,0,0,0.3)]">
       <div className="flex items-center gap-3 pb-3 border-b border-subtle">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-warning/40 bg-warning/15 text-warning shadow-[0_0_12px_rgba(255,193,7,0.2)]">
+ <span className="flex h-10 w-10 items-center justify-center border border-warning/40 bg-warning/15 text-warning shadow-[0_0_12px_rgba(255,193,7,0.2)]">
           <Icon icon="pixelarticons:notes" width={20} height={20} />
         </span>
         <div>
@@ -94,7 +94,7 @@ export default function DeckSection({
                 key={preset.id}
                 type="button"
                 onClick={() => handleSelectPreset(preset.id)}
-                className={`flex flex-col text-left p-3 rounded-xl border transition-all cursor-pointer ${
+ className={`flex flex-col text-left p-3 border transition-all cursor-pointer ${
                   isSelected
                     ? "border-warning bg-warning/10 shadow-[0_0_14px_rgba(255,193,7,0.25)]"
                     : "border-subtle bg-app/50 hover:border-medium hover:bg-app/80"
@@ -102,7 +102,7 @@ export default function DeckSection({
               >
                 <div className="flex items-center justify-between w-full mb-1">
                   <span className="text-xs font-black text-ink">{preset.name}</span>
-                  <span className="text-[10px] font-bold text-warning rounded px-1.5 py-0.5 bg-warning/20">
+ <span className="text-[10px] font-bold text-warning px-1.5 py-0.5 bg-warning/20">
                     {preset.totalCards} cartas
                   </span>
                 </div>
@@ -116,7 +116,7 @@ export default function DeckSection({
       </div>
 
       {/* Summary stats */}
-      <div className="rounded-xl border border-subtle bg-app/60 p-4 flex flex-col gap-3">
+ <div className=" border border-subtle bg-app/60 p-4 flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-subtle/60 pb-2.5">
           <div className="flex items-center gap-2">
             <Icon icon="pixelarticons:grid" width={18} height={18} className="text-warning" />
@@ -131,16 +131,16 @@ export default function DeckSection({
           {Object.entries(colorBreakdown).map(([color, count]) => (
             <span
               key={color}
-              className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium rounded-lg border border-subtle bg-statusbar px-2.5 py-1 text-ink-soft"
+ className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium border border-subtle bg-statusbar px-2.5 py-1 text-ink-soft"
             >
-              <span className="w-2 h-2 rounded-full bg-accent" />
+ <span className="w-2 h-2 bg-accent" />
               {color}: <strong className="text-ink">{count}</strong>
             </span>
           ))}
           {Object.entries(typeBreakdown).map(([type, count]) => (
             <span
               key={type}
-              className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium rounded-lg border border-subtle bg-statusbar px-2.5 py-1 text-ink-soft"
+ className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium border border-subtle bg-statusbar px-2.5 py-1 text-ink-soft"
             >
               <Icon icon="pixelarticons:label" width={12} height={12} className="text-warning" />
               {type}: <strong className="text-ink">{count}</strong>
@@ -163,11 +163,11 @@ export default function DeckSection({
         </button>
 
         {showCardList && (
-          <div className="max-h-56 overflow-y-auto rounded-lg border border-subtle bg-app/80 p-2.5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5 text-[11px]">
+ <div className="max-h-56 overflow-y-auto border border-subtle bg-app/80 p-2.5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5 text-[11px]">
             {templates.map((card, i) => (
               <div
                 key={`${card.color || "n"}-${card.value || "v"}-${i}`}
-                className="flex items-center justify-between rounded border border-subtle/60 bg-statusbar/60 px-2 py-1"
+ className="flex items-center justify-between border border-subtle/60 bg-statusbar/60 px-2 py-1"
               >
                 <span className="truncate font-mono text-ink">
                   {card.value ?? "Carta"} {card.color ? `(${card.color})` : ""}
@@ -199,7 +199,7 @@ export default function DeckSection({
           </span>
         </label>
 
-        <div className="flex flex-col justify-center rounded-xl border border-subtle bg-app/50 p-4">
+ <div className="flex flex-col justify-center border border-subtle bg-app/50 p-4">
           <label className="flex items-center justify-between cursor-pointer">
             <span className="flex flex-col">
               <span className="text-xs font-bold text-ink-soft">Rebarajar Pozo de Descarte</span>
@@ -211,7 +211,7 @@ export default function DeckSection({
               type="checkbox"
               checked={reshuffleDiscardPile}
               onChange={(e) => onReshuffleChange(e.target.checked)}
-              className="w-5 h-5 accent-warning rounded cursor-pointer"
+ className="w-5 h-5 accent-warning cursor-pointer"
             />
           </label>
         </div>

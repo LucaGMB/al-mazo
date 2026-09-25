@@ -110,7 +110,7 @@ export default function Profile() {
     return (
       <div className="flex flex-col gap-4 px-4 py-8 md:max-w-md md:mx-auto md:pt-14">
         <div className="flex flex-col items-center gap-2 text-center">
-          <div className="w-[72px] h-[72px] rounded-full bg-subtle border border-medium flex items-center justify-center text-accent">
+ <div className="w-[72px] h-[72px] bg-subtle border border-medium flex items-center justify-center text-accent">
             <Icon icon="pixelarticons:lock" width={36} height={36} />
           </div>
           <div className="font-bold text-lg text-ink">Entrá a tu cuenta</div>
@@ -138,8 +138,8 @@ export default function Profile() {
 
   return (
     <div className="flex flex-col md:max-w-md md:mx-auto md:pt-10">
-      <div className="flex flex-col items-center gap-2 px-4 py-5 md:py-8 bg-statusbar border-b border-subtle md:rounded-lg md:border">
-        <div className="w-[72px] h-[72px] md:w-24 md:h-24 rounded-full bg-subtle border-2 border-medium flex items-center justify-center text-accent">
+ <div className="flex flex-col items-center gap-2 px-4 py-5 md:py-8 bg-statusbar border-b border-subtle md:border">
+ <div className="w-[72px] h-[72px] md:w-24 md:h-24 bg-subtle border-2 border-medium flex items-center justify-center text-accent">
           <Icon icon={avatarIcon} width={44} height={44} />
         </div>
 
@@ -156,7 +156,7 @@ export default function Profile() {
                   if (e.key === "Escape") setIsEditing(false);
                 }}
                 aria-label="Nombre"
-                className="h-8 w-[140px] rounded border border-medium bg-app px-2 text-[13px] text-ink outline-none focus:border-accent"
+ className="h-8 w-[140px] border border-medium bg-app px-2 text-[13px] text-ink outline-none focus:border-accent"
               />
               <Button variant="cta" onClick={() => void saveName()} disabled={savingName}>
                 Guardar
@@ -186,10 +186,10 @@ export default function Profile() {
         )}
 
         <div className="flex flex-wrap items-center justify-center gap-2">
-          <span className="rounded-full border border-success/40 bg-success/15 px-2.5 py-0.5 text-[11px] font-bold text-success">
+ <span className=" border border-success/40 bg-success/15 px-2.5 py-0.5 text-[11px] font-bold text-success">
             Registrado
           </span>
-          <span className="rounded-full border border-accent/40 bg-accent/15 px-2.5 py-0.5 text-[11px] font-bold text-accent">
+ <span className=" border border-accent/40 bg-accent/15 px-2.5 py-0.5 text-[11px] font-bold text-accent">
             Nivel {level}
           </span>
           <span className="text-xs text-ink-faint">{levelTitle(level)}</span>
@@ -204,9 +204,9 @@ export default function Profile() {
         )}
 
         <div className="w-full max-w-[260px] mt-1">
-          <div className="h-2 overflow-hidden rounded-full bg-subtle">
+ <div className="h-2 overflow-hidden bg-subtle">
             <div
-              className="h-full rounded-full bg-accent transition-all"
+ className="h-full bg-accent transition-all"
               style={{ width: `${winRate}%` }}
             />
           </div>
@@ -223,7 +223,7 @@ export default function Profile() {
               onClick={() => chooseAvatar(a.id)}
               aria-label={`Avatar ${a.id}`}
               aria-pressed={avatar === a.id}
-              className={`flex h-11 items-center justify-center rounded-lg border transition-colors cursor-pointer ${
+ className={`flex h-11 items-center justify-center border transition-colors cursor-pointer ${
                 avatar === a.id
                   ? "border-accent bg-accent/10 text-accent"
                   : "border-subtle bg-surface text-ink-soft hover:border-medium"
@@ -260,7 +260,7 @@ export default function Profile() {
           return (
             <div
               key={m.id}
-              className="flex items-center justify-between rounded-lg border border-subtle bg-surface px-3 py-2"
+ className="flex items-center justify-between border border-subtle bg-surface px-3 py-2"
             >
               <div className="min-w-0">
                 <div className="truncate text-[13px] text-ink">
@@ -271,7 +271,7 @@ export default function Profile() {
                 </div>
               </div>
               <span
-                className={`shrink-0 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${
+ className={`shrink-0 border px-2.5 py-0.5 text-[11px] font-bold ${
                   won
                     ? "border-success/40 bg-success/15 text-success"
                     : "border-danger/40 bg-danger/15 text-danger"

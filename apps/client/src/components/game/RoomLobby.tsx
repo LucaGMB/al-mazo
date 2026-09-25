@@ -76,10 +76,10 @@ export default function RoomLobby({
           return (
             <div
               key={p.id}
-              className="flex w-full items-center gap-3 rounded-[6px] border-2 border-subtle bg-app/50 px-3 py-2.5 text-left"
+ className="flex w-full items-center gap-3 border-2 border-subtle bg-app/50 px-3 py-2.5 text-left"
             >
               <span
-                className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+ className={`h-2.5 w-2.5 shrink-0 ${
                   p.isConnected
                     ? "animate-pulse bg-success shadow-[0_0_8px_rgba(51,196,141,0.9)]"
                     : "bg-ink-faint"
@@ -90,13 +90,13 @@ export default function RoomLobby({
                 {decodePlayerName(p.name).display}
               </span>
               {isHostPlayer && (
-                <span className="inline-flex items-center gap-1 rounded-[6px] border-2 border-warning/60 bg-warning/15 px-2 py-0.5 text-[10px] font-bold text-warning">
+ <span className="inline-flex items-center gap-1 border-2 border-warning/60 bg-warning/15 px-2 py-0.5 text-[10px] font-bold text-warning">
                   <Icon icon="pixelarticons:crown" width={12} height={12} />
                   HOST
                 </span>
               )}
               {p.isBot && (
-                <span className="inline-flex items-center gap-1 rounded-[6px] border-2 border-accent/60 bg-accent/15 px-2 py-0.5 text-[10px] font-bold text-accent">
+ <span className="inline-flex items-center gap-1 border-2 border-accent/60 bg-accent/15 px-2 py-0.5 text-[10px] font-bold text-accent">
                   <Icon icon="pixelarticons:robot" width={12} height={12} />
                   BOT
                 </span>
@@ -107,7 +107,7 @@ export default function RoomLobby({
                   onClick={() => onRemoveBot(p.id)}
                   aria-label="Eliminar bot"
                   title="Eliminar bot"
-                  className="inline-flex items-center justify-center w-6 h-6 rounded border border-danger/40 bg-danger/10 text-danger hover:bg-danger/25 hover:border-danger transition-colors cursor-pointer text-xs font-bold"
+ className="inline-flex items-center justify-center w-6 h-6 border border-danger/40 bg-danger/10 text-danger hover:bg-danger/25 hover:border-danger transition-colors cursor-pointer text-xs font-bold"
                 >
                   <Icon icon="pixelarticons:close" width={14} height={14} />
                 </button>

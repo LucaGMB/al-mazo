@@ -40,7 +40,7 @@ export default function CommunityTable({
       <div className="flex items-center gap-2.5">
         <DrawPile count={drawPileCount} disabled={true} />
         {tableCards.length === 0 && (
-          <div className="animate-pulse rounded-full border border-warning/60 bg-black/60 px-3.5 py-1 text-xs font-black text-warning shadow-[0_0_12px_rgba(245,197,24,0.35)] backdrop-blur">
+ <div className="animate-pulse border border-warning/60 bg-black/60 px-3.5 py-1 text-xs font-black text-warning shadow-[0_0_12px_rgba(245,197,24,0.35)] backdrop-blur">
             🧹 ¡Mesa limpia! (sin cartas)
           </div>
         )}
@@ -66,7 +66,7 @@ export default function CommunityTable({
                 onClick={canAct && onToggleTableCard ? () => onToggleTableCard(card.id) : undefined}
               />
               <span
-                className={`mt-0.5 rounded px-1.5 py-px text-[9px] font-black border transition-colors ${
+ className={`mt-0.5 px-1.5 py-px text-[9px] font-black border transition-colors ${
                   isSelected
                     ? "bg-accent text-white border-accent shadow-[0_0_8px_rgba(32,168,216,0.7)]"
                     : "bg-black/70 text-white/90 border-white/20"
