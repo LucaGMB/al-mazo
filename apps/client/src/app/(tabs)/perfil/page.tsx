@@ -5,6 +5,7 @@ import { Icon } from "@iconify/react";
 import Button from "@/components/Button";
 import MenuListItem from "@/components/MenuListItem";
 import StatBlock from "@/components/StatBlock";
+import { AuthForm } from "@/components/auth/AuthModal";
 import { useSession } from "@/lib/session/use-session";
 import { useUserStats, useUserMatches } from "@/lib/api/use-user-stats";
 
@@ -43,9 +44,11 @@ function formatDate(iso: string | null): string {
 }
 
 export default function Profile() {
-  const { user, isLoading, updateName, clearGuest } = useSession();
-  const { stats } = useUserStats(user?.id ?? null);
-  const { matches, isLoading: matchesLoading } = useUserMatches(user?.id ?? null);
+  const { user, isLoading, isLoggedIn, updateName, logout } = useSession();
+  const { stats } = useUserStats(isLoggedIn ? (user?.id ?? null) : null);
+  const { matches, isLoading: matchesLoading } = useUserMatches(
+    isLoggedIn ? (user?.id ?? null) : null,
+  );
 
   const [avatar, setAvatar] = useState<string>(AVATARS[0].id);
   const [isEditing, setIsEditing] = useState(false);
@@ -103,19 +106,22 @@ export default function Profile() {
     return <div className="px-4 py-8 text-[13px] text-ink-faint">Cargando...</div>;
   }
 
-  if (!user) {
+  if (!isLoggedIn || !user) {
     return (
-      <div className="flex flex-col items-center gap-3 px-4 py-10 md:max-w-md md:mx-auto md:pt-16 text-center">
-        <div className="w-[72px] h-[72px] rounded-full bg-subtle border border-medium flex items-center justify-center text-ink-faint">
-          <Icon icon="pixelarticons:user" width={36} height={36} />
+      <div className="flex flex-col gap-4 px-4 py-8 md:max-w-md md:mx-auto md:pt-14">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <div className="w-[72px] h-[72px] rounded-full bg-subtle border border-medium flex items-center justify-center text-accent">
+            <Icon icon="pixelarticons:lock" width={36} height={36} />
+          </div>
+          <div className="font-bold text-lg text-ink">Entrá a tu cuenta</div>
+          <div className="text-[13px] text-ink-faint">
+            Solo los jugadores registrados con usuario y clave pueden crear, publicar y clonar
+            juegos.
+          </div>
         </div>
-        <div className="font-bold text-base text-ink">Todavía no tenés perfil</div>
-        <div className="text-[13px] text-ink-faint">
-          Se crea automáticamente la primera vez que creás o te unís a una sala de juego.
+        <div className="border-[3px] border-subtle bg-statusbar/90 p-5 shadow-[6px_8px_0_0_rgba(0,0,0,0.35)]">
+          <AuthForm />
         </div>
-        <Button to="/" variant="primary">
-          Ver catálogo
-        </Button>
       </div>
     );
   }
@@ -162,21 +168,27 @@ export default function Profile() {
             {nameError && <div className="text-[11px] text-danger">{nameError}</div>}
           </div>
         ) : (
-          <div className="flex items-center gap-2">
-            <div className="font-bold text-base md:text-xl text-ink">{user.name}</div>
-            <button
-              type="button"
-              onClick={startEdit}
-              aria-label="Editar nombre"
-              title="Editar nombre"
-              className="text-ink-faint hover:text-accent cursor-pointer"
-            >
-              <Icon icon="pixelarticons:edit" width={16} height={16} />
-            </button>
+          <div className="flex flex-col items-center gap-1">
+            <div className="flex items-center gap-2">
+              <div className="font-bold text-base md:text-xl text-ink">{user.name}</div>
+              <button
+                type="button"
+                onClick={startEdit}
+                aria-label="Editar nombre"
+                title="Editar nombre"
+                className="text-ink-faint hover:text-accent cursor-pointer"
+              >
+                <Icon icon="pixelarticons:edit" width={16} height={16} />
+              </button>
+            </div>
+            {user.email && <div className="text-[11px] text-ink-faint">{user.email}</div>}
           </div>
         )}
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <span className="rounded-full border border-success/40 bg-success/15 px-2.5 py-0.5 text-[11px] font-bold text-success">
+            Registrado
+          </span>
           <span className="rounded-full border border-accent/40 bg-accent/15 px-2.5 py-0.5 text-[11px] font-bold text-accent">
             Nivel {level}
           </span>
@@ -273,7 +285,7 @@ export default function Profile() {
       </div>
 
       <div className="flex flex-col px-4 py-3">
-        <MenuListItem icon="logout" label="Cerrar sesión" danger onClick={clearGuest} />
+        <MenuListItem icon="logout" label="Cerrar sesión" danger onClick={logout} />
       </div>
     </div>
   );

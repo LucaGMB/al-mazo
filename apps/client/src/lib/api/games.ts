@@ -118,14 +118,28 @@ export async function validateGame(game: unknown): Promise<ValidationResponse> {
   return data;
 }
 
-export async function createGame(game: unknown, authorId?: string): Promise<{ game: GameResponseRecord }> {
+const TOKEN_STORAGE_KEY = "almazo.token";
+
+function gameHeaders(authorId?: string, token?: string) {
+  const resolvedToken =
+    token ??
+    (typeof window !== "undefined" ? window.localStorage.getItem(TOKEN_STORAGE_KEY) : null);
+  return {
+    "Content-Type": "application/json",
+    ...(authorId ? { "x-creator-id": authorId } : {}),
+    ...(resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : {}),
+  };
+}
+
+export async function createGame(
+  game: unknown,
+  authorId?: string,
+  token?: string,
+): Promise<{ game: GameResponseRecord }> {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
   const res = await fetch(`${baseUrl}/api/games`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(authorId ? { "x-creator-id": authorId } : {}),
-    },
+    headers: gameHeaders(authorId, token),
     body: JSON.stringify({ game, authorId }),
   });
   if (!res.ok) {
@@ -138,14 +152,16 @@ export async function createGame(game: unknown, authorId?: string): Promise<{ ga
   return res.json();
 }
 
-export async function updateGame(id: string, game: unknown, authorId?: string): Promise<{ game: GameResponseRecord }> {
+export async function updateGame(
+  id: string,
+  game: unknown,
+  authorId?: string,
+  token?: string,
+): Promise<{ game: GameResponseRecord }> {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
   const res = await fetch(`${baseUrl}/api/games/${encodeURIComponent(id)}`, {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...(authorId ? { "x-creator-id": authorId } : {}),
-    },
+    headers: gameHeaders(authorId, token),
     body: JSON.stringify({ game, authorId }),
   });
   if (!res.ok) {
@@ -158,14 +174,15 @@ export async function updateGame(id: string, game: unknown, authorId?: string): 
   return res.json();
 }
 
-export async function publishGame(id: string, authorId?: string): Promise<{ game: GameResponseRecord }> {
+export async function publishGame(
+  id: string,
+  authorId?: string,
+  token?: string,
+): Promise<{ game: GameResponseRecord }> {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
   const res = await fetch(`${baseUrl}/api/games/${encodeURIComponent(id)}/publish`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(authorId ? { "x-creator-id": authorId } : {}),
-    },
+    headers: gameHeaders(authorId, token),
     body: JSON.stringify({ authorId }),
   });
   if (!res.ok) {
@@ -178,14 +195,15 @@ export async function publishGame(id: string, authorId?: string): Promise<{ game
   return res.json();
 }
 
-export async function forkGame(id: string, authorId?: string): Promise<{ game: GameResponseRecord }> {
+export async function forkGame(
+  id: string,
+  authorId?: string,
+  token?: string,
+): Promise<{ game: GameResponseRecord }> {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
   const res = await fetch(`${baseUrl}/api/games/${encodeURIComponent(id)}/fork`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(authorId ? { "x-creator-id": authorId } : {}),
-    },
+    headers: gameHeaders(authorId, token),
     body: JSON.stringify({ authorId }),
   });
   if (!res.ok) {

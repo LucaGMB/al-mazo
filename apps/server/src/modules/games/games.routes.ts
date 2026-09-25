@@ -93,15 +93,15 @@ async function resolveAuthor(request: FastifyRequest, _body?: unknown): Promise<
 
     try {
       const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
-      if (user && user.isAnonymous) return null;
-      if (user) return user.id;
+      if (user && !user.isAnonymous) return user.id;
+      return null;
     } catch {
       // In-memory or test fallback where database is unreachable
       if (!decoded.userId.startsWith('guest_') && !decoded.userId.includes('guest')) {
         return decoded.userId;
       }
+      return null;
     }
-    return decoded.userId;
   } catch {
     return null;
   }
@@ -285,7 +285,7 @@ export const gamesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post('/api/games', async (request, reply) => {
     const authorId = await resolveAuthor(request, request.body);
     if (!authorId) {
-      return reply.status(401).send({ error: 'Exclusivo para jugadores logueados. Iniciá sesión para crear un juego.' });
+      return reply.status(401).send({ error: 'Exclusivo para jugadores registrados. Iniciá sesión para crear un juego.' });
     }
 
     const body = (request.body ?? {}) as Record<string, unknown>;
@@ -325,7 +325,7 @@ export const gamesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.put<{ Params: { id: string } }>('/api/games/:id', async (request, reply) => {
     const authorId = await resolveAuthor(request, request.body);
     if (!authorId) {
-      return reply.status(401).send({ error: 'Authentication required' });
+      return reply.status(401).send({ error: 'Exclusivo para jugadores registrados. Iniciá sesión para editar un juego.' });
     }
 
     const record = await findGame(request.params.id);
@@ -368,7 +368,7 @@ export const gamesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Params: { id: string } }>('/api/games/:id/publish', async (request, reply) => {
     const authorId = await resolveAuthor(request, request.body);
     if (!authorId) {
-      return reply.status(401).send({ error: 'Authentication required' });
+      return reply.status(401).send({ error: 'Exclusivo para jugadores registrados. Iniciá sesión para publicar un juego.' });
     }
 
     const record = await findGame(request.params.id);
@@ -395,7 +395,7 @@ export const gamesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Params: { id: string } }>('/api/games/:id/fork', async (request, reply) => {
     const authorId = await resolveAuthor(request, request.body);
     if (!authorId) {
-      return reply.status(401).send({ error: 'Authentication required' });
+      return reply.status(401).send({ error: 'Exclusivo para jugadores registrados. Iniciá sesión para clonar un juego.' });
     }
 
     const { id } = request.params;
