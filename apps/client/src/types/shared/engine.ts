@@ -93,4 +93,5 @@ export interface PublicGameState {
   scores?: Record<string, number>;
   customState?: Record<string, unknown>;
   activeBets?: Record<string, unknown>;
+  tableCards?: Card[];
 }

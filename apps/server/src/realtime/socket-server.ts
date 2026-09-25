@@ -12,7 +12,7 @@ import {
   RoomPlayer,
   ServerToClientEvents,
 } from './types.js';
-import { decideBotMove } from '../engine/bot.js';
+import { decideBotMove, decideEscobaBotMove } from '../engine/bot.js';
 import { ModularGameEngine } from '../engine/modular-engine.js';
 
 const BOT_MIN_DELAY_MS = 800;
@@ -127,6 +127,15 @@ function scheduleTurnLifecycle(io: IoServer, room: GameRoom): void {
   }
 }
 
+function emitPlayerHands(io: IoServer, room: GameRoom): void {
+  for (const p of room.players.values()) {
+    if (p.socketId) {
+      const hand = room.getPlayerHand(p.id);
+      io.to(p.socketId).emit('player:hand', hand);
+    }
+  }
+}
+
 function handleHumanTurnTimeout(io: IoServer, room: GameRoom, timedOutPlayerId: string): void {
   const state = room.getPublicState();
   if (state.status !== 'IN_PROGRESS' || state.currentTurnPlayerId !== timedOutPlayerId) return;
@@ -164,12 +173,11 @@ function handleHumanTurnTimeout(io: IoServer, room: GameRoom, timedOutPlayerId: 
   }
 
   emitSystemChat(io, room, `⏳ ${player.name} agotó su tiempo (pase automático)`);
+  emitPlayerHands(io, room);
   const newState = room.getPublicState();
   io.to(room.code).emit('room:state', newState);
 
   if (player.socketId) {
-    const hand = room.getPlayerHand(player.id);
-    io.to(player.socketId).emit('player:hand', hand);
     io.to(player.socketId).emit('error:notification', { message: 'Se agotó tu tiempo de turno' });
   }
 
@@ -193,12 +201,31 @@ function playBotTurn(io: IoServer, room: GameRoom): void {
   let nextPlayerName: string | undefined;
 
   try {
-    if (room.engine.isRoundTrickGame) {
+    const hand = room.getPlayerHand(botId);
+    const isEscoba =
+      room.gameSlug === 'escoba-del-15' ||
+      Boolean(room.definition.rules.zones?.some((z) => z.type === 'COMMUNITY')) ||
+      Boolean((room.engine as any).isCommunityGame?.());
+
+    if (room.engine instanceof TrucoEngine) {
       room.engine.executeBotTurn(botId);
       broadcastPlayerHands(io, room);
+    } else if (isEscoba) {
+      const tableCards =
+        state.tableCards ??
+        ((state.customState?.tableCards as Card[]) || []);
+      const move = decideEscobaBotMove(hand, tableCards);
+      if (typeof (room.engine as any).executeAction === 'function') {
+        const actionResult = (room.engine as any).executeAction(botId, move.action, {
+          cardId: move.cardId,
+          tableCardIds: move.tableCardIds,
+        });
+        if (actionResult && (actionResult as any).result?.escoba) {
+          emitSystemChat(io, room, `¡${bot.name} hizo Escoba! (+1 punto)`);
+        }
+      }
     } else {
       const modularEngine = room.engine as ModularGameEngine;
-      const hand = room.getPlayerHand(botId);
       nextPlayerName = getNextPlayer(room, state)?.name;
       const move = decideBotMove(
         hand,
@@ -447,14 +474,38 @@ export function initializeSocketServer(
         if (!match) return callback({ success: false, error: 'Not in a room' });
         const { room, player } = match;
 
-        const actionResult = (room.engine as ModularGameEngine).executeAction(
-          player.id,
-          action,
-          payload as Record<string, unknown> | undefined
-        );
-
-        if (!actionResult.success) {
-          return callback({ success: false, error: String(actionResult.result) });
+        let result: unknown;
+        if (room.engine instanceof TrucoEngine) {
+          const res = room.engine.executeAction(player.id, action, payload as Record<string, unknown> | undefined);
+          result = res.result;
+        } else if (action === 'CAPTURE_CARDS' || action === 'DROP_CARD') {
+          const res = (room.engine as any).executeAction(player.id, action, payload);
+          if (!res?.success) {
+            return callback({ success: false, error: String(res?.result || 'Action failed') });
+          }
+          result = res.result;
+          if ((res.result as any)?.escoba) {
+            emitSystemChat(io, room, `¡${player.name} hizo Escoba! (+1 punto)`);
+          }
+        } else {
+          const modularEngine = room.engine as ModularGameEngine;
+          if (action === 'PLAY_CARD') {
+            modularEngine.playCard(player.id, (payload as any)?.cardId, (payload as any)?.chosenColor);
+          } else if (action === 'DRAW_CARD') {
+            result = modularEngine.drawCard(player.id);
+          } else if (action === 'CHOOSE_COLOR') {
+            modularEngine.chooseColor(player.id, (payload as any)?.color);
+          } else if (action === 'PASS_TURN') {
+            modularEngine.passTurn(player.id);
+          } else if (typeof (room.engine as any).executeAction === 'function') {
+            const res = (room.engine as any).executeAction(player.id, action, payload);
+            if (!res?.success) {
+              return callback({ success: false, error: String(res?.result || 'Action failed') });
+            }
+            result = res.result;
+          } else {
+            return callback({ success: false, error: `Acción no soportada: ${action}` });
+          }
         }
 
         broadcastPlayerHands(io, room);
@@ -488,17 +539,28 @@ export function initializeSocketServer(
         const chosenColor = payload?.chosenColor;
         const isTapada = Boolean(payload?.isTapada);
 
-        const card = room.getPlayerHand(player.id).find((c) => c.id === cardId);
-        const nextPlayer = getNextPlayer(room, room.getPublicState());
+        const isEscoba =
+          room.gameSlug === 'escoba-del-15' ||
+          Boolean((room.engine as any).isCommunityGame?.());
 
-        (room.engine as any).playCard(player.id, cardId, chosenColor, isTapada);
+        if (isEscoba && typeof (room.engine as any).executeAction === 'function') {
+          const res = (room.engine as any).executeAction(player.id, 'DROP_CARD', { cardId });
+          if ((res?.result as any)?.escoba) {
+            emitSystemChat(io, room, `¡${player.name} hizo Escoba! (+1 punto)`);
+          }
+        } else {
+          const card = room.getPlayerHand(player.id).find((c) => c.id === cardId);
+          const nextPlayer = getNextPlayer(room, room.getPublicState());
+
+          (room.engine as any).playCard(player.id, cardId, chosenColor, isTapada);
+
+          if (card) {
+            const chat = specialCardChatMessage(card, player.name, nextPlayer?.name);
+            if (chat && card.type !== 'WILD') emitSystemChat(io, room, chat);
+          }
+        }
 
         broadcastPlayerHands(io, room);
-
-        if (card) {
-          const chat = specialCardChatMessage(card, player.name, nextPlayer?.name);
-          if (chat && card.type !== 'WILD') emitSystemChat(io, room, chat);
-        }
 
         const state = room.getPublicState();
         io.to(room.code).emit('room:state', state);

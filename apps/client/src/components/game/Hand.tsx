@@ -19,10 +19,12 @@ interface DragState {
 export default function Hand({
   cards,
   canPlay,
+  selectedCardId,
   onPlay,
 }: {
   cards: Card[];
   canPlay: boolean;
+  selectedCardId?: string | null;
   onPlay: (cardId: string) => void;
 }) {
   const dragRef = useRef<DragState | null>(null);
@@ -81,47 +83,35 @@ export default function Hand({
         canPlay ? "ring-1 ring-accent/30 bg-accent/5" : ""
       }`}
     >
-      {/* Con manos muy grandes las cartas no entran en una sola fila: en vez
-          de desbordarse fuera de pantalla, `flex-wrap` las pasa a una segunda
-          fila (cada fila se centra sola, así que se ve simétrico). */}
+      {isTapada && (
+        <div className="absolute top-1 text-[11px] font-black text-warning bg-black/85 px-3 py-0.5 rounded-full border border-warning/60 shadow-[0_0_10px_rgba(245,197,24,0.4)] animate-pulse z-30 pointer-events-none">
+          MODO TAPADA: Elegí la carta a tirar boca abajo
+        </div>
+      )}
       {cards.map((card, i) => {
-        const isDragging = draggingId === card.id;
-        const isArmed = armedId === card.id;
+        const isSelected = card.id === selectedCardId;
         return (
           <div
             key={card.id}
-            style={{
-              // Fila recta, sin rotación de abanico: las cartas solo se
-              // solapan horizontalmente (margen negativo en la clase de abajo).
-              // El escalado al arrastrar va acá adentro: un estilo inline de
-              // `transform` gana siempre sobre clases de Tailwind como
-              // `scale-110`, así que agregarlo aparte no tendría efecto.
-              transform: `translate(var(--drag-x, 0px), var(--drag-y, 0px))${
-                isDragging ? " scale(1.08)" : ""
-              }`,
-              zIndex: isDragging ? 50 : i,
-              transition: isDragging ? "none" : undefined,
-              touchAction: canPlay ? "none" : undefined,
-            }}
-            className={`group -mx-2.5 md:-mx-3.5 transition-transform duration-150 ${
-              canPlay ? "cursor-grab active:cursor-grabbing" : ""
-            }`}
-            onPointerDown={(e) => handlePointerDown(e, card.id)}
-            onPointerMove={(e) => handlePointerMove(e, card.id)}
-            onPointerUp={(e) => handlePointerEnd(e, card.id, true)}
-            onPointerCancel={(e) => handlePointerEnd(e, card.id, false)}
+            style={{ transform: fanTransform(i, cards.length), zIndex: isSelected ? 35 : i }}
+            className={`group -mx-2.5 md:-mx-3.5 transition-all duration-150 ${
+              canPlay ? "hover:-translate-y-4 hover:scale-105 hover:!z-30" : ""
+            } ${isSelected ? "-translate-y-4 scale-105 !z-30" : ""}`}
           >
             <div
-              className={`animate-deal-in opacity-0 rounded-[14%] transition-shadow duration-150 ${
+              className={`animate-deal-in opacity-0 ${
                 canPlay
-                  ? isArmed
-                    ? "ring-4 ring-warning shadow-[0_0_28px_rgba(255,143,77,0.85)]"
-                    : "ring-2 ring-accent/50 shadow-[0_0_12px_rgba(255,210,63,0.35)] group-hover:ring-accent group-hover:shadow-[0_0_20px_rgba(255,210,63,0.65)]"
+                  ? "rounded-xl ring-2 ring-warning/50 shadow-[0_0_12px_rgba(245,197,24,0.35)] group-hover:ring-warning group-hover:shadow-[0_0_20px_rgba(245,197,24,0.65)]"
                   : ""
               }`}
               style={{ animationDelay: `${i * 60}ms` }}
             >
-              <CardView card={card} size="lg" onClick={canPlay ? () => {} : undefined} />
+              <CardView
+                card={card}
+                size="lg"
+                selected={isSelected}
+                onClick={canPlay ? () => onPlay(card.id) : undefined}
+              />
             </div>
           </div>
         );

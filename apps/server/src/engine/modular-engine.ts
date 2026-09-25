@@ -23,6 +23,11 @@ import {
   TRUCO_CARD_HIERARCHY,
 } from '@al-mazo/shared';
 import { decideBotMove } from './bot.js';
+import {
+  calculateEscobaValues,
+  checkInitialTableSpecialRule,
+  scoreEscobaMatchRound,
+} from '../games/escoba/definition.js';
 
 export interface ActionResult {
   success: boolean;
@@ -154,6 +159,14 @@ export class ModularGameEngine extends GameEngine {
     lastCallerId: null,
   };
 
+  // Community and capture zone state
+  protected tableCards: Card[] = [];
+  protected capturedCards: Record<string, Card[]> = {};
+  protected escobas: Record<string, number> = {};
+  protected lastCapturePlayerId: string | null = null;
+  protected dealerIndex = 0;
+  protected dealerPlayerId: string | null = null;
+
   constructor(definition: GameSchemaDefinition) {
     super(definition);
     this.targetScore =
@@ -183,13 +196,21 @@ export class ModularGameEngine extends GameEngine {
     return Boolean(hasTrickActions || hasOnlyTrickZone || isTrucoLike);
   }
 
+  public isCommunityGame(): boolean {
+    return (
+      Boolean(this.definition.rules.zones?.some((z) => z.type === 'COMMUNITY')) ||
+      this.definition.rules.customState?.initialTableCards !== undefined ||
+      this.definition.slug === 'escoba-del-15'
+    );
+  }
+
   public override start(): void {
+    const minPlayers = this.definition.rules.minPlayers ?? 2;
+    if (this.players.length < minPlayers) {
+      throw new Error(`At least ${minPlayers} players required to start`);
+    }
+
     if (this.isRoundTrickGame) {
-      if (this.players.length < (this.definition.rules.minPlayers ?? 2)) {
-        throw new Error(
-          `At least ${this.definition.rules.minPlayers ?? 2} players required to start`
-        );
-      }
       this.status = 'IN_PROGRESS';
       this.scores = {};
       for (const p of this.players) {
@@ -198,21 +219,27 @@ export class ModularGameEngine extends GameEngine {
       this.manoIndex = 0;
       this.round = 1;
       this.startNewRound();
+    } else if (this.isCommunityGame()) {
+      this.startCommunityGame();
     } else {
       super.start();
+    }
 
-      this.scores = {};
-      for (const player of this.players) {
-        this.scores[player.id] = 0;
-      }
-      this.customState = { ...(this.definition.rules.customState ?? {}) };
-      this.trickCards = [];
-      this.activeBets = {};
+    this.scores = {};
+    for (const player of this.players) {
+      this.scores[player.id] = this.scores[player.id] ?? 0;
+    }
+    this.customState = { ...(this.definition.rules.customState ?? {}) };
+    this.trickCards = [];
+    this.activeBets = {};
 
-      const phases = this.phases;
-      if (phases && phases.length > 0) {
-        this.enterPhase(phases[0].id);
-      }
+    if (this.isCommunityGame()) {
+      this.syncCommunityState();
+    }
+
+    const phases = this.phases;
+    if (phases && phases.length > 0 && !this.isRoundTrickGame) {
+      this.enterPhase(phases[0].id);
     }
   }
 
@@ -277,6 +304,57 @@ export class ModularGameEngine extends GameEngine {
     this.lastActionText = `Ronda ${this.round}. Mano: ${manoPlayer?.name ?? 'Jugador'}`;
   }
 
+  protected startCommunityGame(): void {
+    this.deckManager.generateFromConfig(this.definition.deckConfig);
+
+    // Deal initial hands
+    const handSize = this.definition.rules.initialHandSize ?? 3;
+    for (const player of this.players) {
+      player.hand = this.deckManager.drawMultiple(handSize);
+      player.hasDrawnThisTurn = false;
+    }
+
+    this.discardPile = [];
+    this.activeColor = null;
+    this.currentTurnIndex = 0;
+    this.turnDirection = 1;
+    this.status = 'IN_PROGRESS';
+
+    const tableCount = Number(this.definition.rules.customState?.initialTableCards ?? 4);
+    this.tableCards = this.deckManager.drawMultiple(tableCount);
+
+    this.dealerIndex = this.players.length - 1;
+    this.dealerPlayerId = this.players[this.dealerIndex]?.id ?? null;
+    this.currentTurnIndex = 0; // First player ('mano') starts
+
+    this.capturedCards = {};
+    this.escobas = {};
+    for (const player of this.players) {
+      this.capturedCards[player.id] = [];
+      this.escobas[player.id] = 0;
+    }
+    this.lastCapturePlayerId = null;
+
+    // Check special initial deal rule for Escoba (if table sums to 15 or 30)
+    if (this.definition.slug === 'escoba-del-15') {
+      this.checkEscobaInitialDeal();
+    }
+  }
+
+  protected checkEscobaInitialDeal(): void {
+    const special = checkInitialTableSpecialRule(this.tableCards);
+    if (special.capturesAll && this.dealerPlayerId) {
+      this.capturedCards[this.dealerPlayerId].push(...this.tableCards);
+      this.escobas[this.dealerPlayerId] =
+        (this.escobas[this.dealerPlayerId] ?? 0) + special.escobas;
+      this.scores[this.dealerPlayerId] =
+        (this.scores[this.dealerPlayerId] ?? 0) + special.escobas;
+      this.tableCards = [];
+      this.lastCapturePlayerId = this.dealerPlayerId;
+      this.customState.lastEscobaBy = this.dealerPlayerId;
+    }
+  }
+
   public getStatus(): 'LOBBY' | 'IN_PROGRESS' | 'FINISHED' {
     return this.status;
   }
@@ -292,6 +370,7 @@ export class ModularGameEngine extends GameEngine {
         currentPhase: this.currentPhase,
         scores: { ...this.scores },
         customState: { ...this.customState },
+        tableCards: this.tableCards.map((card) => ({ ...card })),
         trickCards: this.trickCards.map((entry) => ({
           playerId: entry.playerId,
           card: entry.isTapada
@@ -376,6 +455,7 @@ export class ModularGameEngine extends GameEngine {
       discardPileCount: 0,
       players: playersPublic,
       winnerId: this.winnerId,
+      scores: { ...this.scores },
       pendingChoice: null,
       currentPhase: this.currentPhase,
       trickCards: this.trickCards.map((tc) => ({
@@ -384,14 +464,17 @@ export class ModularGameEngine extends GameEngine {
           ? { id: tc.card.id, type: 'TAPADA', value: 'TAPADA', color: 'TAPADA' }
           : tc.card,
       })),
-      scores: { ...this.scores },
-      customState: customState as unknown as Record<string, unknown>,
+      customState: {
+        ...this.customState,
+        ...(this.isRoundTrickGame ? (customState as unknown as Record<string, unknown>) : {}),
+      },
       activeBets: {
         flor: this.florState,
         envido: this.envidoState,
         truco: this.trucoState,
         ...this.activeBets,
       },
+      tableCards: this.tableCards.map((card) => ({ ...card })),
     };
   }
 
@@ -1252,6 +1335,234 @@ export class ModularGameEngine extends GameEngine {
     }
   }
 
+  public captureCards(
+    playerId: string,
+    cardId: string,
+    tableCardIds: string[]
+  ): { captured: Card[]; escoba: boolean } {
+    if (this.status !== 'IN_PROGRESS') {
+      throw new Error('Game is not in progress');
+    }
+    const currentPlayer = this.getCurrentPlayer();
+    if (currentPlayer.id !== playerId) {
+      throw new Error('Not your turn');
+    }
+
+    const handIndex = currentPlayer.hand.findIndex((c) => c.id === cardId);
+    if (handIndex === -1) {
+      throw new Error('Card not found in hand');
+    }
+    const [handCard] = currentPlayer.hand.splice(handIndex, 1);
+
+    // Validate table cards
+    const tableCardsToCapture: Card[] = [];
+    for (const tid of tableCardIds) {
+      const idx = this.tableCards.findIndex((c) => c.id === tid);
+      if (idx === -1) {
+        // Revert hand card
+        currentPlayer.hand.splice(handIndex, 0, handCard);
+        throw new Error(`Table card ${tid} not found on table`);
+      }
+      tableCardsToCapture.push(this.tableCards[idx]);
+    }
+
+    // Validate sum for Escoba
+    if (this.definition.slug === 'escoba-del-15') {
+      const valid = calculateEscobaValues(handCard, tableCardsToCapture);
+      if (!valid) {
+        currentPlayer.hand.splice(handIndex, 0, handCard);
+        throw new Error('Selected cards do not sum to 15');
+      }
+    }
+
+    // Remove from table
+    for (const tid of tableCardIds) {
+      const idx = this.tableCards.findIndex((c) => c.id === tid);
+      if (idx !== -1) {
+        this.tableCards.splice(idx, 1);
+      }
+    }
+
+    const captured = [handCard, ...tableCardsToCapture];
+    if (!this.capturedCards[playerId]) {
+      this.capturedCards[playerId] = [];
+    }
+    this.capturedCards[playerId].push(...captured);
+    this.lastCapturePlayerId = playerId;
+
+    // Check Escoba: table was swept clean
+    const isEscoba = this.tableCards.length === 0;
+    if (isEscoba) {
+      this.escobas[playerId] = (this.escobas[playerId] ?? 0) + 1;
+      this.scores[playerId] = (this.scores[playerId] ?? 0) + 1;
+      this.customState.lastEscobaBy = playerId;
+      this.checkScoreWin(playerId);
+    }
+
+    this.advanceTurn(1);
+    this.checkDealOrRoundEnd();
+    this.syncCommunityState();
+
+    return { captured, escoba: isEscoba };
+  }
+
+  public dropCard(playerId: string, cardId: string): { droppedCard: Card } {
+    if (this.status !== 'IN_PROGRESS') {
+      throw new Error('Game is not in progress');
+    }
+    const currentPlayer = this.getCurrentPlayer();
+    if (currentPlayer.id !== playerId) {
+      throw new Error('Not your turn');
+    }
+
+    const handIndex = currentPlayer.hand.findIndex((c) => c.id === cardId);
+    if (handIndex === -1) {
+      throw new Error('Card not found in hand');
+    }
+    const [handCard] = currentPlayer.hand.splice(handIndex, 1);
+    this.tableCards.push(handCard);
+
+    this.advanceTurn(1);
+    this.checkDealOrRoundEnd();
+    this.syncCommunityState();
+
+    return { droppedCard: handCard };
+  }
+
+  protected checkDealOrRoundEnd(): void {
+    if (this.status !== 'IN_PROGRESS') return;
+
+    const allHandsEmpty = this.players.every((p) => p.hand.length === 0);
+    if (!allHandsEmpty) return;
+
+    // Check if more cards in draw pile
+    if (this.deckManager.count > 0) {
+      const handSize = this.definition.rules.initialHandSize ?? 3;
+      for (const player of this.players) {
+        player.hand = this.deckManager.drawMultiple(handSize);
+      }
+      this.customState.dealNumber = Number(this.customState.dealNumber ?? 1) + 1;
+      return;
+    }
+
+    // Draw pile is empty -> End of Round ("Últimas")!
+    this.endCommunityRound();
+  }
+
+  protected endCommunityRound(): void {
+    // 1. Last captor sweeps remaining table cards
+    if (this.tableCards.length > 0) {
+      const recipientId =
+        this.lastCapturePlayerId ??
+        this.players[this.dealerIndex]?.id ??
+        this.players[0].id;
+      if (!this.capturedCards[recipientId]) {
+        this.capturedCards[recipientId] = [];
+      }
+      this.capturedCards[recipientId].push(...this.tableCards);
+      this.customState.lastSweepRecipient = recipientId;
+      this.customState.lastSweepCardsCount = this.tableCards.length;
+      this.tableCards = [];
+    }
+
+    // 2. Score the round
+    if (this.definition.slug === 'escoba-del-15') {
+      const result = scoreEscobaMatchRound(this.capturedCards, this.escobas);
+      this.customState.lastRoundResult = result;
+
+      // Handle auto-loss
+      if (result.autoLossPlayerId) {
+        const otherPlayer = this.players.find((p) => p.id !== result.autoLossPlayerId);
+        this.status = 'FINISHED';
+        this.winnerId = otherPlayer?.id ?? null;
+        return;
+      }
+
+      // Add non-escoba points to scores (escobas were already awarded when made)
+      for (const player of this.players) {
+        const pScore = result.playerScores[player.id];
+        if (pScore) {
+          const roundNonEscobaPoints =
+            pScore.roundPoints - pScore.pointsBreakdown.escobas;
+          this.scores[player.id] =
+            (this.scores[player.id] ?? 0) + roundNonEscobaPoints;
+        }
+      }
+    }
+
+    // 3. Check win condition
+    const target =
+      this.definition.rules.targetScore ??
+      this.definition.rules.winCondition.targetScore ??
+      15;
+    let highestScore = -1;
+    let highestPlayerId: string | null = null;
+    let someoneReachedTarget = false;
+
+    for (const player of this.players) {
+      const s = this.scores[player.id] ?? 0;
+      if (s >= target) {
+        someoneReachedTarget = true;
+      }
+      if (s > highestScore) {
+        highestScore = s;
+        highestPlayerId = player.id;
+      }
+    }
+
+    if (someoneReachedTarget && highestPlayerId) {
+      this.status = 'FINISHED';
+      this.winnerId = highestPlayerId;
+      return;
+    }
+
+    // 4. Start Next Round!
+    this.startNextCommunityRound();
+  }
+
+  protected startNextCommunityRound(): void {
+    this.customState.round = Number(this.customState.round ?? 1) + 1;
+    this.dealerIndex = (this.dealerIndex + 1) % this.players.length;
+    this.dealerPlayerId = this.players[this.dealerIndex]?.id ?? null;
+
+    // Reset deck and deal
+    this.deckManager.generateFromConfig(this.definition.deckConfig);
+    const handSize = this.definition.rules.initialHandSize ?? 3;
+    for (const player of this.players) {
+      player.hand = this.deckManager.drawMultiple(handSize);
+    }
+    const tableCount = Number(this.definition.rules.customState?.initialTableCards ?? 4);
+    this.tableCards = this.deckManager.drawMultiple(tableCount);
+
+    this.capturedCards = {};
+    this.escobas = {};
+    for (const player of this.players) {
+      this.capturedCards[player.id] = [];
+      this.escobas[player.id] = 0;
+    }
+    this.lastCapturePlayerId = null;
+
+    // Next round starts with player after dealer ('mano')
+    this.currentTurnIndex = (this.dealerIndex + 1) % this.players.length;
+
+    if (this.definition.slug === 'escoba-del-15') {
+      this.checkEscobaInitialDeal();
+    }
+
+    this.syncCommunityState();
+  }
+
+  protected syncCommunityState(): void {
+    this.customState.tableCards = this.tableCards.map((c) => ({ ...c }));
+    this.customState.escobas = { ...this.escobas };
+    const counts: Record<string, number> = {};
+    for (const pid of Object.keys(this.capturedCards)) {
+      counts[pid] = this.capturedCards[pid].length;
+    }
+    this.customState.capturedCounts = counts;
+    this.customState.dealerPlayerId = this.dealerPlayerId;
+  }
+
   protected enterPhase(phaseId: string): void {
     const phase = this.phases?.find((candidate) => candidate.id === phaseId);
     if (!phase) {
@@ -1374,6 +1685,38 @@ export class ModularGameEngine extends GameEngine {
         return this.handleRespondBet(challengedId, accept);
       }
 
+      case 'DEAL_COMMUNITY': {
+        const count = Number(params.count ?? payload.count ?? 4);
+        const drawn = this.deckManager.drawMultiple(count);
+        this.tableCards.push(...drawn);
+        this.syncCommunityState();
+        return drawn;
+      }
+
+      case 'DROP_TO_TABLE': {
+        const cardId = String(params.cardId ?? payload.cardId ?? '');
+        if (actorId && cardId) {
+          return this.dropCard(actorId, cardId);
+        }
+        return null;
+      }
+
+      case 'CAPTURE_CARDS': {
+        const cardId = String(params.cardId ?? payload.cardId ?? '');
+        const tableCardIds = Array.isArray(payload.tableCardIds)
+          ? payload.tableCardIds.map(String)
+          : [];
+        if (actorId && cardId) {
+          return this.captureCards(actorId, cardId, tableCardIds);
+        }
+        return null;
+      }
+
+      case 'EVALUATE_ROUND_SCORING': {
+        this.endCommunityRound();
+        return this.customState.lastRoundResult;
+      }
+
       default:
         return null;
     }
@@ -1454,8 +1797,30 @@ export class ModularGameEngine extends GameEngine {
     payload: Record<string, unknown>
   ): unknown {
     switch (actionType) {
+      case 'CAPTURE_CARDS': {
+        const cardId = String(payload.cardId ?? '');
+        const tableCardIds = Array.isArray(payload.tableCardIds)
+          ? payload.tableCardIds.map(String)
+          : [];
+        return this.captureCards(playerId, cardId, tableCardIds);
+      }
+
+      case 'DROP_CARD': {
+        const cardId = String(payload.cardId ?? '');
+        return this.dropCard(playerId, cardId);
+      }
+
       case 'PLAY_CARD': {
         const cardId = String(payload.cardId ?? '');
+        const tableCardIds = Array.isArray(payload.tableCardIds)
+          ? payload.tableCardIds.map(String)
+          : [];
+        if (tableCardIds.length > 0) {
+          return this.captureCards(playerId, cardId, tableCardIds);
+        }
+        if (this.isCommunityGame()) {
+          return this.dropCard(playerId, cardId);
+        }
         const chosenColor = payload.chosenColor ? String(payload.chosenColor) : undefined;
         const isTapada = Boolean(payload.isTapada);
         const player = this.players.find((p) => p.id === playerId);
@@ -1641,6 +2006,20 @@ export class ModularGameEngine extends GameEngine {
           this.trucoState.state === 'PENDING' ||
           this.customState.betPending === true
         );
+
+      case 'VALID_CAPTURE':
+      case 'SUM_TARGET': {
+        const cardId = String(payload.cardId ?? '');
+        const tableCardIds = Array.isArray(payload.tableCardIds)
+          ? payload.tableCardIds.map(String)
+          : [];
+        const player = this.players.find((p) => p.id === playerId);
+        const handCard = player?.hand.find((c) => c.id === cardId);
+        if (!handCard || tableCardIds.length === 0) return false;
+        const tableCards = this.tableCards.filter((c) => tableCardIds.includes(c.id));
+        if (tableCards.length !== tableCardIds.length) return false;
+        return calculateEscobaValues(handCard, tableCards);
+      }
 
       default:
         return true;

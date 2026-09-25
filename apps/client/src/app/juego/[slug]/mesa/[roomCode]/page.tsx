@@ -15,9 +15,7 @@ import Hand from "@/components/game/Hand";
 import ColorPicker from "@/components/game/ColorPicker";
 import ChatDrawer from "@/components/game/ChatDrawer";
 import TrucoTable from "@/components/game/TrucoTable";
-import CardFlight from "@/components/game/CardFlight";
-import CardView from "@/components/game/CardView";
-import CardBack from "@/components/game/CardBack";
+import CommunityTable, { getEscobaPointValue } from "@/components/game/CommunityTable";
 import { useRoom } from "@/lib/room/use-room";
 import { assignSeats } from "@/lib/room/seating";
 import { decodePlayerName } from "@/lib/room/player-name";
@@ -62,12 +60,11 @@ export default function MesaPage() {
     chooseColor,
     passTurn,
     leaveRoom,
+    executeAction,
     unreadChatCount,
     clearUnreadChat,
     sendChatMessage,
     chatBubbles,
-    forcedDraw,
-    executeAction,
   } = useRoom();
 
   const [isActing, setIsActing] = useState(false);
@@ -78,6 +75,25 @@ export default function MesaPage() {
   const [hasShouted, setHasShouted] = useState(false);
   const [shoutToast, setShoutToast] = useState(false);
   const { play, muted, toggleMute } = useSound();
+
+  const isCommunity = Boolean(publicState?.tableCards) || slug === "escoba-del-15";
+  const [selectedHandCardId, setSelectedHandCardId] = useState<string | null>(null);
+  const [selectedTableCardIds, setSelectedTableCardIds] = useState<string[]>([]);
+
+  // Prune table card selections if cards are no longer on table
+  useEffect(() => {
+    if (!publicState?.tableCards) return;
+    const currentTableIds = new Set(publicState.tableCards.map((c) => c.id));
+    setSelectedTableCardIds((prev) => prev.filter((id) => currentTableIds.has(id)));
+  }, [publicState?.tableCards]);
+
+  // Reset selections when turn changes away from self
+  useEffect(() => {
+    if (publicState?.currentTurnPlayerId !== selfPlayerId) {
+      setSelectedHandCardId(null);
+      setSelectedTableCardIds([]);
+    }
+  }, [publicState?.currentTurnPlayerId, selfPlayerId]);
 
   // Sacudida de mesa (feedback físico) al gritar o jugar una carta.
   const shakeTimerRef = useRef<number | null>(null);
@@ -455,6 +471,83 @@ export default function MesaPage() {
     }
   }
 
+  function handleHandCardClick(cardId: string) {
+    if (isCommunity) {
+      if (!canAct) return;
+      setSelectedHandCardId((prev) => (prev === cardId ? null : cardId));
+    } else {
+      void handlePlay(cardId);
+    }
+  }
+
+  function handleToggleTableCard(cardId: string) {
+    if (!canAct) return;
+    setSelectedTableCardIds((prev) =>
+      prev.includes(cardId) ? prev.filter((id) => id !== cardId) : [...prev, cardId]
+    );
+  }
+
+  const selectedHandCard = hand.find((c) => c.id === selectedHandCardId);
+  const selectedTableCards = (publicState?.tableCards ?? []).filter((c) =>
+    selectedTableCardIds.includes(c.id)
+  );
+  const handCardPoint = selectedHandCard ? getEscobaPointValue(selectedHandCard) : 0;
+  const tableCardsSum = selectedTableCards.reduce(
+    (sum, c) => sum + getEscobaPointValue(c),
+    0
+  );
+  const currentEscobaSum = (selectedHandCard ? handCardPoint : 0) + tableCardsSum;
+  const isTargetSum = currentEscobaSum === 15;
+  const canCapture =
+    canAct &&
+    Boolean(selectedHandCard) &&
+    selectedTableCards.length > 0 &&
+    isTargetSum;
+  const isSweepEscoba =
+    canCapture &&
+    selectedTableCards.length === (publicState?.tableCards?.length ?? 0);
+
+  async function handleCapture() {
+    if (!canCapture || !selectedHandCardId) return;
+    setIsActing(true);
+    try {
+      const res = (await executeAction("CAPTURE_CARDS", {
+        cardId: selectedHandCardId,
+        tableCardIds: selectedTableCardIds,
+      })) as { success?: boolean; result?: { escoba?: boolean } } | undefined;
+
+      setSelectedHandCardId(null);
+      setSelectedTableCardIds([]);
+      play("playCard");
+      triggerShake();
+      if (res?.result?.escoba) {
+        play("victory");
+      }
+    } finally {
+      setIsActing(false);
+    }
+  }
+
+  async function handleDrop() {
+    if (!canAct || !selectedHandCardId) return;
+    setIsActing(true);
+    try {
+      await executeAction("DROP_CARD", {
+        cardId: selectedHandCardId,
+      });
+      setSelectedHandCardId(null);
+      setSelectedTableCardIds([]);
+      play("playCard");
+      triggerShake();
+    } finally {
+      setIsActing(false);
+    }
+  }
+
+  function handleClearSelection() {
+    setSelectedHandCardId(null);
+    setSelectedTableCardIds([]);
+  }
   async function handleDraw() {
     if (!canAct) return;
     setIsActing(true);
@@ -604,7 +697,15 @@ export default function MesaPage() {
                 publicState.currentTurnPlayerId === player.id ? publicState.turnExpiresAt : null
               }
               recentMessage={chatBubbles[player.id]?.text ?? null}
-              drawPulse={drawPulses[player.id] ?? null}
+              score={publicState.scores?.[player.id]}
+              escobas={
+                (publicState.customState?.escobas as Record<string, number> | undefined)?.[player.id]
+              }
+              capturedCount={
+                (publicState.customState?.capturedCounts as Record<string, number> | undefined)?.[
+                  player.id
+                ]
+              }
             />
           ))}
           {others.length > 3 && (
@@ -613,19 +714,27 @@ export default function MesaPage() {
             </div>
           )}
 
-          <div className="felt-texture absolute top-[90px] md:top-[120px] left-1/2 -translate-x-1/2 w-[300px] h-[220px] md:w-[440px] md:h-[320px] rounded-[10px] border-[6px] border-[#0b0812] shadow-[6px_6px_0_0_rgba(0,0,0,0.5)]">
-            <span className="pixel-rivet" style={{ top: 6, left: 6 }} />
-            <span className="pixel-rivet" style={{ top: 6, right: 6 }} />
-            <span className="pixel-rivet" style={{ bottom: 6, left: 6 }} />
-            <span className="pixel-rivet" style={{ bottom: 6, right: 6 }} />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center gap-5 md:gap-8 pointer-events-auto">
-              <DrawPile count={publicState.drawPileCount} disabled={!canAct} onClick={handleDraw} />
-              <DiscardPile
-                topCard={publicState.topDiscardCard}
-                count={publicState.discardPileCount}
-                activeColor={publicState.activeColor}
-              />
-            </div>
+          <div className="absolute top-[90px] md:top-[120px] left-1/2 -translate-x-1/2 w-[300px] h-[300px] md:w-[440px] md:h-[440px] rounded-full border-[10px] border-[#3E2723] shadow-[inset_0_0_0_2px_rgba(212,175,55,0.5),inset_0_0_30px_rgba(0,0,0,0.55),0_0_0_1px_#0B160F,0_0_24px_rgba(212,175,55,0.18)] bg-[radial-gradient(circle_at_40%_35%,#2E6F40,#1D4B2B_70%,#112B19_100%)]">
+            {isCommunity ? (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
+                <CommunityTable
+                  tableCards={publicState.tableCards ?? []}
+                  selectedTableCardIds={selectedTableCardIds}
+                  onToggleTableCard={handleToggleTableCard}
+                  drawPileCount={publicState.drawPileCount}
+                  canAct={canAct}
+                />
+              </div>
+            ) : (
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center gap-5 md:gap-8 pointer-events-auto">
+                <DrawPile count={publicState.drawPileCount} disabled={!canAct} onClick={handleDraw} />
+                <DiscardPile
+                  topCard={publicState.topDiscardCard}
+                  count={publicState.discardPileCount}
+                  activeColor={publicState.activeColor}
+                />
+              </div>
+            )}
             {pendingChoiceForMe && (
               <ColorPicker
                 gameSlug={slug}
@@ -646,7 +755,15 @@ export default function MesaPage() {
               isCurrentTurn={isMyTurn}
               turnExpiresAt={isMyTurn ? publicState.turnExpiresAt : null}
               recentMessage={chatBubbles[self.id]?.text ?? null}
-              drawPulse={drawPulses[self.id] ?? null}
+              score={publicState.scores?.[self.id]}
+              escobas={
+                (publicState.customState?.escobas as Record<string, number> | undefined)?.[self.id]
+              }
+              capturedCount={
+                (publicState.customState?.capturedCounts as Record<string, number> | undefined)?.[
+                  self.id
+                ]
+              }
             />
           )}
         </div>
@@ -661,29 +778,130 @@ export default function MesaPage() {
          </div>
        )}
 
-       <div className="flex-none px-3.5 md:px-6 py-1.5 md:py-3 flex items-center justify-between">
-        <div className="flex items-center gap-1.5 font-medium text-[11px] md:text-sm text-ink">
-          <span className={`w-2 h-2 rounded-full ${isMyTurn ? "bg-accent" : "bg-ink-faint"}`} />
-          {pendingChoiceForMe
-            ? "Elegí un color"
-            : pendingChoiceForOther
-              ? "Esperando color..."
-              : isMyTurn
-                ? "Tu turno"
-                : "Esperando turno"}
-        </div>
-        {canAct && (
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={handlePass}>
-              Pasar turno
-            </Button>
+      {isCommunity && isMyTurn && gameStatus === "IN_PROGRESS" && (
+        <div className="flex-none px-3.5 md:px-6 pb-2">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 rounded-xl border border-accent/40 bg-statusbar/95 p-2.5 md:p-3 shadow-[0_0_18px_rgba(32,168,216,0.18)] backdrop-blur">
+            <div className="flex items-center gap-2 text-xs md:text-sm">
+              {!selectedHandCard && selectedTableCards.length === 0 && (
+                <span className="text-ink-faint">
+                  Tocá una carta de tu mano para jugar o tirar
+                </span>
+              )}
+              {selectedHandCard && selectedTableCards.length === 0 && (
+                <span className="text-ink">
+                  Carta elegida:{" "}
+                  <strong className="text-accent font-black">
+                    {selectedHandCard.color} {selectedHandCard.value} ({handCardPoint} pts)
+                  </strong>{" "}
+                  <span className="text-[11px] text-ink-faint hidden sm:inline">
+                    (o tocá cartas de la mesa para sumar 15)
+                  </span>
+                </span>
+              )}
+              {selectedTableCards.length > 0 && (
+                <span className="inline-flex items-center gap-2">
+                  <span>
+                    Suma:{" "}
+                    <strong
+                      className={
+                        isTargetSum
+                          ? "text-success font-black text-sm md:text-base"
+                          : "text-warning font-black"
+                      }
+                    >
+                      {currentEscobaSum}
+                    </strong>{" "}
+                    / 15
+                  </span>
+                  {isTargetSum ? (
+                    <span className="rounded-full bg-success/20 border border-success/60 px-2 py-0.5 text-[10px] font-black text-success animate-pulse">
+                      {isSweepEscoba ? "🧹 ¡ESCOBA!" : "✓ ¡Suma 15!"}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-ink-faint">
+                      {currentEscobaSum < 15
+                        ? `(Faltan ${15 - currentEscobaSum})`
+                        : `(Se pasa por ${currentEscobaSum - 15})`}
+                    </span>
+                  )}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {(selectedHandCard || selectedTableCards.length > 0) && (
+                <button
+                  type="button"
+                  onClick={handleClearSelection}
+                  className="px-2 py-1 text-xs text-ink-faint hover:text-ink cursor-pointer underline"
+                >
+                  Limpiar
+                </button>
+              )}
+
+              {selectedHandCard && !canCapture && (
+                <Button
+                  variant="outline"
+                  className="!h-8 !px-3 !text-xs"
+                  onClick={handleDrop}
+                  disabled={isActing}
+                  title="Dejar esta carta en la mesa si no podés o no querés levantar"
+                >
+                  <Icon icon="pixelarticons:down-as-search" width={14} height={14} />
+                  Tirar a la mesa
+                </Button>
+              )}
+
+              {canCapture && (
+                <Button
+                  variant="primary"
+                  onClick={handleCapture}
+                  disabled={isActing}
+                  className={`!h-8 !px-3 !text-xs ${
+                    isSweepEscoba
+                      ? "animate-bounce shadow-[0_0_16px_rgba(245,197,24,0.6)] !border-warning font-black"
+                      : ""
+                  }`}
+                >
+                  <Icon
+                    icon="pixelarticons:trophy"
+                    width={14}
+                    height={14}
+                    className={isSweepEscoba ? "text-warning" : ""}
+                  />
+                  {isSweepEscoba ? "¡Hacer Escoba! (+1 pt)" : "Capturar Baza"}
+                </Button>
+              )}
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {!isTruco && (
+        <div className="flex-none px-3.5 md:px-6 py-1.5 md:py-3 flex items-center justify-between">
+          <div className="flex items-center gap-1.5 font-medium text-[11px] md:text-sm text-ink">
+            <span className={`w-2 h-2 rounded-full ${isMyTurn ? "bg-accent" : "bg-ink-faint"}`} />
+            {pendingChoiceForMe
+              ? "Elegí un color"
+              : pendingChoiceForOther
+                ? "Esperando color..."
+                : isMyTurn
+                  ? "Tu turno"
+                  : "Esperando turno"}
+          </div>
+          {canAct && !isCommunity && (
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={handlePass}>
+                Pasar turno
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       {lastError && <div className="text-[12px] text-danger text-center px-4 pb-2">{lastError}</div>}
 
-      {self?.cardCount === 1 && !hasShouted && (
+      {!isTruco && !isCommunity && self?.cardCount === 1 && !hasShouted && (
         <div className="flex-none flex justify-center pb-1">
           <button
             type="button"
@@ -724,32 +942,13 @@ export default function MesaPage() {
         </div>
       </div>
 
-      {!isTruco && <Hand cards={hand} canPlay={canPlayHandCards} onPlay={handlePlay} />}
-
-      {flight && (
-        <CardFlight
-          key={flight.key}
-          content={<CardView card={flight.card} size="md" />}
-          fromX={flight.fromX}
-          fromY={flight.fromY}
-          toX={flight.toX}
-          toY={flight.toY}
-          onDone={() => setFlight(null)}
-        />
-      )}
-
-      {drawFlights.map((f) => (
-        <CardFlight
-          key={f.key}
-          content={<CardBack size="md" />}
-          fromX={f.fromX}
-          fromY={f.fromY}
-          toX={f.toX}
-          toY={f.toY}
-          growOnArrive
-          onDone={() => setDrawFlights((old) => old.filter((x) => x.key !== f.key))}
-        />
-      ))}
+      <Hand
+        cards={hand}
+        canPlay={isCommunity ? canAct : canPlayHandCards}
+        selectedCardId={isCommunity ? selectedHandCardId : null}
+        onPlay={isCommunity ? handleHandCardClick : (cardId) => handlePlay(cardId)}
+        isTapada={isTruco ? isTapada : undefined}
+      />
 
       <ChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>

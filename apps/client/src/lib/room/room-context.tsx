@@ -161,9 +161,9 @@ interface RoomContextValue extends RoomState {
   chooseColor: (color: string) => Promise<void>;
   passTurn: () => Promise<void>;
   leaveRoom: () => Promise<void>;
+  executeAction: (action: string, payload?: unknown) => Promise<unknown>;
   sendChatMessage: (text: string) => Promise<void>;
   clearUnreadChat: () => void;
-  executeAction: (action: string, payload?: Record<string, unknown>) => Promise<unknown>;
 }
 
 export const RoomContext = createContext<RoomContextValue | null>(null);
@@ -359,9 +359,8 @@ export function RoomProvider({
       withSocket((s) => playCardAction(s, { cardId, chosenColor, isTapada })),
     [withSocket],
   );
-
   const executeAction = useCallback(
-    async (action: string, payload?: Record<string, unknown>) => {
+    async (action: string, payload?: unknown) => {
       const socket = socketRef.current;
       if (!socket) return;
       const res = await executeGameAction(socket, { action, payload });
@@ -405,9 +404,9 @@ export function RoomProvider({
         chooseColor,
         passTurn,
         leaveRoom,
+        executeAction,
         sendChatMessage,
         clearUnreadChat,
-        executeAction,
       }}
     >
       {children}

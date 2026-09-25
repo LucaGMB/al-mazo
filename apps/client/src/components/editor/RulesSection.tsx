@@ -37,6 +37,8 @@ const ACTION_OPTIONS = [
   { id: "NO_QUIERO", label: "No Quiero", desc: "Rechazar apuesta o envite pendiente" },
   { id: "RESPOND_BET", label: "Responder Envite", desc: "Aceptar, subir o no querer" },
   { id: "FOLD", label: "Irse al Mazo", desc: "Retirarse de la mano o ronda" },
+  { id: "CAPTURE_CARDS", label: "Capturar Cartas", desc: "Sumar valor objetivo con cartas de la mesa" },
+  { id: "DROP_CARD", label: "Tirar a la Mesa", desc: "Dejar carta en la mesa comunitaria sin capturar" },
 ];
 
 export default function RulesSection({
