@@ -85,12 +85,14 @@ export default function MesaPage() {
   useEffect(() => {
     if (!publicState?.tableCards) return;
     const currentTableIds = new Set(publicState.tableCards.map((c) => c.id));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedTableCardIds((prev) => prev.filter((id) => currentTableIds.has(id)));
   }, [publicState?.tableCards]);
 
   // Reset selections when turn changes away from self
   useEffect(() => {
     if (publicState?.currentTurnPlayerId !== selfPlayerId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedHandCardId(null);
       setSelectedTableCardIds([]);
     }

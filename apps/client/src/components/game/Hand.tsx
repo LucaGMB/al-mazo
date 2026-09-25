@@ -1,19 +1,16 @@
 "use client";
 
-import { useRef, useState } from "react";
 import type { Card } from "@/types/engine";
 import CardView from "./CardView";
 
-// Arrastrá la carta hacia arriba, más allá de esta distancia, para jugarla al
-// soltar. Un movimiento menor a TAP_MAX_DISTANCE_PX se toma como un tap normal.
-const PLAY_THRESHOLD_PX = 56;
-const TAP_MAX_DISTANCE_PX = 6;
-
-interface DragState {
-  id: string;
-  pointerId: number;
-  startX: number;
-  startY: number;
+// Reemplaza las 5 cartas fijas con `handTransforms` hardcodeado de la demo
+// por un abanico generado dinámicamente según la cantidad real de cartas.
+function fanTransform(index: number, total: number): string {
+  const mid = (total - 1) / 2;
+  const offset = index - mid;
+  const rotate = offset * 8;
+  const lift = Math.abs(offset) * 6;
+  return `rotate(${rotate}deg) translateY(${lift}px)`;
 }
 
 // Abanico: cada carta rota un poco más cuanto más lejos está del centro de la
@@ -42,56 +39,6 @@ export default function Hand({
   onPlay: (cardId: string) => void;
   isTapada?: boolean;
 }) {
-  const dragRef = useRef<DragState | null>(null);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [armedId, setArmedId] = useState<string | null>(null);
-
-  function resetDragVisuals(el: HTMLDivElement) {
-    el.style.removeProperty("--drag-x");
-    el.style.removeProperty("--drag-y");
-  }
-
-  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>, cardId: string) {
-    if (!canPlay) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    dragRef.current = { id: cardId, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY };
-    setDraggingId(cardId);
-  }
-
-  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>, cardId: string) {
-    const drag = dragRef.current;
-    if (!drag || drag.id !== cardId || drag.pointerId !== e.pointerId) return;
-    const dx = e.clientX - drag.startX;
-    const dy = e.clientY - drag.startY;
-    e.currentTarget.style.setProperty("--drag-x", `${dx}px`);
-    e.currentTarget.style.setProperty("--drag-y", `${dy}px`);
-    const nowArmed = dy < -PLAY_THRESHOLD_PX;
-    setArmedId((current) => {
-      if (nowArmed) return current === cardId ? current : cardId;
-      return current === cardId ? null : current;
-    });
-  }
-
-  function handlePointerEnd(e: React.PointerEvent<HTMLDivElement>, cardId: string, playIfDropped: boolean) {
-    const drag = dragRef.current;
-    if (!drag || drag.id !== cardId || drag.pointerId !== e.pointerId) return;
-    const dx = e.clientX - drag.startX;
-    const dy = e.clientY - drag.startY;
-    const distance = Math.hypot(dx, dy);
-    dragRef.current = null;
-    setDraggingId(null);
-    setArmedId(null);
-    resetDragVisuals(e.currentTarget);
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {
-      // el navegador ya pudo haber liberado la captura (p. ej. pointercancel)
-    }
-    if (playIfDropped && (dy < -PLAY_THRESHOLD_PX || distance < TAP_MAX_DISTANCE_PX)) {
-      onPlay(cardId);
-    }
-  }
-
   return (
     <div
       className={`relative flex-none min-h-32 md:min-h-44 flex flex-wrap content-end items-end justify-center gap-y-3 md:gap-y-4 px-3 pb-2.5 md:pb-4 transition-colors duration-300 ${

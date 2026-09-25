@@ -46,8 +46,6 @@ export default function PlayerBadge({
   score?: number;
   escobas?: number;
   capturedCount?: number;
-  // Cuando el conteo de cartas de este jugador acaba de subir: hace flotar un
-  // "+N" sobre su ficha (robo propio o forzado por un +2/+4 en su contra).
   drawPulse?: { amount: number; key: number } | null;
 }) {
   const { display } = decodePlayerName(player.name);
