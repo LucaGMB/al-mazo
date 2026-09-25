@@ -13,6 +13,19 @@ function fanTransform(index: number, total: number): string {
   return `rotate(${rotate}deg) translateY(${lift}px)`;
 }
 
+// Abanico: cada carta rota un poco más cuanto más lejos está del centro de la
+// mano, con un leve descenso hacia los bordes (look de mano de naipes real).
+// El spread total se achica en manos grandes para no desparramar demasiado.
+function fanTransform(i: number, total: number): string {
+  if (total <= 1) return "";
+  const mid = (total - 1) / 2;
+  const offset = i - mid;
+  const step = Math.min(6, 40 / (total - 1));
+  const rotate = offset * step;
+  const lift = Math.abs(offset) * 2;
+  return `rotate(${rotate}deg) translateY(${lift}px)`;
+}
+
 export default function Hand({
   cards,
   canPlay,
