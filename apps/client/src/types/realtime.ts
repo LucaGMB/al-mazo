@@ -1,1 +1,1 @@
-export * from '@al-mazo/shared';
+export * from './shared/index';

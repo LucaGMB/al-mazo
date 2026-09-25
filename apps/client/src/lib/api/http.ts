@@ -15,7 +15,9 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+  const url = path.startsWith("http") ? path : `${baseUrl}${path}`;
+  const res = await fetch(url, {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -41,6 +43,21 @@ export const http = {
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, {
       method: "POST",
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    }),
+  put: <T>(path: string, body?: unknown) =>
+    request<T>(path, {
+      method: "PUT",
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    }),
+  patch: <T>(path: string, body?: unknown) =>
+    request<T>(path, {
+      method: "PATCH",
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    }),
+  delete: <T>(path: string, body?: unknown) =>
+    request<T>(path, {
+      method: "DELETE",
       body: body !== undefined ? JSON.stringify(body) : undefined,
     }),
 };

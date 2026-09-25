@@ -119,7 +119,8 @@ export async function validateGame(game: unknown): Promise<ValidationResponse> {
 }
 
 export async function createGame(game: unknown, authorId?: string): Promise<{ game: GameResponseRecord }> {
-  const res = await fetch("/api/games", {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+  const res = await fetch(`${baseUrl}/api/games`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -138,7 +139,8 @@ export async function createGame(game: unknown, authorId?: string): Promise<{ ga
 }
 
 export async function updateGame(id: string, game: unknown, authorId?: string): Promise<{ game: GameResponseRecord }> {
-  const res = await fetch(`/api/games/${encodeURIComponent(id)}`, {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+  const res = await fetch(`${baseUrl}/api/games/${encodeURIComponent(id)}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -157,7 +159,8 @@ export async function updateGame(id: string, game: unknown, authorId?: string): 
 }
 
 export async function publishGame(id: string, authorId?: string): Promise<{ game: GameResponseRecord }> {
-  const res = await fetch(`/api/games/${encodeURIComponent(id)}/publish`, {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+  const res = await fetch(`${baseUrl}/api/games/${encodeURIComponent(id)}/publish`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -176,7 +179,8 @@ export async function publishGame(id: string, authorId?: string): Promise<{ game
 }
 
 export async function forkGame(id: string, authorId?: string): Promise<{ game: GameResponseRecord }> {
-  const res = await fetch(`/api/games/${encodeURIComponent(id)}/fork`, {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+  const res = await fetch(`${baseUrl}/api/games/${encodeURIComponent(id)}/fork`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

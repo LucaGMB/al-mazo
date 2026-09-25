@@ -28,7 +28,8 @@ export async function updateUserName(
   id: string,
   name: string,
 ): Promise<Pick<GuestUser, "id" | "name" | "isAnonymous">> {
-  const res = await fetch(`/api/users/${id}`, {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+  const res = await fetch(`${baseUrl}/api/users/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name }),
