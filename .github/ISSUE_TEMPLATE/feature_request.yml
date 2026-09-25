@@ -1,0 +1,49 @@
+name: 💡 Solicitud de Funcionalidad
+description: Sugerir una nueva idea, mejora o funcionalidad para el proyecto
+title: "[FEAT]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ¡Gracias por sugerir una mejora para Al Mazo!
+  - type: textarea
+    id: problem
+    attributes:
+      label: ¿Qué problema o necesidad resuelve esta funcionalidad?
+      description: Describe el caso de uso o la limitación actual.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solución propuesta
+      description: Explica cómo debería funcionar la nueva funcionalidad o cambio.
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Componente principal
+      options:
+        - apps/client (Frontend Web)
+        - apps/server (Backend Fastify / Socket.io)
+        - packages/shared (Lógica compartida de juegos)
+        - docker / deployment
+        - general / nuevo juego
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
+      description: ¿Consideraste alguna otra solución o enfoque?
+    validations:
+      required: false
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Contexto adicional o mockups
+      description: Agrega referencias, bocetos, links o cualquier otra información relevante.
+    validations:
+      required: false

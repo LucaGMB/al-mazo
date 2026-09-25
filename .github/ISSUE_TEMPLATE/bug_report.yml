@@ -1,0 +1,60 @@
+name: 🐛 Reporte de Bug
+description: Reporta un error o comportamiento inesperado
+title: "[BUG]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por tomarte el tiempo de reportar este problema. Por favor completá el formulario con el mayor detalle posible.
+  - type: textarea
+    id: description
+    attributes:
+      label: Descripción del problema
+      description: Explica breve y claramente qué está sucediendo.
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Componente afectado
+      options:
+        - apps/client (Frontend Web)
+        - apps/server (Backend Fastify / Socket.io)
+        - packages/shared (Lógica compartida de juegos)
+        - docker / deployment
+        - general / otro
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Pasos para reproducir
+      description: Detalla la secuencia exacta de pasos para reproducir el bug.
+      placeholder: |
+        1. Ir a...
+        2. Hacer click en...
+        3. Observar el error...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamiento esperado
+      description: ¿Qué debería haber ocurrido?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Comportamiento real
+      description: ¿Qué ocurrió en su lugar?
+    validations:
+      required: true
+  - type: textarea
+    id: logs_or_screenshots
+    attributes:
+      label: Logs o Capturas de pantalla
+      description: Pega mensajes de error, logs de consola o arrastra capturas de pantalla aquí.
+    validations:
+      required: false
