@@ -107,6 +107,20 @@ export const BUILTIN_ACTIONS: ActionDefinition[] = [
     description: 'Rechazar la apuesta o envite en curso.',
     requiredConditions: [{ type: 'IS_BET_PENDING' }],
   },
+  {
+    id: 'CAPTURE_CARDS',
+    name: 'Capture Cards',
+    description: 'Play a card from hand to capture matching cards from the community table.',
+    requiredConditions: [{ type: 'IS_ACTIVE_PLAYER' }],
+    payloadSchema: { cardId: 'string', tableCardIds: 'string[]' },
+  },
+  {
+    id: 'DROP_CARD',
+    name: 'Drop Card To Table',
+    description: 'Place a card from hand onto the community table without capturing.',
+    requiredConditions: [{ type: 'IS_ACTIVE_PLAYER' }],
+    payloadSchema: { cardId: 'string' },
+  },
 ];
 
 export const BUILTIN_CONDITIONS: Array<{ type: ConditionType; description: string }> = [
@@ -120,6 +134,14 @@ export const BUILTIN_CONDITIONS: Array<{ type: ConditionType; description: strin
   { type: 'IS_BET_PENDING', description: 'A bet is awaiting a response.' },
   { type: 'CAN_CALL_ENVIDO', description: 'Envido can only be called in trick 1 while available.' },
   { type: 'CAN_CALL_TRUCO', description: 'Truco can only be called or raised by the player with turn or privilege.' },
+  {
+    type: 'SUM_TARGET',
+    description: 'The sum of played and selected table cards matches the required target.',
+  },
+  {
+    type: 'VALID_CAPTURE',
+    description: 'The selected cards form a valid capture combination.',
+  },
 ];
 
 export const BUILTIN_EFFECTS: Array<{ type: EffectType; description: string }> = [
@@ -133,6 +155,10 @@ export const BUILTIN_EFFECTS: Array<{ type: EffectType; description: string }> =
   { type: 'AWARD_POINTS', description: 'Add points to a player score.' },
   { type: 'CHANGE_PHASE', description: 'Transition to another game phase.' },
   { type: 'RESET_ROUND', description: 'Clear round state and continue playing.' },
+  { type: 'CAPTURE_CARDS', description: 'Transfer played and captured cards to player trick/capture pile.' },
+  { type: 'DROP_TO_TABLE', description: 'Move card from player hand to community table.' },
+  { type: 'DEAL_COMMUNITY', description: 'Deal cards to the community zone.' },
+  { type: 'EVALUATE_ROUND_SCORING', description: 'Calculate round scores based on captured cards and majorities.' },
 ];
 
 export const BUILTIN_ZONES: ZoneDefinition[] = [

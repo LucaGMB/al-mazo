@@ -197,7 +197,7 @@ export class GameEngine {
     }
 
     // Check win condition
-    if (currentPlayer.hand.length === 0) {
+    if (this.definition.rules.winCondition.type === 'EMPTY_HAND' && currentPlayer.hand.length === 0) {
       this.status = 'FINISHED';
       this.winnerId = currentPlayer.id;
       return;
@@ -232,7 +232,7 @@ export class GameEngine {
           this.discardPile.push(discarded);
         }
       }
-      if (currentPlayer.hand.length === 0) {
+      if (this.definition.rules.winCondition.type === 'EMPTY_HAND' && currentPlayer.hand.length === 0) {
         this.status = 'FINISHED';
         this.winnerId = currentPlayer.id;
         return;

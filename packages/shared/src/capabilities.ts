@@ -26,6 +26,8 @@ export type ConditionType =
   | 'STATE_EQUALS'
   | 'CAN_CALL_ENVIDO'
   | 'CAN_CALL_TRUCO'
+  | 'SUM_TARGET'
+  | 'VALID_CAPTURE'
   | 'CUSTOM';
 
 export interface ConditionDefinition {
@@ -51,7 +53,11 @@ export type EffectType =
   | 'AWARD_POINTS'
   | 'CHANGE_PHASE'
   | 'RESET_ROUND'
-  | 'PROMPT_CHOICE';
+  | 'PROMPT_CHOICE'
+  | 'CAPTURE_CARDS'
+  | 'DROP_TO_TABLE'
+  | 'DEAL_COMMUNITY'
+  | 'EVALUATE_ROUND_SCORING';
 
 export interface EffectDefinition {
   type: EffectType;

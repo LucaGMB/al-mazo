@@ -16,11 +16,13 @@ function fanTransform(index: number, total: number): string {
 export default function Hand({
   cards,
   canPlay,
+  selectedCardId,
   onPlay,
   isTapada,
 }: {
   cards: Card[];
   canPlay: boolean;
+  selectedCardId?: string | null;
   onPlay: (cardId: string) => void;
   isTapada?: boolean;
 }) {
@@ -35,26 +37,34 @@ export default function Hand({
           MODO TAPADA: Elegí la carta a tirar boca abajo
         </div>
       )}
-      {cards.map((card, i) => (
-        <div
-          key={card.id}
-          style={{ transform: fanTransform(i, cards.length), zIndex: i }}
-          className={`group -mx-2.5 md:-mx-3.5 transition-all duration-150 ${
-            canPlay ? "hover:-translate-y-4 hover:scale-105 hover:!z-30" : ""
-          }`}
-        >
+      {cards.map((card, i) => {
+        const isSelected = card.id === selectedCardId;
+        return (
           <div
-            className={`animate-deal-in opacity-0 ${
-              canPlay
-                ? "rounded-xl ring-2 ring-warning/50 shadow-[0_0_12px_rgba(245,197,24,0.35)] group-hover:ring-warning group-hover:shadow-[0_0_20px_rgba(245,197,24,0.65)]"
-                : ""
-            }`}
-            style={{ animationDelay: `${i * 60}ms` }}
+            key={card.id}
+            style={{ transform: fanTransform(i, cards.length), zIndex: isSelected ? 35 : i }}
+            className={`group -mx-2.5 md:-mx-3.5 transition-all duration-150 ${
+              canPlay ? "hover:-translate-y-4 hover:scale-105 hover:!z-30" : ""
+            } ${isSelected ? "-translate-y-4 scale-105 !z-30" : ""}`}
           >
-            <CardView card={card} size="lg" onClick={canPlay ? () => onPlay(card.id) : undefined} />
+            <div
+              className={`animate-deal-in opacity-0 ${
+                canPlay
+                  ? "rounded-xl ring-2 ring-warning/50 shadow-[0_0_12px_rgba(245,197,24,0.35)] group-hover:ring-warning group-hover:shadow-[0_0_20px_rgba(245,197,24,0.65)]"
+                  : ""
+              }`}
+              style={{ animationDelay: `${i * 60}ms` }}
+            >
+              <CardView
+                card={card}
+                size="lg"
+                selected={isSelected}
+                onClick={canPlay ? () => onPlay(card.id) : undefined}
+              />
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

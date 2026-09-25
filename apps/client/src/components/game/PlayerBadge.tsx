@@ -37,6 +37,9 @@ export default function PlayerBadge({
   isCurrentTurn,
   turnExpiresAt,
   recentMessage,
+  score,
+  escobas,
+  capturedCount,
 }: {
   player: PlayerPublicInfo;
   position: "top" | "left" | "right" | "self";
@@ -45,6 +48,9 @@ export default function PlayerBadge({
   isCurrentTurn?: boolean;
   turnExpiresAt?: number | null;
   recentMessage?: string | null;
+  score?: number;
+  escobas?: number;
+  capturedCount?: number;
 }) {
   const { display } = decodePlayerName(player.name);
   const avatarGradient = player.isBot
@@ -131,7 +137,13 @@ export default function PlayerBadge({
         </div>
         <div className="flex items-center gap-1 text-[10px] md:text-xs text-ink-faint">
           <Icon icon="pixelarticons:notes" width={11} height={11} aria-hidden />
-          <span>{player.cardCount} cartas</span>
+          <span>{player.cardCount} en mano</span>
+          {typeof score === "number" && (
+            <span className="font-bold text-warning ml-0.5">· {score} pts</span>
+          )}
+          {typeof escobas === "number" && escobas > 0 && (
+            <span className="text-accent ml-0.5" title="Escobas">🧹{escobas}</span>
+          )}
           {!player.isConnected && (
             <span className="inline-flex items-center gap-0.5 text-danger">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-danger" />

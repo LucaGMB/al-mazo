@@ -55,6 +55,15 @@ const GAME_SHOWCASE: Record<string, { tagline: string; mechanics: string[] }> = 
       "Pardas, cartas tapadas y viveza criolla",
     ],
   },
+  "escoba-del-15": {
+    tagline: "Sumá 15 capturando cartas de la mesa y barré con todo.",
+    mechanics: [
+      "Baraja española de 40 cartas (Sota=8, Caballo=9, Rey=10)",
+      "Sumá 15 combinando una carta de tu mano con las de la mesa",
+      "Hacé Escoba limpiando la mesa completa (+1 punto)",
+      "Puntos por mayoría de cartas, oros, sietes, guindis y escobas",
+    ],
+  },
 };
 
 export default function GameDetailPage() {

@@ -1,9 +1,16 @@
 import { Card, GameRulesConfig } from './types.js';
 import { validateCardPlay } from './validator.js';
+import { findEscobaCaptures, getEscobaCardValue } from '../games/escoba/definition.js';
 
 export interface BotMove {
   cardId: string;
   chosenColor?: string;
+}
+
+export interface EscobaBotMove {
+  action: 'CAPTURE_CARDS' | 'DROP_CARD';
+  cardId: string;
+  tableCardIds?: string[];
 }
 
 const FALLBACK_COLOR = 'RED';
@@ -44,8 +51,8 @@ function priority(card: Card): number {
 }
 
 /**
- * Chooses the next bot move: the highest-priority playable card, or null
- * when the bot must draw.
+ * Chooses the next bot move for UNO/ColorMatch: the highest-priority playable card,
+ * or null when the bot must draw.
  */
 export function decideBotMove(
   hand: Card[],
@@ -72,4 +79,73 @@ export function decideBotMove(
     move.chosenColor = chooseColor(hand);
   }
   return move;
+}
+
+/**
+ * Chooses the next bot move for Escoba del 15.
+ * Evaluates all valid 15-sum captures and picks the most strategic one.
+ * If no capture is possible, drops the safest card (protecting Guindis, 7s, and Oros).
+ */
+export function decideEscobaBotMove(hand: Card[], tableCards: Card[]): EscobaBotMove {
+  let bestMove: {
+    cardId: string;
+    tableCardIds: string[];
+    score: number;
+  } | null = null;
+
+  for (const handCard of hand) {
+    const captures = findEscobaCaptures(handCard, tableCards);
+    for (const capture of captures) {
+      let score = 0;
+      // Huge bonus if making an Escoba (cleans all table cards)
+      if (capture.length === tableCards.length) {
+        score += 100;
+      }
+      const allCards = [handCard, ...capture];
+      for (const c of allCards) {
+        if (c.value === '7' && c.color === 'OROS') score += 50; // Siete de velo (guindis)
+        else if (c.value === '7') score += 20; // 7s for majority
+        else if (c.color === 'OROS') score += 10; // Oros for majority
+        score += 2; // Each card counts towards majority
+      }
+
+      if (!bestMove || score > bestMove.score) {
+        bestMove = {
+          cardId: handCard.id,
+          tableCardIds: capture.map((c) => c.id),
+          score,
+        };
+      }
+    }
+  }
+
+  if (bestMove) {
+    return {
+      action: 'CAPTURE_CARDS',
+      cardId: bestMove.cardId,
+      tableCardIds: bestMove.tableCardIds,
+    };
+  }
+
+  // No capture possible: pick safest card to drop to the table
+  let safestCard = hand[0];
+  let lowestDanger = Number.POSITIVE_INFINITY;
+
+  for (const c of hand) {
+    let danger = 0;
+    if (c.value === '7' && c.color === 'OROS') danger += 100;
+    else if (c.value === '7') danger += 50;
+    else if (c.color === 'OROS') danger += 25;
+    else danger += getEscobaCardValue(c);
+
+    if (danger < lowestDanger) {
+      lowestDanger = danger;
+      safestCard = c;
+    }
+  }
+
+  return {
+    action: 'DROP_CARD',
+    cardId: safestCard.id,
+  };
 }
