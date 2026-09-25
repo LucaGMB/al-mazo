@@ -46,6 +46,7 @@ const drawTwoNoSkipDefinition: GameSchemaDefinition = {
   ...mockGameDefinition,
   rules: {
     ...mockGameDefinition.rules,
+    drawStack: { rule: 'OFF', endsTurnOnDraw: true, allowAnyColorDraw2OnDraw4: true },
     effects: {
       ...mockGameDefinition.rules.effects,
       DRAW_2: { type: 'DRAW_CARDS', params: { drawCount: 2, skipTarget: false } },

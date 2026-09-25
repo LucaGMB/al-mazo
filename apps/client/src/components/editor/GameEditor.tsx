@@ -519,6 +519,7 @@ export default function GameEditor() {
             targetScore={gameData.rules.winCondition.targetScore}
             matchingProperties={gameData.rules.matchingProperties ?? ["color", "value"]}
             allowWildOnAny={gameData.rules.allowWildOnAny ?? true}
+            drawStack={gameData.rules.drawStack}
             activeZones={gameData.rules.zones ?? []}
             phases={gameData.rules.phases ?? []}
             onChange={(fields) =>
@@ -535,6 +536,7 @@ export default function GameEditor() {
                   },
                   matchingProperties: fields.matchingProperties ?? prev.rules.matchingProperties,
                   allowWildOnAny: fields.allowWildOnAny ?? prev.rules.allowWildOnAny,
+                  drawStack: fields.drawStack !== undefined ? fields.drawStack : prev.rules.drawStack,
                   zones: fields.activeZones ?? prev.rules.zones,
                   phases: fields.phases ?? prev.rules.phases,
                 },

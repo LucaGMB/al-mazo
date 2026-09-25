@@ -6,15 +6,23 @@ export default function DiscardPile({
   topCard,
   count,
   activeColor,
+  pendingDrawCount,
 }: {
   topCard: Card | null;
   count: number;
   activeColor: string | null;
+  pendingDrawCount?: number;
 }) {
   const activeHex = activeColor ? CARD_COLORS[activeColor] : null;
 
   return (
     <div className="relative flex flex-col items-center gap-1 font-mono text-[9px] md:text-[11px] text-ink-faint">
+      {pendingDrawCount && pendingDrawCount > 0 ? (
+        <div className="absolute -top-7 left-1/2 -translate-x-1/2 z-20 whitespace-nowrap flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-danger text-white font-black text-[10px] md:text-xs tracking-wider shadow-[0_0_14px_rgba(239,68,68,0.9)] border border-white/40 animate-bounce">
+          <span>🔥</span>
+          <span>+{pendingDrawCount}</span>
+        </div>
+      ) : null}
       <div data-discard-pile className="relative">
         {/* Capas apiladas: ilusión de pila orgánica de descartes, sin blur. */}
         <div className="absolute inset-0 translate-x-2 translate-y-2 rotate-6 rounded-lg bg-black/30" />

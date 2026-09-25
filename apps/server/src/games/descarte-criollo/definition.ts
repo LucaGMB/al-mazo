@@ -1,4 +1,4 @@
-import { CardTemplate, GameSchemaDefinition } from '../../engine/types.js';
+import { CardTemplate, DEFAULT_DRAW_STACK_CONFIG, GameSchemaDefinition } from '../../engine/types.js';
 
 const SUITS = ['ESPADAS', 'BASTOS', 'OROS', 'COPAS'] as const;
 
@@ -38,6 +38,7 @@ export const descarteCriolloDefinition: GameSchemaDefinition = {
     matchingProperties: ['color', 'value'],
     allowWildOnAny: true,
     reshuffleDiscardPile: true,
+    drawStack: DEFAULT_DRAW_STACK_CONFIG,
     effects: {
       '1': {
         type: 'REVERSE',

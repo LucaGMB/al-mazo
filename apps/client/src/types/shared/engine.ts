@@ -47,6 +47,20 @@ export interface CardEffect {
   };
 }
 
+export type DrawStackRule = 'OFF' | 'SAME_TYPE' | 'HIGHER_OR_EQUAL' | 'ALL';
+
+export interface DrawStackConfig {
+  rule: DrawStackRule;
+  endsTurnOnDraw: boolean;
+  allowAnyColorDraw2OnDraw4: boolean;
+}
+
+export const DEFAULT_DRAW_STACK_CONFIG: DrawStackConfig = {
+  rule: 'ALL',
+  endsTurnOnDraw: true,
+  allowAnyColorDraw2OnDraw4: true,
+};
+
 export interface GameRulesConfig {
   initialHandSize: number;
   minPlayers: number;
@@ -54,6 +68,8 @@ export interface GameRulesConfig {
   matchingProperties: ('color' | 'value')[];
   allowWildOnAny: boolean;
   reshuffleDiscardPile: boolean;
+  autoPassOnDraw?: boolean;
+  drawStack?: DrawStackConfig;
   effects: Record<string, CardEffect>; // keyed by card.value or card.type
   winCondition: WinConditionDefinition;
   zones?: ZoneDefinition[];
@@ -95,6 +111,7 @@ export interface PublicGameState {
     playerId: string;
     type: 'COLOR';
   } | null;
+  pendingDrawCount?: number;
   turnExpiresAt?: number | null;
   currentPhase?: string | null;
   trickCards?: Array<{ playerId: string; card: Card }>;
