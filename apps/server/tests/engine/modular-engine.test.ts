@@ -217,3 +217,94 @@ describe('ModularGameEngine - tricks and scoring', () => {
     expect(engine.getWinnerId()).toBe('p1');
   });
 });
+
+describe('ModularGameEngine - Custom Editor Trick & Betting Game', () => {
+  const customTrickGame: GameSchemaDefinition = {
+    slug: 'mi-truco-personalizado',
+    title: 'Mi Truco Personalizado',
+    description: 'Juego de bazas creado en el editor visual',
+    deckConfig: { templates: getDeckPresetTemplates('SPANISH_40') },
+    rules: {
+      initialHandSize: 3,
+      minPlayers: 2,
+      maxPlayers: 2,
+      matchingProperties: [],
+      allowWildOnAny: false,
+      reshuffleDiscardPile: false,
+      effects: {},
+      cardHierarchy: {
+        '1 ESPADAS': 14,
+        '1 BASTOS': 13,
+        '7 ESPADAS': 12,
+        '7 OROS': 11,
+        '3': 10,
+        '2': 9,
+        '1 OROS': 8,
+        '1 COPAS': 8,
+        '12': 7,
+        '11': 6,
+        '10': 5,
+        '7 BASTOS': 4,
+        '7 COPAS': 4,
+        '6': 3,
+        '5': 2,
+        '4': 1,
+      },
+      winCondition: { type: 'SCORE_THRESHOLD', targetScore: 15 },
+      targetScore: 15,
+      zones: [
+        { id: 'hand', name: 'Mano', type: 'HAND', visibility: 'PRIVATE_OWNER', perPlayer: true },
+        { id: 'trick_table', name: 'Mesa de Bazas', type: 'TRICK_TABLE', visibility: 'PUBLIC' },
+      ],
+      phases: [
+        {
+          id: 'ENVIDO_PHASE',
+          name: 'Envido',
+          allowedActions: ['CALL_ENVIDO', 'CALL_REAL_ENVIDO', 'CALL_FALTA_ENVIDO', 'RESPOND_BET', 'FOLD'],
+        },
+        {
+          id: 'TRICK_PLAY',
+          name: 'Bazas',
+          allowedActions: ['PLAY_CARD', 'CALL_TRUCO', 'CALL_RETRUCO', 'CALL_VALE_CUATRO', 'RESPOND_BET', 'FOLD'],
+        },
+      ],
+    },
+  };
+
+  it('runs custom trick game end-to-end on ModularGameEngine', () => {
+    const engine = new ModularGameEngine(customTrickGame);
+    engine.addPlayer('jugador1', 'Carlos');
+    engine.addPlayer('jugador2', 'Ana');
+    engine.start();
+
+    expect(engine.isRoundTrickGame).toBe(true);
+    expect(engine.getStatus()).toBe('IN_PROGRESS');
+    expect(engine.getPlayerHand('jugador1')).toHaveLength(3);
+    expect(engine.getPlayerHand('jugador2')).toHaveLength(3);
+
+    // Call envido
+    const envidoCall = engine.executeAction('jugador1', 'CALL_ENVIDO');
+    expect(envidoCall.success).toBe(true);
+
+    // Rival responds quiero
+    const quiero = engine.executeAction('jugador2', 'QUIERO');
+    expect(quiero.success).toBe(true);
+
+    const afterEnvido = engine.getPublicState();
+    expect((afterEnvido.customState as any).envido.state).toBe('RESOLVED');
+    expect(afterEnvido.scores?.jugador1! + afterEnvido.scores?.jugador2!).toBe(2);
+
+    // Play trick cards
+    const h1 = engine.getPlayerHand('jugador1')[0];
+    const play1 = engine.executeAction('jugador1', 'PLAY_CARD', { cardId: h1.id });
+    expect(play1.success).toBe(true);
+
+    const h2 = engine.getPlayerHand('jugador2')[0];
+    const play2 = engine.executeAction('jugador2', 'PLAY_CARD', { cardId: h2.id });
+    expect(play2.success).toBe(true);
+
+    const afterTrick1 = engine.getPublicState();
+    expect((afterTrick1.customState as any).roundTricks).toHaveLength(1);
+    expect((afterTrick1.customState as any).currentTrick).toBe(2);
+  });
+});

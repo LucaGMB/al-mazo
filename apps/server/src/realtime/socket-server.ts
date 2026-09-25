@@ -6,6 +6,8 @@ import { roomManager } from './room-manager.js';
 import { GameRoom } from './room.js';
 import { ChatMessage, ClientToServerEvents, ServerToClientEvents } from './types.js';
 import { decideBotMove } from '../engine/bot.js';
+import { ModularGameEngine } from '../engine/modular-engine.js';
+import { TrucoEngine } from '../games/truco/truco-engine.js';
 
 const BOT_MIN_DELAY_MS = 800;
 const BOT_MAX_DELAY_MS = 1200;
@@ -90,19 +92,31 @@ function handleHumanTurnTimeout(io: IoServer, room: GameRoom, timedOutPlayerId: 
   const player = room.getPlayer(timedOutPlayerId);
   if (!player) return;
 
-  try {
-    if (state.pendingChoice && state.pendingChoice.playerId === timedOutPlayerId) {
-      const defaultChoice = room.definition.slug === 'descarte-criollo' ? 'ESPADAS' : 'RED';
-      room.engine.chooseColor(timedOutPlayerId, defaultChoice);
-    } else {
-      room.engine.drawCard(timedOutPlayerId);
-      room.engine.passTurn(timedOutPlayerId);
-    }
-  } catch {
+  if (room.engine instanceof TrucoEngine) {
     try {
-      room.engine.passTurn(timedOutPlayerId);
+      const hand = room.getPlayerHand(timedOutPlayerId);
+      if (hand.length > 0) {
+        room.engine.playCard(timedOutPlayerId, hand[0].id);
+      }
     } catch {
       // turn already resolved elsewhere; nothing left to do
+    }
+  } else {
+    const modularEngine = room.engine as ModularGameEngine;
+    try {
+      if (state.pendingChoice && state.pendingChoice.playerId === timedOutPlayerId) {
+        const defaultChoice = room.definition.slug === 'descarte-criollo' ? 'ESPADAS' : 'RED';
+        modularEngine.chooseColor(timedOutPlayerId, defaultChoice);
+      } else {
+        modularEngine.drawCard(timedOutPlayerId);
+        modularEngine.passTurn(timedOutPlayerId);
+      }
+    } catch {
+      try {
+        modularEngine.passTurn(timedOutPlayerId);
+      } catch {
+        // turn already resolved elsewhere; nothing left to do
+      }
     }
   }
 
@@ -133,19 +147,29 @@ function playBotTurn(io: IoServer, room: GameRoom): void {
   if (!bot?.isBot) return;
 
   try {
-    const hand = room.getPlayerHand(botId);
-    const move = decideBotMove(
-      hand,
-      state.topDiscardCard,
-      state.activeColor,
-      room.definition.rules
-    );
-
-    if (move) {
-      room.engine.playCard(botId, move.cardId, move.chosenColor);
+    if (room.engine instanceof TrucoEngine) {
+      room.engine.executeBotTurn(botId);
+      for (const p of room.players.values()) {
+        if (p.socketId) {
+          io.to(p.socketId).emit('player:hand', room.getPlayerHand(p.id));
+        }
+      }
     } else {
-      room.engine.drawCard(botId);
-      room.engine.passTurn(botId);
+      const modularEngine = room.engine as ModularGameEngine;
+      const hand = room.getPlayerHand(botId);
+      const move = decideBotMove(
+        hand,
+        state.topDiscardCard,
+        state.activeColor,
+        room.definition.rules
+      );
+
+      if (move) {
+        modularEngine.playCard(botId, move.cardId, move.chosenColor);
+      } else {
+        modularEngine.drawCard(botId);
+        modularEngine.passTurn(botId);
+      }
     }
   } catch (err: unknown) {
     // ponytail: a bot error is logged, not fatal; humans can keep playing.
@@ -351,25 +375,30 @@ export function initializeSocketServer(
         const { room, player } = match;
 
         let result: unknown;
-        if (typeof (room.engine as any).executeAction === 'function') {
-          const res = (room.engine as any).executeAction(player.id, action, payload);
+        if (room.engine instanceof TrucoEngine) {
+          const res = room.engine.executeAction(player.id, action, payload as Record<string, unknown> | undefined);
           result = res.result;
         } else {
+          const modularEngine = room.engine as ModularGameEngine;
           if (action === 'PLAY_CARD') {
-            room.engine.playCard(player.id, (payload as any)?.cardId, (payload as any)?.chosenColor);
+            modularEngine.playCard(player.id, (payload as any)?.cardId, (payload as any)?.chosenColor);
           } else if (action === 'DRAW_CARD') {
-            result = room.engine.drawCard(player.id);
+            result = modularEngine.drawCard(player.id);
           } else if (action === 'CHOOSE_COLOR') {
-            room.engine.chooseColor(player.id, (payload as any)?.color);
+            modularEngine.chooseColor(player.id, (payload as any)?.color);
           } else if (action === 'PASS_TURN') {
-            room.engine.passTurn(player.id);
+            modularEngine.passTurn(player.id);
           } else {
             return callback({ success: false, error: `Acción no soportada: ${action}` });
           }
         }
 
-        const updatedHand = room.getPlayerHand(player.id);
-        socket.emit('player:hand', updatedHand);
+        // Update hands for all players (in case of round reset in trick taking)
+        for (const p of room.players.values()) {
+          if (p.socketId) {
+            io.to(p.socketId).emit('player:hand', room.getPlayerHand(p.id));
+          }
+        }
 
         const state = room.getPublicState();
         io.to(room.code).emit('room:state', state);
@@ -390,17 +419,24 @@ export function initializeSocketServer(
     });
 
     // 5. Play Card
-    socket.on('game:play_card', ({ cardId, chosenColor }, callback) => {
+    socket.on('game:play_card', (payload: any, callback) => {
       try {
         const match = roomManager.getRoomBySocketId(socket.id);
         if (!match) return callback({ success: false, error: 'Not in a room' });
         const { room, player } = match;
 
-        room.engine.playCard(player.id, cardId, chosenColor);
+        const cardId = typeof payload === 'string' ? payload : payload.cardId;
+        const chosenColor = payload?.chosenColor;
+        const isTapada = Boolean(payload?.isTapada);
 
-        // Update player hand
-        const updatedHand = room.getPlayerHand(player.id);
-        socket.emit('player:hand', updatedHand);
+        (room.engine as any).playCard(player.id, cardId, chosenColor, isTapada);
+
+        // Update player hands
+        for (const p of room.players.values()) {
+          if (p.socketId) {
+            io.to(p.socketId).emit('player:hand', room.getPlayerHand(p.id));
+          }
+        }
 
         const state = room.getPublicState();
         io.to(room.code).emit('room:state', state);
@@ -426,7 +462,11 @@ export function initializeSocketServer(
         if (!match) return callback({ success: false, error: 'Not in a room' });
         const { room, player } = match;
 
-        const drawnCard = room.engine.drawCard(player.id);
+        if (room.engine instanceof TrucoEngine) {
+          return callback({ success: false, error: 'Truco no permite robar cartas del mazo' });
+        }
+
+        const drawnCard = (room.engine as ModularGameEngine).drawCard(player.id);
 
         // Update player hand
         const updatedHand = room.getPlayerHand(player.id);
@@ -450,7 +490,11 @@ export function initializeSocketServer(
         if (!match) return callback({ success: false, error: 'Not in a room' });
         const { room, player } = match;
 
-        room.engine.chooseColor(player.id, color);
+        if (room.engine instanceof TrucoEngine) {
+          return callback({ success: false, error: 'Truco no requiere elegir color' });
+        }
+
+        (room.engine as ModularGameEngine).chooseColor(player.id, color);
         io.to(room.code).emit('room:state', room.getPublicState());
 
         scheduleTurnLifecycle(io, room);
@@ -470,7 +514,11 @@ export function initializeSocketServer(
         if (!match) return callback({ success: false, error: 'Not in a room' });
         const { room, player } = match;
 
-        room.engine.passTurn(player.id);
+        if (room.engine instanceof TrucoEngine) {
+          return callback({ success: false, error: 'Truco no permite pasar turno; debés tirar una carta o irte al mazo' });
+        }
+
+        (room.engine as ModularGameEngine).passTurn(player.id);
         io.to(room.code).emit('room:state', room.getPublicState());
 
         scheduleTurnLifecycle(io, room);

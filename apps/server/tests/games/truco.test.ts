@@ -88,9 +88,8 @@ describe('Truco Card Hierarchy', () => {
 });
 
 describe('Envido Calculation', () => {
-  it('adds 20 plus the modulo-10 sum of two same-suit cards', () => {
-    expect(calculateEnvidoPoints([card('ESPADAS', '7'), card('ESPADAS', '6')])).toBe(23);
-    expect(calculateEnvidoPoints([card('OROS', '7'), card('OROS', '7')])).toBe(24);
+  it('adds 20 plus the sum of two same-suit cards', () => {
+    expect(calculateEnvidoPoints([card('ESPADAS', '7'), card('ESPADAS', '6')])).toBe(33);
     expect(calculateEnvidoPoints([card('BASTOS', '4'), card('BASTOS', '5')])).toBe(29);
   });
 

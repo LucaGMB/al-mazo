@@ -95,6 +95,23 @@ export default function CardView({
   onClick?: () => void;
   size?: keyof typeof SIZE_CLASSES;
 }) {
+  if (card.type === "TAPADA" || card.value === "TAPADA") {
+    return (
+      <div
+        onClick={onClick}
+        className={`group relative shrink-0 ${SIZE_CLASSES[size]} overflow-hidden rounded-lg border-2 border-[#b8860b] bg-[#1e293b] flex items-center justify-center font-bold text-white shadow-[0_5px_12px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] ${
+          onClick ? "cursor-pointer hover:-translate-y-2 hover:scale-105" : "cursor-default"
+        }`}
+        title="Carta tapada"
+      >
+        <span className="pointer-events-none absolute inset-[3px] rounded-md border border-[#d4af37]/40 bg-[radial-gradient(#b8860b_1px,transparent_1px)] [background-size:6px_6px] opacity-40" />
+        <span className="relative z-10 text-[0.8em] text-[#d4af37] font-black uppercase tracking-widest flex flex-col items-center">
+          <Icon icon="pixelarticons:eye-closed" width="1.4em" height="1.4em" />
+        </span>
+      </div>
+    );
+  }
+
   const bg = CARD_COLORS[card.color ?? "ANY"] ?? CARD_COLORS.ANY;
 
   return (

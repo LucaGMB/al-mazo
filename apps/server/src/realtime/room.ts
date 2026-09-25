@@ -1,4 +1,5 @@
 import { ModularGameEngine } from '../engine/modular-engine.js';
+import { TrucoEngine } from '../games/truco/truco-engine.js';
 import { GameSchemaDefinition, PublicGameState, Card } from '../engine/types.js';
 import { ChatMessage, DisconnectPolicy, RoomOptions, RoomPlayer } from './types.js';
 
@@ -12,7 +13,7 @@ export class GameRoom {
   public turnExpiresAt: number | null = null;
   public turnTimer?: NodeJS.Timeout;
   public readonly definition: GameSchemaDefinition;
-  public readonly engine: ModularGameEngine;
+  public readonly engine: ModularGameEngine | TrucoEngine;
   public readonly players: Map<string, RoomPlayer> = new Map();
   public readonly createdAt: Date = new Date();
   public chatHistory: ChatMessage[] = [];
@@ -32,7 +33,7 @@ export class GameRoom {
     this.disconnectPolicy = options?.disconnectPolicy ?? 'DISCARD_AND_CONTINUE';
     this.turnTimeoutSeconds = options?.turnTimeoutSeconds ?? 25;
     this.definition = definition;
-    this.engine = new ModularGameEngine(definition);
+    this.engine = definition.slug === 'truco' ? new TrucoEngine(definition) : new ModularGameEngine(definition);
 
     this.addPlayer(hostPlayer.id, hostPlayer.name, hostPlayer.socketId, hostPlayer.reconnectToken);
   }

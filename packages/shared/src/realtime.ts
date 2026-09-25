@@ -62,7 +62,7 @@ export interface ClientToServerEvents {
   ) => void;
 
   'game:play_card': (
-    data: { cardId: string; chosenColor?: string },
+    data: { cardId: string; chosenColor?: string; isTapada?: boolean },
     callback: (res: { success: boolean; error?: string }) => void
   ) => void;
 

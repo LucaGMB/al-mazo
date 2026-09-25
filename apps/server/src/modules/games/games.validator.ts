@@ -87,11 +87,13 @@ const gameSchema = z
       Array.isArray(game.rules.matchingProperties) && game.rules.matchingProperties.length > 0;
     const hasPhases = Array.isArray(game.rules.phases) && game.rules.phases.length > 0;
     const hasZones = Array.isArray(game.rules.zones) && game.rules.zones.length > 0;
-    if (!hasMatching && !hasPhases && !hasZones) {
+    const hasHierarchy =
+      !!game.rules.cardHierarchy && Object.keys(game.rules.cardHierarchy).length > 0;
+    if (!hasMatching && !hasPhases && !hasZones && !hasHierarchy) {
       ctx.addIssue({
         code: 'custom',
         path: ['rules'],
-        message: 'rules must define matchingProperties, phases or zones',
+        message: 'rules must define matchingProperties, phases, zones or cardHierarchy',
       });
     }
   });

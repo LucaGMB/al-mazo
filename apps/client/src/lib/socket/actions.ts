@@ -52,9 +52,21 @@ export function addBot(socket: GameSocket, data: { name?: string } = {}) {
   );
 }
 
-export function playCard(socket: GameSocket, data: { cardId: string; chosenColor?: string }) {
+export function playCard(
+  socket: GameSocket,
+  data: { cardId: string; chosenColor?: string; isTapada?: boolean }
+) {
   return new Promise<{ success: boolean; error?: string }>((resolve) =>
     socket.emit("game:play_card", data, resolve),
+  );
+}
+
+export function executeGameAction(
+  socket: GameSocket,
+  data: { action: string; payload?: unknown }
+) {
+  return new Promise<{ success: boolean; result?: unknown; error?: string }>((resolve) =>
+    socket.emit("game:action", data, resolve),
   );
 }
 

@@ -43,6 +43,8 @@ export interface GameDefinitionData {
     };
     zones?: ZoneDefinition[];
     phases?: PhaseDefinition[];
+    cardHierarchy?: Record<string, number>;
+    targetScore?: number;
     effects?: Record<string, { type: string; params?: Record<string, unknown> }>;
   };
 }
@@ -192,3 +194,99 @@ export const DEFAULT_NEW_GAME: GameDefinitionData = {
     ],
   },
 };
+
+export const TRUCO_CARD_HIERARCHY: Record<string, number> = {
+  "1 ESPADAS": 14,
+  "1 BASTOS": 13,
+  "7 ESPADAS": 12,
+  "7 OROS": 11,
+  "3": 10,
+  "2": 9,
+  "1 OROS": 8,
+  "1 COPAS": 8,
+  "12": 7,
+  "11": 6,
+  "10": 5,
+  "7 BASTOS": 4,
+  "7 COPAS": 4,
+  "6": 3,
+  "5": 2,
+  "4": 1,
+};
+
+export const TRUCO_GAME_PRESET: GameDefinitionData = {
+  slug: "truco-personalizado",
+  title: "Truco Personalizado",
+  description: "Juego tradicional de bazas y envites con baraja española de 40 cartas y jerarquía.",
+  deckConfig: {
+    templates: buildSpanishTemplates(SPANISH_40_VALUES),
+  },
+  rules: {
+    minPlayers: 2,
+    maxPlayers: 2,
+    initialHandSize: 3,
+    matchingProperties: [],
+    allowWildOnAny: false,
+    reshuffleDiscardPile: false,
+    cardHierarchy: TRUCO_CARD_HIERARCHY,
+    winCondition: {
+      type: "SCORE_THRESHOLD",
+      targetScore: 30,
+    },
+    targetScore: 30,
+    zones: [
+      { id: "hand", name: "Mano", type: "HAND", visibility: "PRIVATE_OWNER", perPlayer: true },
+      { id: "trick_table", name: "Mesa de Bazas", type: "TRICK_TABLE", visibility: "PUBLIC" },
+    ],
+    phases: [
+      {
+        id: "ENVIDO_PHASE",
+        name: "Canto de Envido",
+        allowedActions: [
+          "CALL_ENVIDO",
+          "CALL_REAL_ENVIDO",
+          "CALL_FALTA_ENVIDO",
+          "RESPOND_BET",
+          "QUIERO",
+          "NO_QUIERO",
+          "FOLD",
+        ],
+      },
+      {
+        id: "TRICK_PLAY",
+        name: "Juego de Bazas",
+        allowedActions: [
+          "PLAY_CARD",
+          "CALL_TRUCO",
+          "CALL_RETRUCO",
+          "CALL_VALE_CUATRO",
+          "RESPOND_BET",
+          "QUIERO",
+          "NO_QUIERO",
+          "FOLD",
+        ],
+      },
+      {
+        id: "ROUND_SCORING",
+        name: "Puntaje de Ronda",
+        allowedActions: [],
+      },
+    ],
+  },
+};
+
+export const GAME_PRESETS = [
+  {
+    id: "default",
+    name: "Descarte Simple",
+    description: "Juego base de descarte y robo por coincidencia de color o valor.",
+    data: DEFAULT_NEW_GAME,
+  },
+  {
+    id: "truco",
+    name: "Truco Criollo (Bazas y Envites)",
+    description: "Juego de 3 cartas, bazas con jerarquía, envido, truco y puntos a 30.",
+    data: TRUCO_GAME_PRESET,
+  },
+];
+

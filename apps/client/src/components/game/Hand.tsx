@@ -17,17 +17,24 @@ export default function Hand({
   cards,
   canPlay,
   onPlay,
+  isTapada,
 }: {
   cards: Card[];
   canPlay: boolean;
   onPlay: (cardId: string) => void;
+  isTapada?: boolean;
 }) {
   return (
     <div
-      className={`flex-none h-32 md:h-44 flex items-end justify-center pb-2.5 md:pb-4 rounded-xl transition-colors duration-300 ${
+      className={`relative flex-none h-32 md:h-44 flex items-end justify-center pb-2.5 md:pb-4 rounded-xl transition-colors duration-300 ${
         canPlay ? "ring-1 ring-accent/30 bg-accent/5" : ""
       }`}
     >
+      {isTapada && (
+        <div className="absolute top-1 text-[11px] font-black text-warning bg-black/85 px-3 py-0.5 rounded-full border border-warning/60 shadow-[0_0_10px_rgba(245,197,24,0.4)] animate-pulse z-30 pointer-events-none">
+          MODO TAPADA: Elegí la carta a tirar boca abajo
+        </div>
+      )}
       {cards.map((card, i) => (
         <div
           key={card.id}

@@ -58,6 +58,55 @@ export const BUILTIN_ACTIONS: ActionDefinition[] = [
     requiredConditions: [{ type: 'IS_ACTIVE_PLAYER' }],
     effects: [{ type: 'CHANGE_PHASE' }],
   },
+  {
+    id: 'CALL_ENVIDO',
+    name: 'Cantar Envido',
+    description: 'Apostar 2 tantos sobre los puntos de envido de la mano.',
+    requiredConditions: [{ type: 'IS_ACTIVE_PLAYER' }, { type: 'CAN_CALL_ENVIDO' }],
+    payloadSchema: { level: 'string?' },
+  },
+  {
+    id: 'CALL_REAL_ENVIDO',
+    name: 'Cantar Real Envido',
+    description: 'Apostar 3 tantos sobre los puntos de envido de la mano.',
+    requiredConditions: [{ type: 'IS_ACTIVE_PLAYER' }, { type: 'CAN_CALL_ENVIDO' }],
+  },
+  {
+    id: 'CALL_FALTA_ENVIDO',
+    name: 'Cantar Falta Envido',
+    description: 'Apostar los puntos restantes para ganar la ronda o chico.',
+    requiredConditions: [{ type: 'IS_ACTIVE_PLAYER' }, { type: 'CAN_CALL_ENVIDO' }],
+  },
+  {
+    id: 'CALL_TRUCO',
+    name: 'Cantar Truco',
+    description: 'Apostar 2 puntos sobre la disputa de las bazas.',
+    requiredConditions: [{ type: 'IS_ACTIVE_PLAYER' }, { type: 'CAN_CALL_TRUCO' }],
+  },
+  {
+    id: 'CALL_RETRUCO',
+    name: 'Cantar Retruco',
+    description: 'Subir la apuesta de truco a 3 puntos.',
+    requiredConditions: [{ type: 'IS_ACTIVE_PLAYER' }, { type: 'CAN_CALL_TRUCO' }],
+  },
+  {
+    id: 'CALL_VALE_CUATRO',
+    name: 'Cantar Vale Cuatro',
+    description: 'Subir la apuesta de truco a 4 puntos.',
+    requiredConditions: [{ type: 'IS_ACTIVE_PLAYER' }, { type: 'CAN_CALL_TRUCO' }],
+  },
+  {
+    id: 'QUIERO',
+    name: 'Quiero',
+    description: 'Aceptar la apuesta o envite en curso.',
+    requiredConditions: [{ type: 'IS_BET_PENDING' }],
+  },
+  {
+    id: 'NO_QUIERO',
+    name: 'No Quiero',
+    description: 'Rechazar la apuesta o envite en curso.',
+    requiredConditions: [{ type: 'IS_BET_PENDING' }],
+  },
 ];
 
 export const BUILTIN_CONDITIONS: Array<{ type: ConditionType; description: string }> = [
@@ -69,6 +118,8 @@ export const BUILTIN_CONDITIONS: Array<{ type: ConditionType; description: strin
     description: 'Compares card strength using the definition card hierarchy.',
   },
   { type: 'IS_BET_PENDING', description: 'A bet is awaiting a response.' },
+  { type: 'CAN_CALL_ENVIDO', description: 'Envido can only be called in trick 1 while available.' },
+  { type: 'CAN_CALL_TRUCO', description: 'Truco can only be called or raised by the player with turn or privilege.' },
 ];
 
 export const BUILTIN_EFFECTS: Array<{ type: EffectType; description: string }> = [
@@ -76,7 +127,9 @@ export const BUILTIN_EFFECTS: Array<{ type: EffectType; description: string }> =
   { type: 'DEAL_CARDS', description: 'Deal cards from the draw pile.' },
   { type: 'ADVANCE_TURN', description: 'Advance the active turn by a number of steps.' },
   { type: 'SET_ACTIVE_COLOR', description: 'Override the active matching color.' },
-  { type: 'RESOLVE_TRICK', description: 'Score the cards currently on the trick table.' },
+  { type: 'RESOLVE_TRICK', description: 'Score the cards currently on the trick table and determine trick winner or parda.' },
+  { type: 'SCORE_ENVIDO', description: 'Calculates envido points and awards them to the highest hand or mano on tie.' },
+  { type: 'RESOLVE_BET', description: 'Resolves an accepted or rejected bet and updates current stakes.' },
   { type: 'AWARD_POINTS', description: 'Add points to a player score.' },
   { type: 'CHANGE_PHASE', description: 'Transition to another game phase.' },
   { type: 'RESET_ROUND', description: 'Clear round state and continue playing.' },

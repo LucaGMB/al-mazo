@@ -13,6 +13,7 @@ import {
   addBot as addBotAction,
   chooseColor as chooseColorAction,
   drawCard as drawCardAction,
+  executeGameAction,
   joinRoom as joinRoomAction,
   leaveRoom as leaveRoomAction,
   passTurn as passTurnAction,
@@ -137,13 +138,14 @@ interface RoomContextValue extends RoomState {
   joinRoom: (playerName: string) => Promise<void>;
   startRoom: () => Promise<void>;
   addBot: (name?: string) => Promise<void>;
-  playCard: (cardId: string, chosenColor?: string) => Promise<void>;
+  playCard: (cardId: string, chosenColor?: string, isTapada?: boolean) => Promise<void>;
   drawCard: () => Promise<void>;
   chooseColor: (color: string) => Promise<void>;
   passTurn: () => Promise<void>;
   leaveRoom: () => Promise<void>;
   sendChatMessage: (text: string) => Promise<void>;
   clearUnreadChat: () => void;
+  executeAction: (action: string, payload?: Record<string, unknown>) => Promise<unknown>;
 }
 
 export const RoomContext = createContext<RoomContextValue | null>(null);
@@ -325,10 +327,25 @@ export function RoomProvider({
     [withSocket],
   );
   const playCard = useCallback(
-    (cardId: string, chosenColor?: string) =>
-      withSocket((s) => playCardAction(s, { cardId, chosenColor })),
+    (cardId: string, chosenColor?: string, isTapada?: boolean) =>
+      withSocket((s) => playCardAction(s, { cardId, chosenColor, isTapada })),
     [withSocket],
   );
+
+  const executeAction = useCallback(
+    async (action: string, payload?: Record<string, unknown>) => {
+      const socket = socketRef.current;
+      if (!socket) return;
+      const res = await executeGameAction(socket, { action, payload });
+      if (!res.success && res.error) {
+        dispatch({ type: "ERROR", message: res.error });
+        throw new Error(res.error);
+      }
+      return res.result;
+    },
+    [],
+  );
+
   const leaveRoom = useCallback(async () => {
     const socket = socketRef.current;
     if (!socket) return;
@@ -362,6 +379,7 @@ export function RoomProvider({
         leaveRoom,
         sendChatMessage,
         clearUnreadChat,
+        executeAction,
       }}
     >
       {children}

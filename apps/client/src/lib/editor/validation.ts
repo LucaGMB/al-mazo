@@ -45,9 +45,11 @@ export function validateGameClient(data: GameDefinitionData): ClientValidationRe
     Array.isArray(data.rules.matchingProperties) && data.rules.matchingProperties.length > 0;
   const hasPhases = Array.isArray(data.rules.phases) && data.rules.phases.length > 0;
   const hasZones = Array.isArray(data.rules.zones) && data.rules.zones.length > 0;
+  const hasHierarchy =
+    !!data.rules.cardHierarchy && Object.keys(data.rules.cardHierarchy).length > 0;
 
-  if (!hasMatching && !hasPhases && !hasZones) {
-    errors.push("Las reglas deben definir al menos propiedades de coincidencia, fases o zonas.");
+  if (!hasMatching && !hasPhases && !hasZones && !hasHierarchy) {
+    errors.push("Las reglas deben definir al menos propiedades de coincidencia, fases, zonas o jerarquía.");
   }
 
   if (!data.rules.winCondition || !data.rules.winCondition.type) {

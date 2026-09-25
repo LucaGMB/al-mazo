@@ -14,6 +14,7 @@ import DiscardPile from "@/components/game/DiscardPile";
 import Hand from "@/components/game/Hand";
 import ColorPicker from "@/components/game/ColorPicker";
 import ChatDrawer from "@/components/game/ChatDrawer";
+import TrucoTable from "@/components/game/TrucoTable";
 import { useRoom } from "@/lib/room/use-room";
 import { assignSeats } from "@/lib/room/seating";
 import { decodePlayerName } from "@/lib/room/player-name";
@@ -60,9 +61,11 @@ export default function MesaPage() {
     clearUnreadChat,
     sendChatMessage,
     chatBubbles,
+    executeAction,
   } = useRoom();
 
   const [isActing, setIsActing] = useState(false);
+  const [isTapada, setIsTapada] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
   const [maxPlayers, setMaxPlayers] = useState<number | undefined>(undefined);
@@ -280,24 +283,42 @@ export default function MesaPage() {
   }
 
   // IN_PROGRESS
+  const isTruco = slug === "truco";
   const { self, others } = assignSeats(publicState.players, selfPlayerId);
   // El server agrega al host primero (GameRoom.addPlayer), mismo criterio que RoomLobby.
   const hostPlayerId = publicState.players[0]?.id;
   const isMyTurn = publicState.currentTurnPlayerId === selfPlayerId;
   const pendingChoiceForMe = publicState.pendingChoice?.playerId === selfPlayerId;
   const pendingChoiceForOther = !!publicState.pendingChoice && !pendingChoiceForMe;
+  const customState = (publicState.customState ?? {}) as Record<string, any>;
+  const pendingBet = isTruco ? customState.pendingBet ?? null : null;
   // Mientras hay un color pendiente de elegir (comodín recién jugado), el
   // turno sigue siendo del mismo jugador pero no puede jugar/robar otra carta
   // hasta resolver el color (ver GameEngine.playCard en el server).
   const canAct = isMyTurn && !pendingChoiceForMe && !isActing;
+  const canPlayHandCards = canAct && (!isTruco || !pendingBet);
 
-  async function handlePlay(cardId: string) {
+  async function handlePlay(cardId: string, tapada?: boolean) {
     if (!canAct) return;
+    if (isTruco && pendingBet) return;
     setIsActing(true);
     try {
-      await playCard(cardId);
+      const playingTapada = tapada !== undefined ? tapada : isTapada;
+      await playCard(cardId, undefined, playingTapada);
+      setIsTapada(false);
       play("playCard");
       triggerShake();
+    } finally {
+      setIsActing(false);
+    }
+  }
+
+  async function handleTrucoAction(action: string, payload?: Record<string, unknown>) {
+    if (isActing) return;
+    setIsActing(true);
+    try {
+      await executeAction(action, payload);
+      play("reaction");
     } finally {
       setIsActing(false);
     }
@@ -389,62 +410,97 @@ export default function MesaPage() {
         </div>
       </div>
 
-      <div
-        className={`flex-1 relative px-4.5 py-1.5 min-h-[420px] md:min-h-[560px] ${
-          isShaking ? "animate-table-shake" : ""
-        }`}
-      >
-        {others.slice(0, 3).map((player, i) => (
-          <PlayerBadge
-            key={player.id}
-            player={player}
-            position={SLOT_ORDER[i]}
-            isHost={player.id === hostPlayerId}
-            isCurrentTurn={publicState.currentTurnPlayerId === player.id}
-            turnExpiresAt={
-              publicState.currentTurnPlayerId === player.id ? publicState.turnExpiresAt : null
-            }
-            recentMessage={chatBubbles[player.id]?.text ?? null}
-          />
-        ))}
-        {others.length > 3 && (
-          <div className="absolute top-1 right-1 text-[10px] text-ink-faint">
-            +{others.length - 3} más
-          </div>
-        )}
+      {isTruco ? (
+        <div
+          className={`flex-1 relative px-3 py-2 overflow-y-auto ${
+            isShaking ? "animate-table-shake" : ""
+          }`}
+        >
+          {others[0] && (
+            <div className="relative w-full h-11 flex justify-center mb-1">
+              <PlayerBadge
+                player={others[0]}
+                position="top"
+                isHost={others[0].id === hostPlayerId}
+                isCurrentTurn={publicState.currentTurnPlayerId === others[0].id}
+                turnExpiresAt={
+                  publicState.currentTurnPlayerId === others[0].id ? publicState.turnExpiresAt : null
+                }
+                recentMessage={chatBubbles[others[0].id]?.text ?? null}
+              />
+            </div>
+          )}
 
-        <div className="absolute top-[90px] md:top-[120px] left-1/2 -translate-x-1/2 w-[300px] h-[300px] md:w-[440px] md:h-[440px] rounded-full border-[10px] border-[#3E2723] shadow-[inset_0_0_0_2px_rgba(212,175,55,0.5),inset_0_0_30px_rgba(0,0,0,0.55),0_0_0_1px_#0B160F,0_0_24px_rgba(212,175,55,0.18)] bg-[radial-gradient(circle_at_40%_35%,#2E6F40,#1D4B2B_70%,#112B19_100%)]">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center gap-5 md:gap-8 pointer-events-auto">
-            <DrawPile count={publicState.drawPileCount} disabled={!canAct} onClick={handleDraw} />
-            <DiscardPile
-              topCard={publicState.topDiscardCard}
-              count={publicState.discardPileCount}
-              activeColor={publicState.activeColor}
+          <TrucoTable
+            publicState={publicState}
+            selfPlayerId={selfPlayerId}
+            hand={hand}
+            canAct={canAct}
+            onPlayCard={(cardId, tapada) => handlePlay(cardId, tapada)}
+            onExecuteAction={handleTrucoAction}
+            isActing={isActing}
+            isTapada={isTapada}
+            onToggleTapada={() => setIsTapada((prev) => !prev)}
+          />
+        </div>
+      ) : (
+        <div
+          className={`flex-1 relative px-4.5 py-1.5 min-h-[420px] md:min-h-[560px] ${
+            isShaking ? "animate-table-shake" : ""
+          }`}
+        >
+          {others.slice(0, 3).map((player, i) => (
+            <PlayerBadge
+              key={player.id}
+              player={player}
+              position={SLOT_ORDER[i]}
+              isHost={player.id === hostPlayerId}
+              isCurrentTurn={publicState.currentTurnPlayerId === player.id}
+              turnExpiresAt={
+                publicState.currentTurnPlayerId === player.id ? publicState.turnExpiresAt : null
+              }
+              recentMessage={chatBubbles[player.id]?.text ?? null}
             />
+          ))}
+          {others.length > 3 && (
+            <div className="absolute top-1 right-1 text-[10px] text-ink-faint">
+              +{others.length - 3} más
+            </div>
+          )}
+
+          <div className="absolute top-[90px] md:top-[120px] left-1/2 -translate-x-1/2 w-[300px] h-[300px] md:w-[440px] md:h-[440px] rounded-full border-[10px] border-[#3E2723] shadow-[inset_0_0_0_2px_rgba(212,175,55,0.5),inset_0_0_30px_rgba(0,0,0,0.55),0_0_0_1px_#0B160F,0_0_24px_rgba(212,175,55,0.18)] bg-[radial-gradient(circle_at_40%_35%,#2E6F40,#1D4B2B_70%,#112B19_100%)]">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center gap-5 md:gap-8 pointer-events-auto">
+              <DrawPile count={publicState.drawPileCount} disabled={!canAct} onClick={handleDraw} />
+              <DiscardPile
+                topCard={publicState.topDiscardCard}
+                count={publicState.discardPileCount}
+                activeColor={publicState.activeColor}
+              />
+            </div>
+            {pendingChoiceForMe && (
+              <ColorPicker
+                gameSlug={slug}
+                onChoose={(color) => {
+                  play("colorChosen");
+                  void chooseColor(color);
+                }}
+              />
+            )}
           </div>
-          {pendingChoiceForMe && (
-            <ColorPicker
-              gameSlug={slug}
-              onChoose={(color) => {
-                play("colorChosen");
-                void chooseColor(color);
-              }}
+
+          {self && (
+            <PlayerBadge
+              player={self}
+              position="self"
+              isSelf
+              isHost={self.id === hostPlayerId}
+              isCurrentTurn={isMyTurn}
+              turnExpiresAt={isMyTurn ? publicState.turnExpiresAt : null}
+              recentMessage={chatBubbles[self.id]?.text ?? null}
             />
           )}
         </div>
-
-        {self && (
-          <PlayerBadge
-            player={self}
-            position="self"
-            isSelf
-            isHost={self.id === hostPlayerId}
-            isCurrentTurn={isMyTurn}
-            turnExpiresAt={isMyTurn ? publicState.turnExpiresAt : null}
-            recentMessage={chatBubbles[self.id]?.text ?? null}
-          />
-        )}
-      </div>
+      )}
 
        {isMyTurn && gameStatus === "IN_PROGRESS" && (
          <div className="flex-none flex justify-center pb-1">
@@ -455,29 +511,31 @@ export default function MesaPage() {
          </div>
        )}
 
-       <div className="flex-none px-3.5 md:px-6 py-1.5 md:py-3 flex items-center justify-between">
-        <div className="flex items-center gap-1.5 font-medium text-[11px] md:text-sm text-ink">
-          <span className={`w-2 h-2 rounded-full ${isMyTurn ? "bg-accent" : "bg-ink-faint"}`} />
-          {pendingChoiceForMe
-            ? "Elegí un color"
-            : pendingChoiceForOther
-              ? "Esperando color..."
-              : isMyTurn
-                ? "Tu turno"
-                : "Esperando turno"}
-        </div>
-        {canAct && (
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={handlePass}>
-              Pasar turno
-            </Button>
+       {!isTruco && (
+         <div className="flex-none px-3.5 md:px-6 py-1.5 md:py-3 flex items-center justify-between">
+          <div className="flex items-center gap-1.5 font-medium text-[11px] md:text-sm text-ink">
+            <span className={`w-2 h-2 rounded-full ${isMyTurn ? "bg-accent" : "bg-ink-faint"}`} />
+            {pendingChoiceForMe
+              ? "Elegí un color"
+              : pendingChoiceForOther
+                ? "Esperando color..."
+                : isMyTurn
+                  ? "Tu turno"
+                  : "Esperando turno"}
           </div>
-        )}
-      </div>
+          {canAct && (
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={handlePass}>
+                Pasar turno
+              </Button>
+            </div>
+          )}
+        </div>
+       )}
 
       {lastError && <div className="text-[12px] text-danger text-center px-4 pb-2">{lastError}</div>}
 
-      {self?.cardCount === 1 && !hasShouted && (
+      {!isTruco && self?.cardCount === 1 && !hasShouted && (
         <div className="flex-none flex justify-center pb-1">
           <button
             type="button"
@@ -518,7 +576,7 @@ export default function MesaPage() {
         </div>
       </div>
 
-      <Hand cards={hand} canPlay={canAct} onPlay={handlePlay} />
+      <Hand cards={hand} canPlay={canPlayHandCards} onPlay={(cardId) => handlePlay(cardId)} isTapada={isTapada} />
 
       <ChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>

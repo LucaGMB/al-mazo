@@ -45,6 +45,16 @@ const GAME_SHOWCASE: Record<string, { tagline: string; mechanics: string[] }> = 
       "Cantá ¡AL MAZO! con una carta",
     ],
   },
+  "truco": {
+    tagline: "El clásico juego criollo de astucia, mentira y estrategia argentina.",
+    mechanics: [
+      "Baraja española de 40 cartas (sin 8 ni 9)",
+      "Partida a 30 puntos (15 malas y 15 buenas)",
+      "Envido, Real Envido y Falta Envido",
+      "Truco, Retruco y Vale Cuatro",
+      "Pardas, cartas tapadas y viveza criolla",
+    ],
+  },
 };
 
 export default function GameDetailPage() {

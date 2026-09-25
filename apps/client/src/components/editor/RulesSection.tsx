@@ -25,7 +25,11 @@ const ACTION_OPTIONS = [
   { id: "DRAW_CARD", label: "Robar Carta", desc: "Tomar carta del mazo" },
   { id: "PASS_TURN", label: "Pasar Turno", desc: "Ceder el turno al siguiente jugador" },
   { id: "CHOOSE_COLOR", label: "Elegir Color", desc: "Fijar color activo tras comodín" },
-  { id: "CALL_BET", label: "Cantar Envite", desc: "Declarar envite o apuesta" },
+  { id: "CALL_BET", label: "Cantar Envite", desc: "Declarar envite o apuesta genérica" },
+  { id: "CALL_ENVIDO", label: "Cantar Envido", desc: "Envido, Real Envido o Falta Envido" },
+  { id: "CALL_TRUCO", label: "Cantar Truco", desc: "Truco, Retruco o Vale Cuatro" },
+  { id: "QUIERO", label: "Quiero", desc: "Aceptar apuesta o envite pendiente" },
+  { id: "NO_QUIERO", label: "No Quiero", desc: "Rechazar apuesta o envite pendiente" },
   { id: "RESPOND_BET", label: "Responder Envite", desc: "Aceptar, subir o no querer" },
   { id: "FOLD", label: "Irse al Mazo", desc: "Retirarse de la mano o ronda" },
 ];
