@@ -180,12 +180,7 @@ export class ModularGameEngine extends GameEngine {
     const isTrucoLike =
       Boolean(rules.cardHierarchy) && (rules.matchingProperties?.length ?? 0) === 0;
 
-    return Boolean(
-      hasTrickActions ||
-      hasOnlyTrickZone ||
-      isTrucoLike ||
-      this.definition.slug === 'truco'
-    );
+    return Boolean(hasTrickActions || hasOnlyTrickZone || isTrucoLike);
   }
 
   public override start(): void {

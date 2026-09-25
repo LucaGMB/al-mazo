@@ -161,6 +161,16 @@ export const BUILTIN_CONDITIONS: Array<{ type: ConditionType; description: strin
 ];
 
 export const BUILTIN_EFFECTS: Array<{ type: EffectType; description: string }> = [
+  { type: 'SKIP', description: 'Skip the next player in the turn order.' },
+  { type: 'REVERSE', description: 'Reverse the direction of play.' },
+  { type: 'DRAW_CARDS', description: 'Make the target player draw one or more cards.' },
+  { type: 'CHOOSE_COLOR', description: 'Ask the acting player to choose a new active color.' },
+  { type: 'SWAP_HANDS', description: 'Swap the acting player hand with the next player hand.' },
+  {
+    type: 'DISCARD_ALL_COLOR',
+    description: 'Discard every card of a given color from the acting player hand.',
+  },
+  { type: 'PROMPT_CHOICE', description: 'Pause the turn until the player answers a choice prompt.' },
   { type: 'MOVE_CARD', description: 'Move a card between zones.' },
   { type: 'DEAL_CARDS', description: 'Deal cards from the draw pile.' },
   { type: 'ADVANCE_TURN', description: 'Advance the active turn by a number of steps.' },

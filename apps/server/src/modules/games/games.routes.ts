@@ -81,25 +81,30 @@ function toPublic(record: GameRecord) {
   };
 }
 
-function resolveAuthor(request: FastifyRequest, body: unknown): string | null {
+async function resolveAuthor(request: FastifyRequest, _body?: unknown): Promise<string | null> {
   const header = request.headers.authorization;
-  if (header?.startsWith('Bearer ')) {
-    try {
-      const decoded = jwt.verify(header.slice(7), AUTH_SECRET) as { userId?: string };
-      if (decoded.userId) return decoded.userId;
-    } catch {
-      // fall through to creator identity
-    }
+  if (!header?.startsWith('Bearer ')) {
+    return null;
   }
+  try {
+    const token = header.slice(7).trim();
+    const decoded = jwt.verify(token, AUTH_SECRET) as { userId?: string };
+    if (!decoded.userId) return null;
 
-  const payload = (body ?? {}) as { authorId?: unknown; creatorId?: unknown };
-  const headerIdentity = request.headers['x-creator-id'];
-  const creator =
-    (typeof headerIdentity === 'string' ? headerIdentity : undefined) ??
-    (typeof payload.authorId === 'string' ? payload.authorId : undefined) ??
-    (typeof payload.creatorId === 'string' ? payload.creatorId : undefined);
-
-  return creator ?? null;
+    try {
+      const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+      if (user && user.isAnonymous) return null;
+      if (user) return user.id;
+    } catch {
+      // In-memory or test fallback where database is unreachable
+      if (!decoded.userId.startsWith('guest_') && !decoded.userId.includes('guest')) {
+        return decoded.userId;
+      }
+    }
+    return decoded.userId;
+  } catch {
+    return null;
+  }
 }
 
 async function reservedSlugs(): Promise<Set<string>> {
@@ -278,9 +283,9 @@ export const gamesRoutes: FastifyPluginAsync = async (fastify) => {
    * Creates a new community game as a DRAFT owned by the authenticated author
    */
   fastify.post('/api/games', async (request, reply) => {
-    const authorId = resolveAuthor(request, request.body);
+    const authorId = await resolveAuthor(request, request.body);
     if (!authorId) {
-      return reply.status(401).send({ error: 'Authentication required' });
+      return reply.status(401).send({ error: 'Exclusivo para jugadores logueados. Iniciá sesión para crear un juego.' });
     }
 
     const body = (request.body ?? {}) as Record<string, unknown>;
@@ -318,7 +323,7 @@ export const gamesRoutes: FastifyPluginAsync = async (fastify) => {
    * Updates a game definition owned by the authenticated author
    */
   fastify.put<{ Params: { id: string } }>('/api/games/:id', async (request, reply) => {
-    const authorId = resolveAuthor(request, request.body);
+    const authorId = await resolveAuthor(request, request.body);
     if (!authorId) {
       return reply.status(401).send({ error: 'Authentication required' });
     }
@@ -361,7 +366,7 @@ export const gamesRoutes: FastifyPluginAsync = async (fastify) => {
    * Publishes a fully valid game owned by the authenticated author
    */
   fastify.post<{ Params: { id: string } }>('/api/games/:id/publish', async (request, reply) => {
-    const authorId = resolveAuthor(request, request.body);
+    const authorId = await resolveAuthor(request, request.body);
     if (!authorId) {
       return reply.status(401).send({ error: 'Authentication required' });
     }
@@ -388,7 +393,7 @@ export const gamesRoutes: FastifyPluginAsync = async (fastify) => {
    * Clones an official or community game as a new DRAFT owned by the author
    */
   fastify.post<{ Params: { id: string } }>('/api/games/:id/fork', async (request, reply) => {
-    const authorId = resolveAuthor(request, request.body);
+    const authorId = await resolveAuthor(request, request.body);
     if (!authorId) {
       return reply.status(401).send({ error: 'Authentication required' });
     }

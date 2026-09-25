@@ -14,7 +14,6 @@ import {
 } from './types.js';
 import { decideBotMove } from '../engine/bot.js';
 import { ModularGameEngine } from '../engine/modular-engine.js';
-import { TrucoEngine } from '../games/truco/truco-engine.js';
 
 const BOT_MIN_DELAY_MS = 800;
 const BOT_MAX_DELAY_MS = 1200;
@@ -134,7 +133,7 @@ function handleHumanTurnTimeout(io: IoServer, room: GameRoom, timedOutPlayerId: 
   const player = room.getPlayer(timedOutPlayerId);
   if (!player) return;
 
-  if (room.engine instanceof TrucoEngine) {
+  if (room.engine.isRoundTrickGame) {
     try {
       const hand = room.getPlayerHand(timedOutPlayerId);
       if (hand.length > 0) {
@@ -147,7 +146,9 @@ function handleHumanTurnTimeout(io: IoServer, room: GameRoom, timedOutPlayerId: 
     const modularEngine = room.engine as ModularGameEngine;
     try {
       if (state.pendingChoice && state.pendingChoice.playerId === timedOutPlayerId) {
-        const defaultChoice = room.definition.slug === 'descarte-criollo' ? 'ESPADAS' : 'RED';
+        const defaultChoice =
+          (room.definition.deckConfig.templates.find((t) => t.color && t.color !== 'ANY')?.color) ??
+          'RED';
         modularEngine.chooseColor(timedOutPlayerId, defaultChoice);
       } else {
         modularEngine.drawCard(timedOutPlayerId);
@@ -192,7 +193,7 @@ function playBotTurn(io: IoServer, room: GameRoom): void {
   let nextPlayerName: string | undefined;
 
   try {
-    if (room.engine instanceof TrucoEngine) {
+    if (room.engine.isRoundTrickGame) {
       room.engine.executeBotTurn(botId);
       broadcastPlayerHands(io, room);
     } else {
@@ -413,6 +414,32 @@ export function initializeSocketServer(
       }
     });
 
+    // Remove Bot (host only, before the game starts)
+    socket.on('room:remove_bot', (data: { botId?: string }, callback) => {
+      try {
+        const match = roomManager.getRoomBySocketId(socket.id);
+        if (!match) return callback({ success: false, error: 'Not in a room' });
+        const { room, player } = match;
+
+        if (room.hostId !== player.id) {
+          return callback({ success: false, error: 'Solo el anfitrión puede remover bots' });
+        }
+
+        const bot = room.removeBot(data?.botId);
+
+        io.to(room.code).emit('player:left', { id: bot.id, name: bot.name });
+        io.to(room.code).emit('room:state', room.getPublicState());
+        emitSystemChat(io, room, `🤖 ${bot.name} fue removido de la sala`);
+
+        callback({ success: true, playerId: bot.id });
+      } catch (err: unknown) {
+        callback({
+          success: false,
+          error: err instanceof Error ? err.message : 'Error al remover bot',
+        });
+      }
+    });
+
     // Unified Game Action
     socket.on('game:action', ({ action, payload }, callback) => {
       try {
@@ -420,23 +447,14 @@ export function initializeSocketServer(
         if (!match) return callback({ success: false, error: 'Not in a room' });
         const { room, player } = match;
 
-        let result: unknown;
-        if (room.engine instanceof TrucoEngine) {
-          const res = room.engine.executeAction(player.id, action, payload as Record<string, unknown> | undefined);
-          result = res.result;
-        } else {
-          const modularEngine = room.engine as ModularGameEngine;
-          if (action === 'PLAY_CARD') {
-            modularEngine.playCard(player.id, (payload as any)?.cardId, (payload as any)?.chosenColor);
-          } else if (action === 'DRAW_CARD') {
-            result = modularEngine.drawCard(player.id);
-          } else if (action === 'CHOOSE_COLOR') {
-            modularEngine.chooseColor(player.id, (payload as any)?.color);
-          } else if (action === 'PASS_TURN') {
-            modularEngine.passTurn(player.id);
-          } else {
-            return callback({ success: false, error: `Acción no soportada: ${action}` });
-          }
+        const actionResult = (room.engine as ModularGameEngine).executeAction(
+          player.id,
+          action,
+          payload as Record<string, unknown> | undefined
+        );
+
+        if (!actionResult.success) {
+          return callback({ success: false, error: String(actionResult.result) });
         }
 
         broadcastPlayerHands(io, room);
@@ -450,7 +468,7 @@ export function initializeSocketServer(
           scheduleTurnLifecycle(io, room);
         }
 
-        callback({ success: true, result });
+        callback({ success: true, result: actionResult.result });
       } catch (err: unknown) {
         callback({
           success: false,
@@ -506,7 +524,7 @@ export function initializeSocketServer(
         if (!match) return callback({ success: false, error: 'Not in a room' });
         const { room, player } = match;
 
-        if (room.engine instanceof TrucoEngine) {
+        if (room.engine.isRoundTrickGame) {
           return callback({ success: false, error: 'Truco no permite robar cartas del mazo' });
         }
 
@@ -539,7 +557,7 @@ export function initializeSocketServer(
         if (!match) return callback({ success: false, error: 'Not in a room' });
         const { room, player } = match;
 
-        if (room.engine instanceof TrucoEngine) {
+        if (room.engine.isRoundTrickGame) {
           return callback({ success: false, error: 'Truco no requiere elegir color' });
         }
 
@@ -580,7 +598,7 @@ export function initializeSocketServer(
         if (!match) return callback({ success: false, error: 'Not in a room' });
         const { room, player } = match;
 
-        if (room.engine instanceof TrucoEngine) {
+        if (room.engine.isRoundTrickGame) {
           return callback({ success: false, error: 'Truco no permite pasar turno; debés tirar una carta o irte al mazo' });
         }
 
