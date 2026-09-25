@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { GameEngine } from '../../src/engine/state-machine.js';
 import { DeckManager } from '../../src/engine/deck.js';
 import { validateCardPlay } from '../../src/engine/validator.js';
-import { GameSchemaDefinition } from '../../src/engine/types.js';
+import { Card, GameSchemaDefinition } from '../../src/engine/types.js';
 
 const mockGameDefinition: GameSchemaDefinition = {
   slug: 'test-card-game',
@@ -36,6 +36,35 @@ const mockGameDefinition: GameSchemaDefinition = {
     winCondition: { type: 'EMPTY_HAND' },
   },
 };
+
+const autoPassDefinition: GameSchemaDefinition = {
+  ...mockGameDefinition,
+  rules: { ...mockGameDefinition.rules, autoPassOnDraw: true },
+};
+
+const drawTwoNoSkipDefinition: GameSchemaDefinition = {
+  ...mockGameDefinition,
+  rules: {
+    ...mockGameDefinition.rules,
+    effects: {
+      ...mockGameDefinition.rules.effects,
+      DRAW_2: { type: 'DRAW_CARDS', params: { drawCount: 2, skipTarget: false } },
+    },
+  },
+};
+
+function rigDeck(engine: GameEngine, cards: Card[]): void {
+  const pile = [...cards];
+  (engine as unknown as { deckManager: DeckManager }).deckManager = {
+    draw: () => pile.pop() ?? null,
+    drawMultiple: (count: number) =>
+      pile.splice(Math.max(0, pile.length - count), count),
+    recycleDiscard: () => {},
+    get count() {
+      return pile.length;
+    },
+  } as unknown as DeckManager;
+}
 
 describe('DeckManager', () => {
   it('generates expected number of cards from template config', () => {
@@ -193,5 +222,96 @@ describe('GameEngine State Machine', () => {
     const state = engine.getPublicState();
     expect(state.status).toBe('FINISHED');
     expect(state.winnerId).toBe('p1');
+  });
+});
+
+describe('GameEngine hasPlayableCard & autoPassOnDraw', () => {
+  it('detects playable and non-playable cards in hand', () => {
+    const engine = new GameEngine(mockGameDefinition);
+    engine.addPlayer('p1', 'Alice');
+    engine.addPlayer('p2', 'Bob');
+    engine.start();
+    const top = engine.getTopDiscardCard()!;
+
+    engine.getCurrentPlayer().hand = [
+      { id: 'bad_1', type: 'NUMBER', color: 'GREEN', value: '99' },
+      { id: 'bad_2', type: 'NUMBER', color: 'GREEN', value: '98' },
+    ];
+    expect(engine.hasPlayableCard('p1')).toBe(false);
+
+    engine.getCurrentPlayer().hand.push({
+      id: 'wild',
+      type: 'WILD',
+      color: 'ANY',
+      value: 'WILD',
+    });
+    expect(engine.hasPlayableCard('p1')).toBe(true);
+
+    engine.getCurrentPlayer().hand = [
+      { id: 'match_top', type: 'NUMBER', color: top.color, value: '97' },
+    ];
+    expect(engine.hasPlayableCard('p1')).toBe(true);
+
+    expect(() => engine.hasPlayableCard('ghost')).toThrow('not found');
+  });
+
+  it('auto-advances the turn when the drawn card leaves no playable option', () => {
+    const engine = new GameEngine(autoPassDefinition);
+    engine.addPlayer('p1', 'Alice');
+    engine.addPlayer('p2', 'Bob');
+    engine.start();
+
+    engine.getCurrentPlayer().hand = [
+      { id: 'stuck', type: 'NUMBER', color: 'GREEN', value: '99' },
+    ];
+    rigDeck(engine, [
+      { id: 'drawn_bad', type: 'NUMBER', color: 'GREEN', value: '98' },
+    ]);
+
+    const drawn = engine.drawCard('p1');
+
+    expect(drawn.id).toBe('drawn_bad');
+    expect(engine.getPlayerHand('p1').length).toBe(2);
+    expect(engine.getPublicState().currentTurnPlayerId).toBe('p2');
+  });
+
+  it('keeps the turn when the drawn card is playable', () => {
+    const engine = new GameEngine(autoPassDefinition);
+    engine.addPlayer('p1', 'Alice');
+    engine.addPlayer('p2', 'Bob');
+    engine.start();
+
+    engine.getCurrentPlayer().hand = [
+      { id: 'stuck', type: 'NUMBER', color: 'GREEN', value: '99' },
+    ];
+    rigDeck(engine, [
+      { id: 'drawn_wild', type: 'WILD', color: 'ANY', value: 'WILD' },
+    ]);
+
+    engine.drawCard('p1');
+
+    expect(engine.getPublicState().currentTurnPlayerId).toBe('p1');
+    engine.passTurn('p1');
+    expect(engine.getPublicState().currentTurnPlayerId).toBe('p2');
+  });
+
+  it('gives DRAW_2 cards to the next player without skipping when skipTarget is false', () => {
+    const engine = new GameEngine(drawTwoNoSkipDefinition);
+    engine.addPlayer('p1', 'Alice');
+    engine.addPlayer('p2', 'Bob');
+    engine.addPlayer('p3', 'Charlie');
+    engine.start();
+    const top = engine.getTopDiscardCard()!;
+
+    engine.getCurrentPlayer().hand = [
+      { id: 'd2', type: 'ACTION', color: top.color, value: 'DRAW_2' },
+      { id: 'spare', type: 'NUMBER', color: top.color, value: '4' },
+    ];
+
+    const p2HandBefore = engine.getPlayerHand('p2').length;
+    engine.playCard('p1', 'd2');
+
+    expect(engine.getPlayerHand('p2').length).toBe(p2HandBefore + 2);
+    expect(engine.getPublicState().currentTurnPlayerId).toBe('p2');
   });
 });

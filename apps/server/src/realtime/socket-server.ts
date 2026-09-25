@@ -4,7 +4,14 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import { redis } from '../db/redis.js';
 import { roomManager } from './room-manager.js';
 import { GameRoom } from './room.js';
-import { ChatMessage, ClientToServerEvents, ServerToClientEvents } from './types.js';
+import {
+  Card,
+  ChatMessage,
+  ClientToServerEvents,
+  PublicGameState,
+  RoomPlayer,
+  ServerToClientEvents,
+} from './types.js';
 import { decideBotMove } from '../engine/bot.js';
 import { ModularGameEngine } from '../engine/modular-engine.js';
 import { TrucoEngine } from '../games/truco/truco-engine.js';
@@ -25,6 +32,41 @@ function emitSystemChat(io: IoServer, room: GameRoom, text: string): void {
   };
   room.addChatMessage(msg);
   io.to(room.code).emit('chat:message', msg);
+}
+
+function broadcastPlayerHands(io: IoServer, room: GameRoom): void {
+  for (const p of room.players.values()) {
+    if (p.socketId && p.isConnected) {
+      io.to(p.socketId).emit('player:hand', room.getPlayerHand(p.id));
+    }
+  }
+}
+
+function getNextPlayer(room: GameRoom, state: PublicGameState): RoomPlayer | undefined {
+  const index = state.players.findIndex((p) => p.id === state.currentTurnPlayerId);
+  const total = state.players.length;
+  if (index === -1 || total === 0) return undefined;
+  const next = state.players[(index + state.turnDirection + total) % total];
+  return next ? room.getPlayer(next.id) : undefined;
+}
+
+function specialCardChatMessage(
+  card: Card,
+  playerName: string,
+  nextPlayerName?: string
+): string | null {
+  switch (String(card.value ?? card.type)) {
+    case 'DRAW_2':
+      return `🃏 ${playerName} tiró un +2. ${nextPlayerName ?? 'El siguiente jugador'} roba 2 cartas.`;
+    case 'SKIP':
+      return `🚫 ${playerName} tiró Salteo.`;
+    case 'REVERSE':
+      return `🔄 ${playerName} cambió el sentido de la ronda.`;
+    case 'WILD_DRAW_4':
+      return `🃏 ${playerName} tiró un +4. ${nextPlayerName ?? 'El siguiente jugador'} roba 4 cartas.`;
+    default:
+      return null;
+  }
 }
 
 function emitGameFinished(io: IoServer, room: GameRoom, winnerId: string | null): void {
@@ -146,17 +188,17 @@ function playBotTurn(io: IoServer, room: GameRoom): void {
   const bot = room.getPlayer(botId);
   if (!bot?.isBot) return;
 
+  let playedCard: Card | undefined;
+  let nextPlayerName: string | undefined;
+
   try {
     if (room.engine instanceof TrucoEngine) {
       room.engine.executeBotTurn(botId);
-      for (const p of room.players.values()) {
-        if (p.socketId) {
-          io.to(p.socketId).emit('player:hand', room.getPlayerHand(p.id));
-        }
-      }
+      broadcastPlayerHands(io, room);
     } else {
       const modularEngine = room.engine as ModularGameEngine;
       const hand = room.getPlayerHand(botId);
+      nextPlayerName = getNextPlayer(room, state)?.name;
       const move = decideBotMove(
         hand,
         state.topDiscardCard,
@@ -165,10 +207,13 @@ function playBotTurn(io: IoServer, room: GameRoom): void {
       );
 
       if (move) {
+        playedCard = hand.find((c) => c.id === move.cardId);
         modularEngine.playCard(botId, move.cardId, move.chosenColor);
       } else {
         modularEngine.drawCard(botId);
-        modularEngine.passTurn(botId);
+        if (room.engine.getPublicState().currentTurnPlayerId === botId) {
+          modularEngine.passTurn(botId);
+        }
       }
     }
   } catch (err: unknown) {
@@ -177,6 +222,13 @@ function playBotTurn(io: IoServer, room: GameRoom): void {
       message: err instanceof Error ? err.message : 'Bot failed to move',
     });
     return;
+  }
+
+  broadcastPlayerHands(io, room);
+
+  if (playedCard) {
+    const chat = specialCardChatMessage(playedCard, bot.name, nextPlayerName);
+    if (chat) emitSystemChat(io, room, chat);
   }
 
   const newState = room.getPublicState();
@@ -323,13 +375,7 @@ export function initializeSocketServer(
         io.to(room.code).emit('room:state', room.getPublicState());
         emitSystemChat(io, room, '¡La partida ha comenzado!');
 
-        // Send private hands directly to each individual player
-        for (const p of room.players.values()) {
-          if (p.socketId) {
-            const hand = room.getPlayerHand(p.id);
-            io.to(p.socketId).emit('player:hand', hand);
-          }
-        }
+        broadcastPlayerHands(io, room);
 
         scheduleTurnLifecycle(io, room);
         callback({ success: true });
@@ -393,12 +439,7 @@ export function initializeSocketServer(
           }
         }
 
-        // Update hands for all players (in case of round reset in trick taking)
-        for (const p of room.players.values()) {
-          if (p.socketId) {
-            io.to(p.socketId).emit('player:hand', room.getPlayerHand(p.id));
-          }
-        }
+        broadcastPlayerHands(io, room);
 
         const state = room.getPublicState();
         io.to(room.code).emit('room:state', state);
@@ -429,13 +470,16 @@ export function initializeSocketServer(
         const chosenColor = payload?.chosenColor;
         const isTapada = Boolean(payload?.isTapada);
 
+        const card = room.getPlayerHand(player.id).find((c) => c.id === cardId);
+        const nextPlayer = getNextPlayer(room, room.getPublicState());
+
         (room.engine as any).playCard(player.id, cardId, chosenColor, isTapada);
 
-        // Update player hands
-        for (const p of room.players.values()) {
-          if (p.socketId) {
-            io.to(p.socketId).emit('player:hand', room.getPlayerHand(p.id));
-          }
+        broadcastPlayerHands(io, room);
+
+        if (card) {
+          const chat = specialCardChatMessage(card, player.name, nextPlayer?.name);
+          if (chat && card.type !== 'WILD') emitSystemChat(io, room, chat);
         }
 
         const state = room.getPublicState();
@@ -466,13 +510,18 @@ export function initializeSocketServer(
           return callback({ success: false, error: 'Truco no permite robar cartas del mazo' });
         }
 
+        const turnBefore = room.getPublicState().currentTurnPlayerId;
         const drawnCard = (room.engine as ModularGameEngine).drawCard(player.id);
 
-        // Update player hand
-        const updatedHand = room.getPlayerHand(player.id);
-        socket.emit('player:hand', updatedHand);
+        broadcastPlayerHands(io, room);
 
-        io.to(room.code).emit('room:state', room.getPublicState());
+        const state = room.getPublicState();
+        io.to(room.code).emit('room:state', state);
+
+        if (state.currentTurnPlayerId !== turnBefore) {
+          emitSystemChat(io, room, `🃏 ${player.name} robó una carta (pase automático).`);
+          scheduleTurnLifecycle(io, room);
+        }
 
         callback({ success: true, card: drawnCard });
       } catch (err: unknown) {
@@ -494,7 +543,24 @@ export function initializeSocketServer(
           return callback({ success: false, error: 'Truco no requiere elegir color' });
         }
 
+        const stateBefore = room.getPublicState();
+        const topCard = stateBefore.topDiscardCard;
+        const nextPlayer = getNextPlayer(room, stateBefore);
+
         (room.engine as ModularGameEngine).chooseColor(player.id, color);
+
+        broadcastPlayerHands(io, room);
+
+        const topValue = String(topCard?.value ?? topCard?.type ?? '');
+        if (topValue === 'WILD_DRAW_4') {
+          emitSystemChat(
+            io,
+            room,
+            `🃏 ${player.name} tiró un +4. ${nextPlayer?.name ?? 'El siguiente jugador'} roba 4 cartas.`
+          );
+        } else if (topValue === 'WILD') {
+          emitSystemChat(io, room, `🎨 ${player.name} cambió el color a ${color}.`);
+        }
         io.to(room.code).emit('room:state', room.getPublicState());
 
         scheduleTurnLifecycle(io, room);

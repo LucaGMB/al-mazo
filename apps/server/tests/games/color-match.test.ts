@@ -82,7 +82,7 @@ describe('ColorMatch Mechanics via GameEngine', () => {
     expect(state.currentTurnPlayerId).toBe('p3');
   });
 
-  it('triggers DRAW_2 effect forcing target to draw 2 cards and skip', () => {
+  it('triggers DRAW_2 effect forcing target to draw 2 cards without skipping', () => {
     engine.start();
     const p1 = engine.getCurrentPlayer();
     const top = engine.getTopDiscardCard()!;
@@ -102,8 +102,8 @@ describe('ColorMatch Mechanics via GameEngine', () => {
     const p2HandAfter = engine.getPlayerHand('p2').length;
     expect(p2HandAfter).toBe(p2HandBefore + 2);
 
-    // p2 is skipped, turn goes to p3
-    expect(engine.getPublicState().currentTurnPlayerId).toBe('p3');
+    // p2 is not skipped, turn goes to p2
+    expect(engine.getPublicState().currentTurnPlayerId).toBe('p2');
   });
 
   it('handles WILD card and color selection', () => {

@@ -56,6 +56,7 @@ export const colorMatchDefinition: GameSchemaDefinition = {
     matchingProperties: ['color', 'value'],
     allowWildOnAny: true,
     reshuffleDiscardPile: true,
+    autoPassOnDraw: true,
     effects: {
       SKIP: {
         type: 'SKIP',
@@ -66,14 +67,14 @@ export const colorMatchDefinition: GameSchemaDefinition = {
       },
       DRAW_2: {
         type: 'DRAW_CARDS',
-        params: { drawCount: 2, skipTarget: true },
+        params: { drawCount: 2, skipTarget: false },
       },
       WILD: {
         type: 'CHOOSE_COLOR',
       },
       WILD_DRAW_4: {
         type: 'DRAW_CARDS',
-        params: { drawCount: 4, skipTarget: true },
+        params: { drawCount: 4, skipTarget: false },
       },
     },
     winCondition: {

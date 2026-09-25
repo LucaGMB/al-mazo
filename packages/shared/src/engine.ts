@@ -46,6 +46,7 @@ export interface GameRulesConfig {
   matchingProperties: ('color' | 'value')[];
   allowWildOnAny: boolean;
   reshuffleDiscardPile: boolean;
+  autoPassOnDraw?: boolean;
   effects: Record<string, CardEffect>; // keyed by card.value or card.type
   winCondition: WinConditionDefinition;
   zones?: ZoneDefinition[];
