@@ -65,6 +65,7 @@ export default function MesaPage() {
     clearUnreadChat,
     sendChatMessage,
     chatBubbles,
+    forcedDraw,
   } = useRoom();
 
   const [isActing, setIsActing] = useState(false);
@@ -590,7 +591,7 @@ export default function MesaPage() {
   }
 
   return (
-    <div className="relative max-w-[480px] md:max-w-3xl mx-auto min-h-screen flex flex-col bg-app">
+    <div className="relative max-w-[480px] md:max-w-3xl mx-auto h-dvh overflow-hidden flex flex-col bg-app">
       {forcedDraw && (
         <div
           key={forcedDraw.key}
@@ -682,7 +683,7 @@ export default function MesaPage() {
       ) : (
         <div
           ref={gameAreaRef}
-          className={`flex-1 relative px-4.5 py-1.5 min-h-[420px] md:min-h-[560px] ${
+          className={`flex-1 min-h-0 relative px-4.5 py-1.5 overflow-hidden ${
             isShaking ? "animate-table-shake" : ""
           }`}
         >
@@ -697,6 +698,7 @@ export default function MesaPage() {
                 publicState.currentTurnPlayerId === player.id ? publicState.turnExpiresAt : null
               }
               recentMessage={chatBubbles[player.id]?.text ?? null}
+              drawPulse={drawPulses[player.id] ?? null}
               score={publicState.scores?.[player.id]}
               escobas={
                 (publicState.customState?.escobas as Record<string, number> | undefined)?.[player.id]
@@ -714,7 +716,10 @@ export default function MesaPage() {
             </div>
           )}
 
-          <div className="absolute top-[90px] md:top-[120px] left-1/2 -translate-x-1/2 w-[300px] h-[300px] md:w-[440px] md:h-[440px] rounded-full border-[10px] border-[#3E2723] shadow-[inset_0_0_0_2px_rgba(212,175,55,0.5),inset_0_0_30px_rgba(0,0,0,0.55),0_0_0_1px_#0B160F,0_0_24px_rgba(212,175,55,0.18)] bg-[radial-gradient(circle_at_40%_35%,#2E6F40,#1D4B2B_70%,#112B19_100%)]">
+          <div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border-[10px] border-[#3E2723] shadow-[inset_0_0_0_2px_rgba(212,175,55,0.5),inset_0_0_30px_rgba(0,0,0,0.55),0_0_0_1px_#0B160F,0_0_24px_rgba(212,175,55,0.18)] bg-[radial-gradient(circle_at_40%_35%,#2E6F40,#1D4B2B_70%,#112B19_100%)]"
+            style={{ width: "min(300px, 85%, 85svh)", height: "min(300px, 85%, 85svh)" }}
+          >
             {isCommunity ? (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
                 <CommunityTable
@@ -755,6 +760,7 @@ export default function MesaPage() {
               isCurrentTurn={isMyTurn}
               turnExpiresAt={isMyTurn ? publicState.turnExpiresAt : null}
               recentMessage={chatBubbles[self.id]?.text ?? null}
+              drawPulse={drawPulses[self.id] ?? null}
               score={publicState.scores?.[self.id]}
               escobas={
                 (publicState.customState?.escobas as Record<string, number> | undefined)?.[self.id]

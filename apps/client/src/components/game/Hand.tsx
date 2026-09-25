@@ -16,16 +16,31 @@ interface DragState {
   startY: number;
 }
 
+// Abanico: cada carta rota un poco más cuanto más lejos está del centro de la
+// mano, con un leve descenso hacia los bordes (look de mano de naipes real).
+// El spread total se achica en manos grandes para no desparramar demasiado.
+function fanTransform(i: number, total: number): string {
+  if (total <= 1) return "";
+  const mid = (total - 1) / 2;
+  const offset = i - mid;
+  const step = Math.min(6, 40 / (total - 1));
+  const rotate = offset * step;
+  const lift = Math.abs(offset) * 2;
+  return `rotate(${rotate}deg) translateY(${lift}px)`;
+}
+
 export default function Hand({
   cards,
   canPlay,
   selectedCardId,
   onPlay,
+  isTapada,
 }: {
   cards: Card[];
   canPlay: boolean;
   selectedCardId?: string | null;
   onPlay: (cardId: string) => void;
+  isTapada?: boolean;
 }) {
   const dragRef = useRef<DragState | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -79,7 +94,7 @@ export default function Hand({
 
   return (
     <div
-      className={`flex-none min-h-32 md:min-h-44 flex flex-wrap content-end items-end justify-center gap-y-3 md:gap-y-4 px-3 pb-2.5 md:pb-4 transition-colors duration-300 ${
+      className={`relative flex-none min-h-32 md:min-h-44 flex flex-wrap content-end items-end justify-center gap-y-3 md:gap-y-4 px-3 pb-2.5 md:pb-4 transition-colors duration-300 ${
         canPlay ? "ring-1 ring-accent/30 bg-accent/5" : ""
       }`}
     >
