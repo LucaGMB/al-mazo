@@ -49,7 +49,7 @@ services:
       HOST: 0.0.0.0
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-al_mazo_db}?schema=public
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      CORS_ORIGIN: https://almazo.aguilucho.ar
+      CORS_ORIGIN: "*"
       AUTH_SECRET: ${AUTH_SECRET}
     networks:
       - internal

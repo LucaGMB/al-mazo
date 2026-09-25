@@ -171,7 +171,7 @@ export function initializeSocketServer(
 ): Server<ClientToServerEvents, ServerToClientEvents> {
   const io = new Server<ClientToServerEvents, ServerToClientEvents>(httpServer, {
     cors: {
-      origin: corsOrigin,
+      origin: corsOrigin === '*' ? true : corsOrigin,
       methods: ['GET', 'POST'],
       credentials: true,
     },
