@@ -23,7 +23,7 @@ export function getCardHierarchyValue(
   card: Card,
   hierarchy: Record<string, number> = TRUCO_CARD_HIERARCHY
 ): number {
-  if (card.type === 'TAPADA' || card.value === 'TAPADA' || (card as any).isTapada) return 0;
+  if (card.type === 'TAPADA' || card.value === 'TAPADA' || (card as { isTapada?: boolean }).isTapada) return 0;
   const suitKey = `${card.value} ${card.color}`;
   return hierarchy[suitKey] ?? hierarchy[String(card.value)] ?? 0;
 }
@@ -94,7 +94,7 @@ export function resolveTrickWinner(
   let leaderId: string | 'EMPATE' = 'EMPATE';
 
   for (const entry of cards) {
-    const isCardTapada = entry.isTapada || entry.card.type === 'TAPADA' || (entry.card as any).isTapada;
+    const isCardTapada = entry.isTapada || entry.card.type === 'TAPADA' || (entry.card as { isTapada?: boolean }).isTapada;
     const rank = isCardTapada ? 0 : getCardHierarchyValue(entry.card, hierarchy);
 
     if (rank > highestRank) {
@@ -110,8 +110,7 @@ export function resolveTrickWinner(
 
 export function resolveRoundWinner(
   tricks: Array<{ trickNumber: number; winnerId: string | 'EMPATE' | null }>,
-  manoPlayerId: string,
-  playerIds: string[]
+  manoPlayerId: string
 ): string | null {
   const t1 = tricks.find((t) => t.trickNumber === 1)?.winnerId ?? null;
   const t2 = tricks.find((t) => t.trickNumber === 2)?.winnerId ?? null;

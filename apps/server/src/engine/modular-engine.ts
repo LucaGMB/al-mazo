@@ -445,11 +445,7 @@ export class ModularGameEngine extends GameEngine {
     this.lastActionText = `Baza ${trickNum}: ${winnerName}`;
 
     const manoPlayerId = this.players[this.manoIndex]?.id ?? '';
-    const roundWinnerId = resolveRoundWinner(
-      this.roundTricks,
-      manoPlayerId,
-      this.players.map((p) => p.id)
-    );
+    const roundWinnerId = resolveRoundWinner(this.roundTricks, manoPlayerId);
 
     if (roundWinnerId) {
       this.finishTrickRound(roundWinnerId);

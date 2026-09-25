@@ -6,12 +6,36 @@ import type { Card, PublicGameState } from "@/types/engine";
 import CardView from "./CardView";
 import { calculateEnvidoScore } from "@/types/shared/truco-rules";
 
+type TrucoPendingBet = {
+  type: "ENVIDO" | "TRUCO";
+  call: string;
+  callerId: string;
+  challengedId: string;
+  pointsAtStake: number;
+  pointsIfRefused: number;
+};
+
+type TrucoCustomState = {
+  round?: number;
+  manoPlayerId?: string;
+  targetScore?: number;
+  currentTrick?: number;
+  roundTricks?: Array<{
+    trickNumber: number;
+    cards: Array<{ playerId: string; card: Card; isTapada?: boolean }>;
+    winnerId: string | "EMPATE" | null;
+  }>;
+  envido?: { state: string };
+  truco?: { state: string; currentLevel: string | null; lastCallerId?: string | null };
+  pendingBet?: TrucoPendingBet | null;
+  lastActionText?: string;
+};
+
 interface TrucoTableProps {
   publicState: PublicGameState;
   selfPlayerId: string | null;
   hand: Card[];
   canAct: boolean;
-  onPlayCard: (cardId: string, isTapada?: boolean) => Promise<void>;
   onExecuteAction: (action: string, payload?: Record<string, unknown>) => Promise<void>;
   isActing: boolean;
   onPlaySound?: (sound: string) => void;
@@ -24,7 +48,6 @@ export default function TrucoTable({
   selfPlayerId,
   hand,
   canAct,
-  onPlayCard,
   onExecuteAction,
   isActing,
   isTapada,
@@ -33,17 +56,12 @@ export default function TrucoTable({
   const [localTapadaMode, setLocalTapadaMode] = useState(false);
   const tapadaMode = isTapada !== undefined ? isTapada : localTapadaMode;
   const toggleTapada = onToggleTapada ?? (() => setLocalTapadaMode((prev) => !prev));
-  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
-  const customState = (publicState.customState ?? {}) as any;
+  const customState = (publicState.customState ?? {}) as TrucoCustomState;
   const manoPlayerId = customState.manoPlayerId ?? "";
   const targetScore = customState.targetScore ?? 30;
   const currentTrick = customState.currentTrick ?? 1;
-  const roundTricks = (customState.roundTricks ?? []) as Array<{
-    trickNumber: number;
-    cards: Array<{ playerId: string; card: Card; isTapada?: boolean }>;
-    winnerId: string | "EMPATE" | null;
-  }>;
+  const roundTricks = customState.roundTricks ?? [];
   const envidoState = customState.envido ?? { state: "AVAILABLE" };
   const trucoState = customState.truco ?? { state: "AVAILABLE", currentLevel: null };
   const pendingBet = customState.pendingBet ?? null;
@@ -57,7 +75,6 @@ export default function TrucoTable({
   const selfScore = (publicState.scores?.[self?.id ?? ""] ?? 0);
   const rivalScore = (publicState.scores?.[rival?.id ?? ""] ?? 0);
 
-  const isMyTurn = publicState.currentTurnPlayerId === selfPlayerId;
   const isPendingForMe = pendingBet && pendingBet.challengedId === selfPlayerId;
   const isPendingForRival = pendingBet && pendingBet.callerId === selfPlayerId;
 
@@ -89,17 +106,6 @@ export default function TrucoTable({
     !pendingBet &&
     currentTrick === 1 &&
     envidoState.state === "AVAILABLE";
-
-  async function handleCardClick(cardId: string) {
-    if (!canAct || pendingBet || isActing) return;
-    try {
-      await onPlayCard(cardId, tapadaMode);
-      if (tapadaMode) toggleTapada();
-      setSelectedCardId(null);
-    } catch {
-      // Handled by parent
-    }
-  }
 
   async function handleAction(action: string, payload?: Record<string, unknown>) {
     if (isActing) return;
