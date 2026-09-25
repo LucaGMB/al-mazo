@@ -8,11 +8,10 @@ import {
   calculateEnvidoScore,
   checkHasFlor,
   calculateFlorPoints,
-  getCardHierarchyValue,
 } from "@/types/shared/truco-rules";
 
 type TrucoPendingBet = {
-  type: "ENVIDO" | "TRUCO";
+  type: "ENVIDO" | "TRUCO" | "FLOR";
   call: string;
   callerId: string;
   challengedId: string;
@@ -31,6 +30,7 @@ type TrucoCustomState = {
     winnerId: string | "EMPATE" | null;
   }>;
   envido?: { state: string };
+  flor?: { state: string };
   truco?: { state: string; currentLevel: string | null; lastCallerId?: string | null };
   pendingBet?: TrucoPendingBet | null;
   lastActionText?: string;
@@ -723,12 +723,14 @@ export default function TrucoTable({
                       ? "hover:-translate-y-2 hover:scale-105 active:scale-95 cursor-pointer"
                       : "opacity-80 cursor-not-allowed"
                   }`}
-                  onClick={() => isPlayable && handleCardClick(card.id)}
+                  onClick={() =>
+                    isPlayable &&
+                    handleAction("PLAY_CARD", { cardId: card.id, isTapada: tapadaMode })
+                  }
                 >
                   <CardView
                     card={card}
                     size="lg"
-                    selected={selectedCardId === card.id}
                   />
                 </div>
                 <div className="text-center max-w-[90px] md:max-w-[110px]">

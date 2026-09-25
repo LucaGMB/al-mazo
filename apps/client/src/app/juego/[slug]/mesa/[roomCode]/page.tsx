@@ -283,7 +283,7 @@ export default function MesaPage() {
   }
 
   // IN_PROGRESS
-  const customState = (publicState.customState ?? {}) as Record<string, any>;
+  const customState = (publicState.customState ?? {}) as Record<string, unknown>;
   const isTruco =
     slug === "truco" ||
     Boolean(customState.manoPlayerId) ||
