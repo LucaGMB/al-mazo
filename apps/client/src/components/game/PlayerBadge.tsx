@@ -34,6 +34,7 @@ export default function PlayerBadge({
   score,
   escobas,
   capturedCount,
+  drawPulse,
 }: {
   player: PlayerPublicInfo;
   position: "top" | "left" | "right" | "self";
@@ -45,6 +46,7 @@ export default function PlayerBadge({
   score?: number;
   escobas?: number;
   capturedCount?: number;
+  drawPulse?: { amount: number; key: number } | null;
 }) {
   const { display } = decodePlayerName(player.name);
   const avatarColor = player.isBot

@@ -65,6 +65,7 @@ export default function MesaPage() {
     clearUnreadChat,
     sendChatMessage,
     chatBubbles,
+    forcedDraw,
   } = useRoom();
 
   const [isActing, setIsActing] = useState(false);
@@ -84,12 +85,14 @@ export default function MesaPage() {
   useEffect(() => {
     if (!publicState?.tableCards) return;
     const currentTableIds = new Set(publicState.tableCards.map((c) => c.id));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedTableCardIds((prev) => prev.filter((id) => currentTableIds.has(id)));
   }, [publicState?.tableCards]);
 
   // Reset selections when turn changes away from self
   useEffect(() => {
     if (publicState?.currentTurnPlayerId !== selfPlayerId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedHandCardId(null);
       setSelectedTableCardIds([]);
     }
@@ -697,6 +700,7 @@ export default function MesaPage() {
                 publicState.currentTurnPlayerId === player.id ? publicState.turnExpiresAt : null
               }
               recentMessage={chatBubbles[player.id]?.text ?? null}
+              drawPulse={drawPulses[player.id] ?? null}
               score={publicState.scores?.[player.id]}
               escobas={
                 (publicState.customState?.escobas as Record<string, number> | undefined)?.[player.id]
@@ -755,6 +759,7 @@ export default function MesaPage() {
               isCurrentTurn={isMyTurn}
               turnExpiresAt={isMyTurn ? publicState.turnExpiresAt : null}
               recentMessage={chatBubbles[self.id]?.text ?? null}
+              drawPulse={drawPulses[self.id] ?? null}
               score={publicState.scores?.[self.id]}
               escobas={
                 (publicState.customState?.escobas as Record<string, number> | undefined)?.[self.id]

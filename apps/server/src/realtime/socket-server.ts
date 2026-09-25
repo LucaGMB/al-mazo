@@ -14,6 +14,7 @@ import {
 } from './types.js';
 import { decideBotMove, decideEscobaBotMove } from '../engine/bot.js';
 import { ModularGameEngine } from '../engine/modular-engine.js';
+import { TrucoEngine } from '../games/truco/truco-engine.js';
 
 const BOT_MIN_DELAY_MS = 800;
 const BOT_MAX_DELAY_MS = 1200;
@@ -519,7 +520,7 @@ export function initializeSocketServer(
           scheduleTurnLifecycle(io, room);
         }
 
-        callback({ success: true, result: actionResult.result });
+        callback({ success: true, result });
       } catch (err: unknown) {
         callback({
           success: false,

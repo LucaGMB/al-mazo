@@ -26,6 +26,8 @@ export type ConditionType =
   | 'STATE_EQUALS'
   | 'CAN_CALL_ENVIDO'
   | 'CAN_CALL_TRUCO'
+  | 'CAN_CALL_FLOR'
+  | 'CAN_CALL_CONTRA_FLOR'
   | 'SUM_TARGET'
   | 'VALID_CAPTURE'
   | 'CUSTOM';
