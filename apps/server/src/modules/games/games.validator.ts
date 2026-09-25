@@ -41,12 +41,12 @@ const phaseSchema = z.object({
 });
 
 const winConditionSchema = z.object({
-  type: z.enum(['EMPTY_HAND', 'SCORE_THRESHOLD', 'LAST_REMAINING']),
+  type: z.enum(['EMPTY_HAND', 'SCORE_THRESHOLD', 'LAST_REMAINING', 'NONE']),
   targetScore: z.number().optional(),
 });
 
 const rulesSchema = z.object({
-  initialHandSize: z.number().int().positive().optional(),
+  initialHandSize: z.number().int().nonnegative().optional(),
   minPlayers: z.number().int().min(2),
   maxPlayers: z.number().int().max(12),
   matchingProperties: z.array(z.enum(['color', 'value'])).optional(),
@@ -60,6 +60,8 @@ const rulesSchema = z.object({
   customState: z.record(z.string(), z.unknown()).optional(),
   targetScore: z.number().optional(),
   roundScoring: z.record(z.string(), z.unknown()).optional(),
+  gameMode: z.enum(['TRICK', 'COMMUNITY', 'DISCARD', 'PROMPT']).optional(),
+  turnTimeoutSeconds: z.number().int().min(0).optional(),
 });
 
 const gameSchema = z

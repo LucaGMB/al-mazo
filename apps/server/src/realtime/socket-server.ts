@@ -78,7 +78,11 @@ function specialCardChatMessage(
 function emitGameFinished(io: IoServer, room: GameRoom, winnerId: string | null): void {
   io.to(room.code).emit('game:finished', { winnerId });
   const winner = winnerId ? room.getPlayer(winnerId) : undefined;
-  emitSystemChat(io, room, `¡Partida finalizada! Ganador: ${winner?.name ?? 'desconocido'}`);
+  emitSystemChat(
+    io,
+    room,
+    winner ? `¡Partida finalizada! Ganador: ${winner.name}` : '¡Partida finalizada!'
+  );
 }
 
 /**
@@ -181,12 +185,23 @@ function handleHumanTurnTimeout(io: IoServer, room: GameRoom, timedOutPlayerId: 
     }
   } else {
     const modularEngine = room.engine as ModularGameEngine;
+    const allowedActions =
+      room.definition.rules.phases?.find((phase) => phase.id === state.currentPhase)
+        ?.allowedActions ?? [];
+    const usesRevealFlow =
+      allowedActions.includes('REVEAL_CARD') || allowedActions.includes('END_GAME');
     try {
       if (state.pendingChoice && state.pendingChoice.playerId === timedOutPlayerId) {
         const defaultChoice =
           (room.definition.deckConfig.templates.find((t) => t.color && t.color !== 'ANY')?.color) ??
           'RED';
         modularEngine.chooseColor(timedOutPlayerId, defaultChoice);
+      } else if (usesRevealFlow) {
+        const action =
+          state.drawPileCount > 0 && allowedActions.includes('REVEAL_CARD')
+            ? 'REVEAL_CARD'
+            : 'END_GAME';
+        modularEngine.executeAction(timedOutPlayerId, action);
       } else {
         modularEngine.drawCard(timedOutPlayerId);
         modularEngine.passTurn(timedOutPlayerId);
@@ -257,26 +272,36 @@ function playBotTurn(io: IoServer, room: GameRoom): void {
     } else {
       const modularEngine = room.engine as ModularGameEngine;
       nextPlayerName = getNextPlayer(room, state)?.name;
-      const move = decideBotMove(
-        hand,
-        state.topDiscardCard,
-        state.activeColor,
-        room.definition.rules,
-        state.pendingDrawCount ?? 0
-      );
 
-      if (move) {
-        playedCard = hand.find((c) => c.id === move.cardId);
-        modularEngine.playCard(botId, move.cardId, move.chosenColor);
+      const allowedActions =
+        room.definition.rules.phases?.find((phase) => phase.id === state.currentPhase)
+          ?.allowedActions ?? [];
+      if (allowedActions.includes('REVEAL_CARD') && state.drawPileCount > 0) {
+        modularEngine.executeAction(botId, 'REVEAL_CARD');
+      } else if (allowedActions.includes('END_GAME') && state.drawPileCount === 0) {
+        modularEngine.executeAction(botId, 'END_GAME');
       } else {
         const pendingBefore = state.pendingDrawCount ?? 0;
-        modularEngine.drawCard(botId);
-        if (pendingBefore > 0) {
-          io.to(room.code).emit('player:forced_draw', { count: pendingBefore, byName: bot.name });
-          emitSystemChat(io, room, `💥 ${bot.name} se comió el pozo acumulado de ${pendingBefore} cartas.`);
-        }
-        if (room.engine.getPublicState().currentTurnPlayerId === botId) {
-          modularEngine.passTurn(botId);
+        const move = decideBotMove(
+          hand,
+          state.topDiscardCard,
+          state.activeColor,
+          room.definition.rules,
+          pendingBefore
+        );
+
+        if (move) {
+          playedCard = hand.find((c) => c.id === move.cardId);
+          modularEngine.playCard(botId, move.cardId, move.chosenColor);
+        } else {
+          modularEngine.drawCard(botId);
+          if (pendingBefore > 0) {
+            io.to(room.code).emit('player:forced_draw', { count: pendingBefore, byName: bot.name });
+            emitSystemChat(io, room, `💥 ${bot.name} se comió el pozo acumulado de ${pendingBefore} cartas.`);
+          }
+          if (room.engine.getPublicState().currentTurnPlayerId === botId) {
+            modularEngine.passTurn(botId);
+          }
         }
       }
     }

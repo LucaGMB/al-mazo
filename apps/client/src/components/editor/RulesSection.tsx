@@ -4,7 +4,7 @@ import { Icon } from "@iconify/react";
 import { DEFAULT_ZONES, type PhaseDefinition, type ZoneDefinition } from "@/lib/editor/presets";
 
 interface RulesSectionProps {
-  winConditionType: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING";
+  winConditionType: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE";
   targetScore?: number;
   matchingProperties: Array<"color" | "value">;
   allowWildOnAny: boolean;
@@ -15,8 +15,10 @@ interface RulesSectionProps {
   };
   activeZones: ZoneDefinition[];
   phases: PhaseDefinition[];
+  turnTimeoutSeconds?: number;
+  gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT";
   onChange: (fields: Partial<{
-    winConditionType: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING";
+    winConditionType: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE";
     targetScore?: number;
     matchingProperties: Array<"color" | "value">;
     allowWildOnAny: boolean;
@@ -27,6 +29,8 @@ interface RulesSectionProps {
     };
     activeZones: ZoneDefinition[];
     phases: PhaseDefinition[];
+    turnTimeoutSeconds?: number;
+    gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT" | "AUTO";
   }>) => void;
 }
 
@@ -72,6 +76,8 @@ const ACTION_OPTIONS = [
   { id: "FOLD", label: "Irse al Mazo", desc: "Retirarse de la mano o ronda" },
   { id: "CAPTURE_CARDS", label: "Capturar Cartas", desc: "Sumar valor objetivo con cartas de la mesa" },
   { id: "DROP_CARD", label: "Tirar a la Mesa", desc: "Dejar carta en la mesa comunitaria sin capturar" },
+  { id: "REVEAL_CARD", label: "Revelar Carta", desc: "Da vuelta la carta superior del mazo en público y pasa el turno" },
+  { id: "END_GAME", label: "Terminar Partida", desc: "Cierra la partida al instante (sin ganador si el efecto se configura así)" },
 ];
 
 export default function RulesSection({
@@ -82,6 +88,8 @@ export default function RulesSection({
   drawStack,
   activeZones,
   phases,
+  turnTimeoutSeconds,
+  gameMode,
   onChange,
 }: RulesSectionProps) {
   const currentActions = phases[0]?.allowedActions || ["PLAY_CARD", "DRAW_CARD", "PASS_TURN"];
@@ -138,7 +146,7 @@ export default function RulesSection({
       {/* Condición de Victoria */}
       <div className="flex flex-col gap-2.5">
         <label className="text-xs font-bold text-ink-soft">Condición de Victoria *</label>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
           {[
             {
               type: "EMPTY_HAND" as const,
@@ -157,6 +165,12 @@ export default function RulesSection({
               label: "Último en Pie",
               desc: "Gana el último jugador que no haya sido eliminado",
               icon: "pixelarticons:user",
+            },
+            {
+              type: "NONE" as const,
+              label: "Sin Ganador",
+              desc: "Cooperativo o conversación: termina por acción del esquema",
+              icon: "pixelarticons:coffee",
             },
           ].map((item) => {
             const isSelected = winConditionType === item.type;
@@ -199,6 +213,52 @@ export default function RulesSection({
             />
           </label>
         )}
+
+        <label className="flex flex-col gap-1.5 text-xs font-bold text-ink-soft mt-1 sm:max-w-xs">
+          <span>Tiempo por Turno (segundos)</span>
+          <input
+            type="number"
+            min={0}
+            max={3600}
+            value={turnTimeoutSeconds ?? 25}
+            onChange={(e) => onChange({ turnTimeoutSeconds: Number(e.target.value) })}
+            className="h-10 rounded-xl border border-subtle bg-app/80 px-3 text-sm text-ink focus:border-accent focus:outline-none transition-colors"
+          />
+          <span className="text-[10px] text-ink-faint font-normal">
+            Pasado ese tiempo el turno avanza solo. Usá 0 para juegos de conversación sin límite.
+          </span>
+        </label>
+
+        <div className="flex flex-col gap-2 mt-1">
+          <span className="text-xs font-bold text-ink-soft">Modo de Mesa</span>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            {[
+              { id: "AUTO" as const, label: "Automático", desc: "El motor lo deduce" },
+              { id: "DISCARD" as const, label: "Descarte", desc: "Mazo, pozo y mano" },
+              { id: "TRICK" as const, label: "Bazas", desc: "Mesa de bazas y envites" },
+              { id: "COMMUNITY" as const, label: "Comunitaria", desc: "Cartas para capturar" },
+              { id: "PROMPT" as const, label: "Preguntas", desc: "Revelado público sin manos" },
+            ].map((item) => {
+              const current = gameMode ?? "AUTO";
+              const isSelected = current === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onChange({ gameMode: item.id })}
+                  className={`flex flex-col text-left p-2.5 border transition-colors cursor-pointer ${
+                    isSelected
+                      ? "border-accent bg-accent/10"
+                      : "border-subtle bg-app/50 hover:border-medium"
+                  }`}
+                >
+                  <span className="text-[11px] font-black text-ink">{item.label}</span>
+                  <span className="text-[10px] text-ink-faint leading-tight">{item.desc}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Coincidencia de Cartas */}

@@ -73,18 +73,25 @@ Implementación 100% fiel al reglamento oficial de Bureau de Juegos:
 * Soporte para **Carta Tapada** (fuerza 0).
 * Todas las acciones, condiciones y efectos están desacoplados como capacidades modulares para el Editor Visual de Juegos (`/editor`).
 
-### 4. Información Oculta (Anti-Cheat / Fog of War)
+### 4. Juego Oficial: Desconectados (Conversación sin ganador)
+Juego de preguntas para conectar sin pantallas, con modo online y pass-and-play local:
+* 192 preguntas en cuatro secciones (Perspectiva, Presentación, Profundidad y Descomprimir) más cartas en blanco.
+* Mecánica declarativa de **revelado público**: `REVEAL_CARD` da vuelta la carta superior del mazo sin pasar por ninguna mano, `END_GAME` cierra la ronda sin ganador y la condición de victoria `NONE` deja el resultado abierto.
+* `turnTimeoutSeconds: 0` desactiva el auto-pase por inactividad: cada grupo responde a su ritmo.
+* Modo local pass-and-play en el cliente, con mazo, turnos y progreso persistidos en el dispositivo.
+
+### 5. Información Oculta (Anti-Cheat / Fog of War)
 El servidor es autoritativo:
 * **Estado Público (`room:state`)**: Se transmite a todos los jugadores (carta superior en descarte, color activo, turno actual, sentido y **conteo numérico** de cartas restantes de cada jugador).
 * **Mano Privada (`player:hand`)**: Solo se transmite de forma directa y cifrada al socket del jugador propietario.
 
-### 5. Resiliencia ante Desconexiones en Móviles
+### 6. Resiliencia ante Desconexiones en Móviles
 * Cada jugador recibe un `reconnectToken` secreto al unirse a la sala.
 * Si el socket se desconecta (por caída de red móvil o bloqueo de pantalla), se inicia una **ventana de gracia configurable** (default: 60s).
 * Si el jugador se reconecta antes de que expire, retoma su mano y su asiento automáticamente.
 * Si vence la ventana de gracia, se ejecuta la política configurada por la sala (`DISCARD_AND_CONTINUE`, `AUTO_PASS`, o `ABORT_MATCH`).
 
-### 6. Modo Local y Sincronización Offline
+### 7. Modo Local y Sincronización Offline
 El frontend puede ejecutar el motor de forma 100% desconectada. Al recuperar conexión, envía el reporte de la partida a `POST /api/matches/sync` para persistir el historial y actualizar estadísticas.
 
 ---

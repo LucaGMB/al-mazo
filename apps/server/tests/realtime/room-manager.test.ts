@@ -218,4 +218,26 @@ describe('RoomManager & GameRoom Lifecycle', () => {
 
     vi.useRealTimers();
   });
+
+  it('honors the definition turn timeout and disables it when zero', async () => {
+    vi.useFakeTimers();
+    const manager = new RoomManager();
+    const { room } = await manager.createRoom('desconectados', {
+      id: 'host_1',
+      name: 'Alice',
+      socketId: 'sock_1',
+    });
+
+    // La definición de Desconectados declara turnTimeoutSeconds: 0.
+    expect(room.turnTimeoutSeconds).toBe(0);
+
+    const onTimeoutMock = vi.fn();
+    room.startTurnTimer(onTimeoutMock);
+    expect(room.turnExpiresAt).toBeNull();
+
+    vi.advanceTimersByTime(60000);
+    expect(onTimeoutMock).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
 });

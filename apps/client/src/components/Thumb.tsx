@@ -9,6 +9,7 @@ export default function Thumb({ className = "w-full h-24 rounded", gameSlug }: {
     "color-match-blitz": { className: "from-[#ffd23f] via-[#ff8f4d] to-[#12163a]", icon: "pixelarticons:zap", badge: "BLITZ" },
     "color-match-chaos": { className: "from-[#ff6b9d] via-[#9b6bff] to-[#12163a]", icon: "pixelarticons:reload", badge: "CHAOS" },
     "descarte-criollo": { className: "from-[#ffd23f] via-[#ff8f4d] to-[#4d2c1a]", icon: "pixelarticons:sword", badge: "CRIOLLO" },
+    desconectados: { className: "from-[#4fa8ff] via-[#33c48d] to-[#12163a]", icon: "pixelarticons:message-text", badge: "CHARLA" },
   }[gameSlug ?? ""];
 
   if (gameSlug === "color-match") {

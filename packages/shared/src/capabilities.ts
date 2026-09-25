@@ -21,6 +21,7 @@ export type ConditionType =
   | 'MATCH_TOP_CARD'
   | 'IS_ACTIVE_PLAYER'
   | 'HAS_MIN_CARDS'
+  | 'HAS_DRAW_PILE_CARDS'
   | 'EVALUATE_CARD_HIERARCHY'
   | 'IS_BET_PENDING'
   | 'STATE_EQUALS'
@@ -60,7 +61,9 @@ export type EffectType =
   | 'CAPTURE_CARDS'
   | 'DROP_TO_TABLE'
   | 'DEAL_COMMUNITY'
-  | 'EVALUATE_ROUND_SCORING';
+  | 'EVALUATE_ROUND_SCORING'
+  | 'REVEAL_CARD'
+  | 'END_GAME';
 
 export interface EffectDefinition {
   type: EffectType;
@@ -88,7 +91,9 @@ export type StandardActionId =
   | 'CALL_RETRUCO'
   | 'CALL_VALE_CUATRO'
   | 'QUIERO'
-  | 'NO_QUIERO';
+  | 'NO_QUIERO'
+  | 'REVEAL_CARD'
+  | 'END_GAME';
 
 export interface ActionDefinition {
   id: string;
@@ -110,7 +115,7 @@ export interface PhaseDefinition {
 }
 
 export interface WinConditionDefinition {
-  type: 'EMPTY_HAND' | 'SCORE_THRESHOLD' | 'LAST_REMAINING';
+  type: 'EMPTY_HAND' | 'SCORE_THRESHOLD' | 'LAST_REMAINING' | 'NONE';
   targetScore?: number;
 }
 

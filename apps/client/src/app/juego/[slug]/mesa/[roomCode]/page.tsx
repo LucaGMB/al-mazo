@@ -16,6 +16,7 @@ import ColorPicker from "@/components/game/ColorPicker";
 import ChatDrawer from "@/components/game/ChatDrawer";
 import TrucoTable from "@/components/game/TrucoTable";
 import CommunityTable, { getEscobaPointValue } from "@/components/game/CommunityTable";
+import DesconectadosTable from "@/components/game/DesconectadosTable";
 import { useRoom } from "@/lib/room/use-room";
 import { assignSeats } from "@/lib/room/seating";
 import { decodePlayerName } from "@/lib/room/player-name";
@@ -372,6 +373,7 @@ export default function MesaPage() {
   if (publicState.status === "FINISHED") {
     const winner = publicState.players.find((p) => p.id === publicState.winnerId);
     const isWinner = winnerId === selfPlayerId;
+    const isPromptGame = publicState.gameMode === "PROMPT";
     return (
       <div className="relative max-w-[480px] mx-auto min-h-screen flex flex-col items-center justify-center gap-4 bg-app text-center px-6 overflow-hidden">
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
@@ -390,16 +392,22 @@ export default function MesaPage() {
           ))}
         </div>
         <Icon
-          icon="pixelarticons:trophy"
+          icon={isPromptGame ? "pixelarticons:coffee" : "pixelarticons:trophy"}
           width={56}
           height={56}
           className="relative z-10 animate-bounce text-warning"
         />
         <div className="relative z-10 font-display text-xl font-black text-warning">
-          {isWinner ? "¡Victoria!" : "Partida Terminada"}
+          {isPromptGame
+            ? "Se acabaron las preguntas"
+            : isWinner
+              ? "¡Victoria!"
+              : "Partida Terminada"}
         </div>
         <div className="relative z-10 text-[14px] text-ink">
-          {winner ? (
+          {isPromptGame ? (
+            "Gracias por desconectar un rato y escucharse."
+          ) : winner ? (
             <>
               Ganó{" "}
               <span className="font-bold text-accent">
@@ -441,6 +449,7 @@ export default function MesaPage() {
   const pendingChoiceForMe = publicState.pendingChoice?.playerId === selfPlayerId;
   const pendingChoiceForOther = !!publicState.pendingChoice && !pendingChoiceForMe;
   const pendingBet = isTruco ? customState.pendingBet ?? null : null;
+  const isPromptGame = gameMode === "PROMPT";
   // Mientras hay un color pendiente de elegir (comodín recién jugado), el
   // turno sigue siendo del mismo jugador pero no puede jugar/robar otra carta
   // hasta resolver el color (ver GameEngine.playCard en el server).
@@ -453,6 +462,17 @@ export default function MesaPage() {
     try {
       await executeAction(action, payload);
       play("reaction");
+    } finally {
+      setIsActing(false);
+    }
+  }
+
+  async function handlePromptAction(action: string, payload?: Record<string, unknown>) {
+    if (isActing) return;
+    setIsActing(true);
+    try {
+      await executeAction(action, payload);
+      play("playCard");
     } finally {
       setIsActing(false);
     }
@@ -647,7 +667,14 @@ export default function MesaPage() {
         </div>
       </div>
 
-      {isTruco ? (
+      {isPromptGame ? (
+        <DesconectadosTable
+          publicState={publicState}
+          selfPlayerId={selfPlayerId}
+          isActing={isActing}
+          onExecuteAction={handlePromptAction}
+        />
+      ) : isTruco ? (
         <div
           className={`flex-1 relative px-3 py-2 ${
             isShaking ? "animate-table-shake" : ""
@@ -891,7 +918,7 @@ export default function MesaPage() {
         </div>
       )}
 
-      {!isTruco && (
+      {!isTruco && !isPromptGame && (
         <div className="flex-none px-3.5 md:px-6 py-1.5 md:py-3 flex items-center justify-between">
           <div className="flex items-center gap-1.5 font-medium text-[11px] md:text-sm text-ink">
             <span className={`w-2 h-2 rounded-full ${isMyTurn ? "bg-accent" : "bg-ink-faint"}`} />
@@ -915,7 +942,7 @@ export default function MesaPage() {
 
       {lastError && <div className="text-[12px] text-danger text-center px-4 pb-2">{lastError}</div>}
 
-      {!isTruco && !isCommunity && self?.cardCount === 1 && !hasShouted && (
+      {!isTruco && !isCommunity && !isPromptGame && self?.cardCount === 1 && !hasShouted && (
         <div className="flex-none flex justify-center pb-1">
           <button
             type="button"
@@ -957,7 +984,7 @@ export default function MesaPage() {
       </div>
 
       {/* Truco renderiza su propia mano dentro de <TrucoTable />: no duplicar. */}
-      {!isTruco && (
+      {!isTruco && !isPromptGame && (
         <Hand
           cards={hand}
           canPlay={isCommunity ? canAct : canPlayHandCards}
