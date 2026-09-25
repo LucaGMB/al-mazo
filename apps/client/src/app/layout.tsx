@@ -18,6 +18,9 @@ const silkscreen = Silkscreen({
 export const metadata: Metadata = {
   title: "Al Mazo",
   description: "Plataforma de juegos de cartas en tiempo real",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

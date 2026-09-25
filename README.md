@@ -1,5 +1,7 @@
 # Al Mazo Server 🃏
 
+![Al Mazo](apps/client/public/readme-image.jpeg)
+
 Servidor modular de juegos de mesa y cartas en tiempo real para la plataforma **Al Mazo**. Diseñado con una arquitectura modular y desacoplada, cuenta con un motor de reglas declarativo en JSON, multijugador online con separación estricta de información oculta (manos privadas vs. estado público), resiliencia nativa a desconexiones y sincronización de partidas offline/locales.
 
 ---
