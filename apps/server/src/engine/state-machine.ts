@@ -137,6 +137,22 @@ export class GameEngine {
     return [...player.hand];
   }
 
+  public hasPlayableCard(playerId: string): boolean {
+    const player = this.players.find((p) => p.id === playerId);
+    if (!player) {
+      throw new Error(`Player ${playerId} not found`);
+    }
+    return player.hand.some(
+      (card) =>
+        validateCardPlay(
+          card,
+          this.getTopDiscardCard(),
+          this.activeColor,
+          this.definition.rules
+        ).isValid
+    );
+  }
+
   public playCard(playerId: string, cardId: string, chosenColor?: string): void {
     if (this.status !== 'IN_PROGRESS') {
       throw new Error('Game is not in progress');
@@ -282,6 +298,15 @@ export class GameEngine {
 
     currentPlayer.hand.push(card);
     currentPlayer.hasDrawnThisTurn = true;
+
+    if (
+      this.definition.rules.autoPassOnDraw &&
+      !this.hasPlayableCard(playerId)
+    ) {
+      currentPlayer.hasDrawnThisTurn = false;
+      this.advanceTurn(1);
+    }
+
     return card;
   }
 
@@ -318,12 +343,7 @@ export class GameEngine {
 
       case 'REVERSE': {
         this.turnDirection = (this.turnDirection * -1) as TurnDirection;
-        // In 2 player games, reverse acts as a skip
-        if (this.players.length === 2) {
-          this.advanceTurn(2);
-        } else {
-          this.advanceTurn(1);
-        }
+        this.advanceTurn(1);
         break;
       }
 

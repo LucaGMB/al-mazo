@@ -290,8 +290,8 @@ export default function MesaPage() {
   const isMyTurn = publicState.currentTurnPlayerId === selfPlayerId;
   const pendingChoiceForMe = publicState.pendingChoice?.playerId === selfPlayerId;
   const pendingChoiceForOther = !!publicState.pendingChoice && !pendingChoiceForMe;
-  const customState = (publicState.customState ?? {}) as Record<string, any>;
-  const pendingBet = isTruco ? customState.pendingBet ?? null : null;
+  const customState = (publicState.customState ?? {}) as Record<string, unknown>;
+  const pendingBet = isTruco ? (customState.pendingBet ?? null) : null;
   // Mientras hay un color pendiente de elegir (comodín recién jugado), el
   // turno sigue siendo del mismo jugador pero no puede jugar/robar otra carta
   // hasta resolver el color (ver GameEngine.playCard en el server).
@@ -436,7 +436,6 @@ export default function MesaPage() {
             selfPlayerId={selfPlayerId}
             hand={hand}
             canAct={canAct}
-            onPlayCard={(cardId, tapada) => handlePlay(cardId, tapada)}
             onExecuteAction={handleTrucoAction}
             isActing={isActing}
             isTapada={isTapada}
