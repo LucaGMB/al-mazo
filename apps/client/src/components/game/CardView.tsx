@@ -112,6 +112,7 @@ export default function CardView({
       <img
         src={unoSrc}
         alt=""
+        draggable={false}
         className="h-full w-full [image-rendering:pixelated] drop-shadow-[3px_4px_0_rgba(0,0,0,0.4)]"
       />
     );

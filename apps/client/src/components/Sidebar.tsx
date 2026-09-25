@@ -20,6 +20,7 @@ export default function Sidebar() {
         <img
           src="/text-logo.png"
           alt="Al Mazo"
+          draggable={false}
           className="h-8 w-auto [image-rendering:pixelated]"
         />
       </div>

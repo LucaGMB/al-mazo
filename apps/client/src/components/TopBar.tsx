@@ -15,7 +15,7 @@ export default function TopBar({ title }: { title: string }) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-subtle/60 py-3.5 md:py-4">
       <Link href="/" className="flex items-center gap-2 text-inherit no-underline">
-        <img src="/text-logo.png" alt="Al Mazo" className="h-6 w-auto [image-rendering:pixelated] md:hidden" />
+        <img src="/text-logo.png" alt="Al Mazo" draggable={false} className="h-6 w-auto [image-rendering:pixelated] md:hidden" />
  <span className="hidden items-center gap-1.5 bg-success/15 px-2 py-1 text-[9px] font-bold tracking-wider text-success sm:flex">
  <span className="h-1.5 w-1.5 animate-pulse bg-success" /> EN VIVO
         </span>

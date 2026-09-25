@@ -32,6 +32,7 @@ export default function Thumb({ className = "w-full h-24 ", gameSlug }: { classN
         <img
           src="/pixel/cards/back.png"
           alt=""
+          draggable={false}
           className="h-[70%] w-auto [image-rendering:pixelated] drop-shadow-[2px_3px_0_rgba(0,0,0,0.4)]"
         />
       ) : (
