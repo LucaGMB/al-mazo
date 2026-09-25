@@ -37,14 +37,21 @@ export interface GameDefinitionData {
     matchingProperties?: Array<"color" | "value">;
     allowWildOnAny?: boolean;
     reshuffleDiscardPile?: boolean;
+    drawStack?: {
+      rule: "OFF" | "SAME_TYPE" | "HIGHER_OR_EQUAL" | "ALL";
+      endsTurnOnDraw?: boolean;
+      allowAnyColorDraw2OnDraw4?: boolean;
+    };
     winCondition: {
-      type: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING";
+      type: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE";
       targetScore?: number;
     };
     zones?: ZoneDefinition[];
     phases?: PhaseDefinition[];
     cardHierarchy?: Record<string, number>;
     targetScore?: number;
+    turnTimeoutSeconds?: number;
+    gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT";
     effects?: Record<string, { type: string; params?: Record<string, unknown> }>;
   };
 }
@@ -177,6 +184,11 @@ export const DEFAULT_NEW_GAME: GameDefinitionData = {
     matchingProperties: ["color", "value"],
     allowWildOnAny: true,
     reshuffleDiscardPile: true,
+    drawStack: {
+      rule: "ALL",
+      endsTurnOnDraw: true,
+      allowAnyColorDraw2OnDraw4: true,
+    },
     winCondition: {
       type: "EMPTY_HAND",
     },

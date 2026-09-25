@@ -1,4 +1,4 @@
-import { CardTemplate, GameSchemaDefinition } from '../../engine/types.js';
+import { CardTemplate, DEFAULT_DRAW_STACK_CONFIG, GameSchemaDefinition } from '../../engine/types.js';
 
 const COLORS = ['RED', 'BLUE', 'GREEN', 'YELLOW'] as const;
 
@@ -53,6 +53,7 @@ export const colorMatchChaosDefinition: GameSchemaDefinition = {
     allowWildOnAny: true,
     reshuffleDiscardPile: true,
     autoPassOnDraw: true,
+    drawStack: DEFAULT_DRAW_STACK_CONFIG,
     effects: {
       SKIP: {
         type: 'SKIP',

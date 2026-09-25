@@ -188,14 +188,14 @@ export default function DeckSection({
           </div>
           <input
             type="range"
-            min={1}
+            min={0}
             max={15}
             value={initialHandSize}
             onChange={(e) => onInitialHandSizeChange(Number(e.target.value))}
             className="w-full accent-warning cursor-pointer"
           />
           <span className="text-[10px] text-ink-faint">
-            Cantidad de cartas repartidas al inicio de la ronda (ej: 3 en truco, 7 en color-match)
+            Cantidad de cartas repartidas al inicio de la ronda (ej: 3 en truco, 7 en color-match). Usá 0 para juegos que no reparten manos (ej: revelar preguntas).
           </span>
         </label>
 

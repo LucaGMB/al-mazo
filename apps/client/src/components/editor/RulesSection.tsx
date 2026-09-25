@@ -4,21 +4,58 @@ import { Icon } from "@iconify/react";
 import { DEFAULT_ZONES, type PhaseDefinition, type ZoneDefinition } from "@/lib/editor/presets";
 
 interface RulesSectionProps {
-  winConditionType: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING";
+  winConditionType: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE";
   targetScore?: number;
   matchingProperties: Array<"color" | "value">;
   allowWildOnAny: boolean;
+  drawStack?: {
+    rule: "OFF" | "SAME_TYPE" | "HIGHER_OR_EQUAL" | "ALL";
+    endsTurnOnDraw?: boolean;
+    allowAnyColorDraw2OnDraw4?: boolean;
+  };
   activeZones: ZoneDefinition[];
   phases: PhaseDefinition[];
+  turnTimeoutSeconds?: number;
+  gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT";
   onChange: (fields: Partial<{
-    winConditionType: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING";
+    winConditionType: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE";
     targetScore?: number;
     matchingProperties: Array<"color" | "value">;
     allowWildOnAny: boolean;
+    drawStack?: {
+      rule: "OFF" | "SAME_TYPE" | "HIGHER_OR_EQUAL" | "ALL";
+      endsTurnOnDraw?: boolean;
+      allowAnyColorDraw2OnDraw4?: boolean;
+    };
     activeZones: ZoneDefinition[];
     phases: PhaseDefinition[];
+    turnTimeoutSeconds?: number;
+    gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT" | "AUTO";
   }>) => void;
 }
+
+const DRAW_STACK_MODES = [
+  {
+    rule: "ALL" as const,
+    label: "Todo acumulable",
+    desc: "+2 y +4 combinables entre sí de cualquier forma",
+  },
+  {
+    rule: "SAME_TYPE" as const,
+    label: "Mismo tipo",
+    desc: "+2 solo sobre +2, +4 solo sobre +4",
+  },
+  {
+    rule: "HIGHER_OR_EQUAL" as const,
+    label: "Igual o mayor",
+    desc: "+4 contrarresta +2 o +4; +2 solo sobre +2",
+  },
+  {
+    rule: "OFF" as const,
+    label: "Desactivado",
+    desc: "Sin acumulación, el siguiente jugador roba de inmediato",
+  },
+];
 
 const ACTION_OPTIONS = [
   { id: "PLAY_CARD", label: "Jugar Carta", desc: "Bajar carta a la mesa o descarte" },
@@ -39,6 +76,8 @@ const ACTION_OPTIONS = [
   { id: "FOLD", label: "Irse al Mazo", desc: "Retirarse de la mano o ronda" },
   { id: "CAPTURE_CARDS", label: "Capturar Cartas", desc: "Sumar valor objetivo con cartas de la mesa" },
   { id: "DROP_CARD", label: "Tirar a la Mesa", desc: "Dejar carta en la mesa comunitaria sin capturar" },
+  { id: "REVEAL_CARD", label: "Revelar Carta", desc: "Da vuelta la carta superior del mazo en público y pasa el turno" },
+  { id: "END_GAME", label: "Terminar Partida", desc: "Cierra la partida al instante (sin ganador si el efecto se configura así)" },
 ];
 
 export default function RulesSection({
@@ -46,11 +85,17 @@ export default function RulesSection({
   targetScore,
   matchingProperties,
   allowWildOnAny,
+  drawStack,
   activeZones,
   phases,
+  turnTimeoutSeconds,
+  gameMode,
   onChange,
 }: RulesSectionProps) {
   const currentActions = phases[0]?.allowedActions || ["PLAY_CARD", "DRAW_CARD", "PASS_TURN"];
+  const currentStackRule = drawStack?.rule ?? "ALL";
+  const currentEndsTurn = drawStack?.endsTurnOnDraw ?? true;
+  const currentAllowAnyColor = drawStack?.allowAnyColorDraw2OnDraw4 ?? true;
 
   function toggleAction(actionId: string) {
     const nextActions = currentActions.includes(actionId)
@@ -101,7 +146,7 @@ export default function RulesSection({
       {/* Condición de Victoria */}
       <div className="flex flex-col gap-2.5">
         <label className="text-xs font-bold text-ink-soft">Condición de Victoria *</label>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
           {[
             {
               type: "EMPTY_HAND" as const,
@@ -120,6 +165,12 @@ export default function RulesSection({
               label: "Último en Pie",
               desc: "Gana el último jugador que no haya sido eliminado",
               icon: "pixelarticons:user",
+            },
+            {
+              type: "NONE" as const,
+              label: "Sin Ganador",
+              desc: "Cooperativo o conversación: termina por acción del esquema",
+              icon: "pixelarticons:coffee",
             },
           ].map((item) => {
             const isSelected = winConditionType === item.type;
@@ -162,6 +213,52 @@ export default function RulesSection({
             />
           </label>
         )}
+
+        <label className="flex flex-col gap-1.5 text-xs font-bold text-ink-soft mt-1 sm:max-w-xs">
+          <span>Tiempo por Turno (segundos)</span>
+          <input
+            type="number"
+            min={0}
+            max={3600}
+            value={turnTimeoutSeconds ?? 25}
+            onChange={(e) => onChange({ turnTimeoutSeconds: Number(e.target.value) })}
+            className="h-10 rounded-xl border border-subtle bg-app/80 px-3 text-sm text-ink focus:border-accent focus:outline-none transition-colors"
+          />
+          <span className="text-[10px] text-ink-faint font-normal">
+            Pasado ese tiempo el turno avanza solo. Usá 0 para juegos de conversación sin límite.
+          </span>
+        </label>
+
+        <div className="flex flex-col gap-2 mt-1">
+          <span className="text-xs font-bold text-ink-soft">Modo de Mesa</span>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            {[
+              { id: "AUTO" as const, label: "Automático", desc: "El motor lo deduce" },
+              { id: "DISCARD" as const, label: "Descarte", desc: "Mazo, pozo y mano" },
+              { id: "TRICK" as const, label: "Bazas", desc: "Mesa de bazas y envites" },
+              { id: "COMMUNITY" as const, label: "Comunitaria", desc: "Cartas para capturar" },
+              { id: "PROMPT" as const, label: "Preguntas", desc: "Revelado público sin manos" },
+            ].map((item) => {
+              const current = gameMode ?? "AUTO";
+              const isSelected = current === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onChange({ gameMode: item.id })}
+                  className={`flex flex-col text-left p-2.5 border transition-colors cursor-pointer ${
+                    isSelected
+                      ? "border-accent bg-accent/10"
+                      : "border-subtle bg-app/50 hover:border-medium"
+                  }`}
+                >
+                  <span className="text-[11px] font-black text-ink">{item.label}</span>
+                  <span className="text-[10px] text-ink-faint leading-tight">{item.desc}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Coincidencia de Cartas */}
@@ -211,6 +308,110 @@ export default function RulesSection({
             </div>
           </label>
         </div>
+      </div>
+
+      {/* Acumulación de Cartas de Robo */}
+      <div className="rounded-xl border border-subtle bg-app/60 p-4 flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-xs font-bold text-ink">Acumulación de Cartas de Robo (+2 / +4)</div>
+            <p className="text-[11px] text-ink-faint">
+              Permite a los jugadores responder a un castigo jugando otra carta de robo
+            </p>
+          </div>
+          <span className="text-xs font-bold text-accent font-mono uppercase">
+            {currentStackRule}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+          {DRAW_STACK_MODES.map((mode) => {
+            const isSelected = currentStackRule === mode.rule;
+            return (
+              <button
+                key={mode.rule}
+                type="button"
+                onClick={() =>
+                  onChange({
+                    drawStack: {
+                      rule: mode.rule,
+                      endsTurnOnDraw: currentEndsTurn,
+                      allowAnyColorDraw2OnDraw4: currentAllowAnyColor,
+                    },
+                  })
+                }
+                className={`flex flex-col text-left p-3 rounded-lg border transition-all cursor-pointer ${
+                  isSelected
+                    ? "border-accent bg-accent/10 shadow-[0_0_12px_rgba(255,210,63,0.2)] text-ink"
+                    : "border-subtle bg-statusbar/40 text-ink-faint hover:border-medium hover:text-ink"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-black text-ink">{mode.label}</span>
+                  <Icon
+                    icon={isSelected ? "pixelarticons:check" : "pixelarticons:chevron-right"}
+                    width={14}
+                    height={14}
+                    className={isSelected ? "text-accent" : "text-ink-faint"}
+                  />
+                </div>
+                <p className="text-[10px] text-ink-faint leading-tight">{mode.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        {currentStackRule !== "OFF" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-subtle/50">
+            <label className="flex items-center gap-2.5 rounded-lg border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+              <input
+                type="checkbox"
+                checked={currentEndsTurn}
+                onChange={(e) =>
+                  onChange({
+                    drawStack: {
+                      rule: currentStackRule,
+                      endsTurnOnDraw: e.target.checked,
+                      allowAnyColorDraw2OnDraw4: currentAllowAnyColor,
+                    },
+                  })
+                }
+                className="w-4 h-4 accent-accent rounded cursor-pointer"
+              />
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-ink">Fin de turno al robar pozo</span>
+                <span className="text-[10px] text-ink-faint">
+                  Si no puede contrarrestar, roba todo el pozo y su turno termina
+                </span>
+              </div>
+            </label>
+
+            {currentStackRule === "ALL" && (
+              <label className="flex items-center gap-2.5 rounded-lg border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+                <input
+                  type="checkbox"
+                  checked={currentAllowAnyColor}
+                  onChange={(e) =>
+                    onChange({
+                      drawStack: {
+                        rule: currentStackRule,
+                        endsTurnOnDraw: currentEndsTurn,
+                        allowAnyColorDraw2OnDraw4: e.target.checked,
+                      },
+                    })
+                  }
+                  className="w-4 h-4 accent-accent rounded cursor-pointer"
+                />
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-ink">+2 comodín sobre +4</span>
+                  <span className="text-[10px] text-ink-faint">
+                    Permite responder a un +4 con un +2 de cualquier color
+                  </span>
+                </div>
+              </label>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Zonas de la Mesa */}

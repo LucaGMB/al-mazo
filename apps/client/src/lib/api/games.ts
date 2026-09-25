@@ -31,6 +31,23 @@ const gameDetailSchema = z.object({
     rules: z.object({
       minPlayers: z.number(),
       maxPlayers: z.number(),
+      initialHandSize: z.number().optional(),
+      matchingProperties: z.array(z.enum(["color", "value"])).optional(),
+      allowWildOnAny: z.boolean().optional(),
+      reshuffleDiscardPile: z.boolean().optional(),
+      winCondition: z
+        .object({
+          type: z.enum(["EMPTY_HAND", "SCORE_THRESHOLD", "LAST_REMAINING", "NONE"]),
+          targetScore: z.number().optional(),
+        })
+        .optional(),
+      zones: z.array(z.unknown()).optional(),
+      phases: z.array(z.unknown()).optional(),
+      cardHierarchy: z.record(z.string(), z.number()).optional(),
+      targetScore: z.number().optional(),
+      turnTimeoutSeconds: z.number().optional(),
+      gameMode: z.enum(["TRICK", "COMMUNITY", "DISCARD", "PROMPT"]).optional(),
+      customState: z.record(z.string(), z.unknown()).optional(),
     }),
   }),
   isOfficial: z.boolean(),
@@ -60,6 +77,7 @@ export const SUPPORTED_GAME_SLUGS = [
   "truco",
   "escoba-del-15",
   "chinchon",
+  "desconectados",
 ] as const;
 
 export interface GameResponseRecord {
@@ -81,12 +99,14 @@ export interface GameResponseRecord {
     allowWildOnAny?: boolean;
     reshuffleDiscardPile?: boolean;
     winCondition?: {
-      type: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING";
+      type: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE";
       targetScore?: number;
     };
     zones?: unknown[];
     phases?: unknown[];
     effects?: Record<string, unknown>;
+    gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT";
+    customState?: Record<string, unknown>;
   };
 }
 

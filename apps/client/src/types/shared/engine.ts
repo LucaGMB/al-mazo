@@ -14,8 +14,9 @@ export type TurnDirection = 1 | -1;
  * - TRICK: bazas + apuestas (truco) → cada jugador juega a la mesa central.
  * - COMMUNITY: cartas comunitarias que se capturan (escoba del 15).
  * - DISCARD: robo/descarte clásico (color-match/UNO, chinchón, descarte criollo).
+ * - PROMPT: preguntas reveladas en público, sin manos (desconectados).
  */
-export type GameMode = 'TRICK' | 'COMMUNITY' | 'DISCARD';
+export type GameMode = 'TRICK' | 'COMMUNITY' | 'DISCARD' | 'PROMPT';
 
 export interface Card {
   id: string;
@@ -47,6 +48,20 @@ export interface CardEffect {
   };
 }
 
+export type DrawStackRule = 'OFF' | 'SAME_TYPE' | 'HIGHER_OR_EQUAL' | 'ALL';
+
+export interface DrawStackConfig {
+  rule: DrawStackRule;
+  endsTurnOnDraw: boolean;
+  allowAnyColorDraw2OnDraw4: boolean;
+}
+
+export const DEFAULT_DRAW_STACK_CONFIG: DrawStackConfig = {
+  rule: 'ALL',
+  endsTurnOnDraw: true,
+  allowAnyColorDraw2OnDraw4: true,
+};
+
 export interface GameRulesConfig {
   initialHandSize: number;
   minPlayers: number;
@@ -54,6 +69,8 @@ export interface GameRulesConfig {
   matchingProperties: ('color' | 'value')[];
   allowWildOnAny: boolean;
   reshuffleDiscardPile: boolean;
+  autoPassOnDraw?: boolean;
+  drawStack?: DrawStackConfig;
   effects: Record<string, CardEffect>; // keyed by card.value or card.type
   winCondition: WinConditionDefinition;
   zones?: ZoneDefinition[];
@@ -62,6 +79,10 @@ export interface GameRulesConfig {
   customState?: Record<string, unknown>;
   targetScore?: number;
   roundScoring?: Record<string, unknown>;
+  /** Optional explicit table layout; when omitted the engine derives it. */
+  gameMode?: GameMode;
+  /** Seconds before the server auto-passes a human turn. 0 disables the timer. */
+  turnTimeoutSeconds?: number;
 }
 
 export interface GameSchemaDefinition {
@@ -95,6 +116,7 @@ export interface PublicGameState {
     playerId: string;
     type: 'COLOR';
   } | null;
+  pendingDrawCount?: number;
   turnExpiresAt?: number | null;
   currentPhase?: string | null;
   trickCards?: Array<{ playerId: string; card: Card }>;

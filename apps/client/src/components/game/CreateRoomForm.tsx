@@ -10,9 +10,32 @@ import { saveRoomCredentials } from "@/lib/room/credentials";
 import { encodePlayerName } from "@/lib/room/player-name";
 import { DISCONNECT_POLICIES } from "@/lib/room/room-context";
 import { useSession } from "@/lib/session/use-session";
-import type { DisconnectPolicy } from "@/types/realtime";
+import type { DisconnectPolicy, DrawStackRule } from "@/types/realtime";
 
 type Tab = "crear" | "unirse";
+
+const DRAW_STACK_OPTIONS: { value: DrawStackRule; label: string; description: string }[] = [
+  {
+    value: "ALL",
+    label: "Todo acumulable (+2 y +4)",
+    description: "Cualquier carta de robo contrarresta otra (+2 sobre +4 y viceversa).",
+  },
+  {
+    value: "SAME_TYPE",
+    label: "Solo del mismo tipo",
+    description: "+2 solo sobre +2, +4 solo sobre +4.",
+  },
+  {
+    value: "HIGHER_OR_EQUAL",
+    label: "Igual o mayor valor",
+    description: "+4 contrarresta +2 o +4; +2 solo sobre +2.",
+  },
+  {
+    value: "OFF",
+    label: "Desactivado",
+    description: "Sin acumulación. El siguiente jugador roba inmediatamente.",
+  },
+];
 
 const TURN_PRESETS = [
   { seconds: 15, label: "Blitz" },
@@ -50,6 +73,9 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [graceSeconds, setGraceSeconds] = useState(25);
   const [policy, setPolicy] = useState<DisconnectPolicy>("DISCARD_AND_CONTINUE");
+  const [drawStackRule, setDrawStackRule] = useState<DrawStackRule>("ALL");
+  const [endsTurnOnDraw, setEndsTurnOnDraw] = useState(true);
+  const [allowAnyColorDraw2OnDraw4, setAllowAnyColorDraw2OnDraw4] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,6 +105,11 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
           disconnectGraceSeconds: graceSeconds,
           disconnectPolicy: policy,
           turnTimeoutSeconds: graceSeconds,
+          drawStack: {
+            rule: drawStackRule,
+            endsTurnOnDraw,
+            allowAnyColorDraw2OnDraw4,
+          },
         },
       });
 
@@ -231,20 +262,66 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
             {showAdvanced ? "Ocultar opciones avanzadas" : "Opciones avanzadas"}
           </button>
           {showAdvanced && (
- <label className="flex flex-col gap-1.5 border-2 border-subtle p-3 text-[13px] text-ink-soft">
-              Si un jugador no vuelve a tiempo
-              <select
-                value={policy}
-                onChange={(e) => setPolicy(e.target.value as DisconnectPolicy)}
- className="h-10 border border-subtle bg-app/60 text-ink text-sm px-3 focus:outline-none focus:border-accent"
-              >
-                {DISCONNECT_POLICIES.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="flex flex-col gap-3 border-2 border-subtle p-3 bg-app/40">
+              <label className="flex flex-col gap-1.5 text-[13px] text-ink-soft">
+                Acumulación de cartas de robo (+2 / +4)
+                <select
+                  value={drawStackRule}
+                  onChange={(e) => setDrawStackRule(e.target.value as DrawStackRule)}
+                  className="h-10 border border-subtle bg-app/60 text-ink text-sm px-3 focus:outline-none focus:border-accent"
+                >
+                  {DRAW_STACK_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-[11px] text-ink-faint">
+                  {DRAW_STACK_OPTIONS.find((opt) => opt.value === drawStackRule)?.description}
+                </span>
+              </label>
+
+              {drawStackRule !== "OFF" && (
+                <div className="flex flex-col gap-2 pt-2 border-t border-subtle/50">
+                  <label className="flex items-center gap-2 text-[12px] text-ink cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={endsTurnOnDraw}
+                      onChange={(e) => setEndsTurnOnDraw(e.target.checked)}
+                      className="accent-accent h-4 w-4 border-subtle"
+                    />
+                    <span>Finalizar turno al robar pozo acumulado</span>
+                  </label>
+
+                  {drawStackRule === "ALL" && (
+                    <label className="flex items-center gap-2 text-[12px] text-ink cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={allowAnyColorDraw2OnDraw4}
+                        onChange={(e) => setAllowAnyColorDraw2OnDraw4(e.target.checked)}
+                        className="accent-accent h-4 w-4 border-subtle"
+                      />
+                      <span>Permitir responder +4 con +2 de cualquier color</span>
+                    </label>
+                  )}
+                </div>
+              )}
+
+              <label className="flex flex-col gap-1.5 text-[13px] text-ink-soft pt-2 border-t border-subtle/50">
+                Si un jugador no vuelve a tiempo
+                <select
+                  value={policy}
+                  onChange={(e) => setPolicy(e.target.value as DisconnectPolicy)}
+                  className="h-10 border border-subtle bg-app/60 text-ink text-sm px-3 focus:outline-none focus:border-accent"
+                >
+                  {DISCONNECT_POLICIES.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           )}
         </div>
       )}

@@ -3,6 +3,7 @@ import { colorMatchDefinition } from './color-match/definition.js';
 import { colorMatchBlitzDefinition } from './color-match-blitz/definition.js';
 import { colorMatchChaosDefinition } from './color-match-chaos/definition.js';
 import { descarteCriolloDefinition } from './descarte-criollo/definition.js';
+import { desconectadosDefinition } from './desconectados/definition.js';
 import { escobaDefinition } from './escoba/definition.js';
 import { chinchonDefinition } from './chinchon/definition.js';
 import { trucoDefinition } from './truco/definition.js';
@@ -12,6 +13,7 @@ export const officialGames: Record<string, GameSchemaDefinition> = {
   [colorMatchBlitzDefinition.slug]: colorMatchBlitzDefinition,
   [colorMatchChaosDefinition.slug]: colorMatchChaosDefinition,
   [descarteCriolloDefinition.slug]: descarteCriolloDefinition,
+  [desconectadosDefinition.slug]: desconectadosDefinition,
   [escobaDefinition.slug]: escobaDefinition,
   [chinchonDefinition.slug]: chinchonDefinition,
   [trucoDefinition.slug]: trucoDefinition,

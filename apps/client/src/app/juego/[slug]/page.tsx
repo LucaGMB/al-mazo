@@ -64,6 +64,16 @@ const GAME_SHOWCASE: Record<string, { tagline: string; mechanics: string[] }> = 
       "Puntos por mayoría de cartas, oros, sietes, guindis y escobas",
     ],
   },
+  desconectados: {
+    tagline: "Un juego de preguntas para conectar sin pantallas.",
+    mechanics: [
+      "192 preguntas en 4 secciones",
+      "Perspectiva, Presentación, Profundidad y Descomprimir",
+      "Cartas en blanco para sumar tus preguntas",
+      "Sin ganador: solo conversar, reír y escucharse",
+      "Online o pass-and-play en un mismo dispositivo",
+    ],
+  },
 };
 
 export default function GameDetailPage() {
@@ -108,6 +118,7 @@ export default function GameDetailPage() {
 
   const supported = isSupportedGame(game.game.slug);
   const showcase = GAME_SHOWCASE[game.game.slug];
+  const localSupported = game.game.rules.gameMode === "PROMPT";
 
   return (
     <div className="min-h-screen bg-app">
@@ -145,6 +156,17 @@ export default function GameDetailPage() {
                 <Icon icon="pixelarticons:gamepad" width={16} height={16} className="text-accent" />
                 Multijugador online
               </span>
+              {localSupported && (
+                <span className="inline-flex items-center gap-2 rounded-full border border-subtle bg-statusbar px-3 py-1.5 text-[12px] md:text-[13px] font-medium text-ink-soft">
+                  <Icon
+                    icon="pixelarticons:device-mobile"
+                    width={16}
+                    height={16}
+                    className="text-accent"
+                  />
+                  Modo local
+                </span>
+              )}
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -177,15 +199,28 @@ export default function GameDetailPage() {
             )}
 
             {supported ? (
-              <Button
-                to={`/juego/${game.game.slug}/mesa`}
-                variant="primary"
-                fullWidth
-                className="!h-14 !text-base !px-7 md:w-auto"
-              >
-                <Icon icon="pixelarticons:play" width={20} height={20} />
-                Jugar ahora
-              </Button>
+              <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                <Button
+                  to={`/juego/${game.game.slug}/mesa`}
+                  variant="primary"
+                  fullWidth
+                  className="!h-14 !text-base !px-7 md:w-auto"
+                >
+                  <Icon icon="pixelarticons:play" width={20} height={20} />
+                  Jugar online
+                </Button>
+                {localSupported && (
+                  <Button
+                    to={`/juego/${game.game.slug}/local`}
+                    variant="outline"
+                    fullWidth
+                    className="!h-14 !text-sm !px-7 md:w-auto"
+                  >
+                    <Icon icon="pixelarticons:device-mobile" width={18} height={18} />
+                    Jugar en este dispositivo
+                  </Button>
+                )}
+              </div>
             ) : (
  <div className=" border-2 border-subtle px-4 py-3 text-[13px] text-ink-faint">
                 Este juego todavía no se puede jugar desde el cliente.

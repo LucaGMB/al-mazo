@@ -52,17 +52,24 @@ function getNextPlayer(room: GameRoom, state: PublicGameState): RoomPlayer | und
 function specialCardChatMessage(
   card: Card,
   playerName: string,
-  nextPlayerName?: string
+  nextPlayerName?: string,
+  pendingDrawCount?: number
 ): string | null {
   switch (String(card.value ?? card.type)) {
     case 'DRAW_2':
-      return `🃏 ${playerName} tiró un +2. ${nextPlayerName ?? 'El siguiente jugador'} roba 2 cartas.`;
+      if (pendingDrawCount && pendingDrawCount > 2) {
+        return `🔥 ${playerName} acumuló un +2. ¡El pozo sube a +${pendingDrawCount} cartas para ${nextPlayerName ?? 'el siguiente'}!`;
+      }
+      return `🃏 ${playerName} tiró un +2. ${nextPlayerName ?? 'El siguiente jugador'} debe responder o robar.`;
     case 'SKIP':
       return `🚫 ${playerName} tiró Salteo.`;
     case 'REVERSE':
       return `🔄 ${playerName} cambió el sentido de la ronda.`;
     case 'WILD_DRAW_4':
-      return `🃏 ${playerName} tiró un +4. ${nextPlayerName ?? 'El siguiente jugador'} roba 4 cartas.`;
+      if (pendingDrawCount && pendingDrawCount > 4) {
+        return `🔥 ${playerName} acumuló un +4. ¡El pozo sube a +${pendingDrawCount} cartas para ${nextPlayerName ?? 'el siguiente'}!`;
+      }
+      return `🃏 ${playerName} tiró un +4. ${nextPlayerName ?? 'El siguiente jugador'} debe responder o robar.`;
     default:
       return null;
   }
@@ -71,7 +78,11 @@ function specialCardChatMessage(
 function emitGameFinished(io: IoServer, room: GameRoom, winnerId: string | null): void {
   io.to(room.code).emit('game:finished', { winnerId });
   const winner = winnerId ? room.getPlayer(winnerId) : undefined;
-  emitSystemChat(io, room, `¡Partida finalizada! Ganador: ${winner?.name ?? 'desconocido'}`);
+  emitSystemChat(
+    io,
+    room,
+    winner ? `¡Partida finalizada! Ganador: ${winner.name}` : '¡Partida finalizada!'
+  );
 }
 
 /**
@@ -174,12 +185,23 @@ function handleHumanTurnTimeout(io: IoServer, room: GameRoom, timedOutPlayerId: 
     }
   } else {
     const modularEngine = room.engine as ModularGameEngine;
+    const allowedActions =
+      room.definition.rules.phases?.find((phase) => phase.id === state.currentPhase)
+        ?.allowedActions ?? [];
+    const usesRevealFlow =
+      allowedActions.includes('REVEAL_CARD') || allowedActions.includes('END_GAME');
     try {
       if (state.pendingChoice && state.pendingChoice.playerId === timedOutPlayerId) {
         const defaultChoice =
           (room.definition.deckConfig.templates.find((t) => t.color && t.color !== 'ANY')?.color) ??
           'RED';
         modularEngine.chooseColor(timedOutPlayerId, defaultChoice);
+      } else if (usesRevealFlow) {
+        const action =
+          state.drawPileCount > 0 && allowedActions.includes('REVEAL_CARD')
+            ? 'REVEAL_CARD'
+            : 'END_GAME';
+        modularEngine.executeAction(timedOutPlayerId, action);
       } else {
         modularEngine.drawCard(timedOutPlayerId);
         modularEngine.passTurn(timedOutPlayerId);
@@ -250,20 +272,36 @@ function playBotTurn(io: IoServer, room: GameRoom): void {
     } else {
       const modularEngine = room.engine as ModularGameEngine;
       nextPlayerName = getNextPlayer(room, state)?.name;
-      const move = decideBotMove(
-        hand,
-        state.topDiscardCard,
-        state.activeColor,
-        room.definition.rules
-      );
 
-      if (move) {
-        playedCard = hand.find((c) => c.id === move.cardId);
-        modularEngine.playCard(botId, move.cardId, move.chosenColor);
+      const allowedActions =
+        room.definition.rules.phases?.find((phase) => phase.id === state.currentPhase)
+          ?.allowedActions ?? [];
+      if (allowedActions.includes('REVEAL_CARD') && state.drawPileCount > 0) {
+        modularEngine.executeAction(botId, 'REVEAL_CARD');
+      } else if (allowedActions.includes('END_GAME') && state.drawPileCount === 0) {
+        modularEngine.executeAction(botId, 'END_GAME');
       } else {
-        modularEngine.drawCard(botId);
-        if (room.engine.getPublicState().currentTurnPlayerId === botId) {
-          modularEngine.passTurn(botId);
+        const pendingBefore = state.pendingDrawCount ?? 0;
+        const move = decideBotMove(
+          hand,
+          state.topDiscardCard,
+          state.activeColor,
+          room.definition.rules,
+          pendingBefore
+        );
+
+        if (move) {
+          playedCard = hand.find((c) => c.id === move.cardId);
+          modularEngine.playCard(botId, move.cardId, move.chosenColor);
+        } else {
+          modularEngine.drawCard(botId);
+          if (pendingBefore > 0) {
+            io.to(room.code).emit('player:forced_draw', { count: pendingBefore, byName: bot.name });
+            emitSystemChat(io, room, `💥 ${bot.name} se comió el pozo acumulado de ${pendingBefore} cartas.`);
+          }
+          if (room.engine.getPublicState().currentTurnPlayerId === botId) {
+            modularEngine.passTurn(botId);
+          }
         }
       }
     }
@@ -277,12 +315,12 @@ function playBotTurn(io: IoServer, room: GameRoom): void {
 
   broadcastPlayerHands(io, room);
 
+  const newState = room.getPublicState();
   if (playedCard) {
-    const chat = specialCardChatMessage(playedCard, bot.name, nextPlayerName);
+    const chat = specialCardChatMessage(playedCard, bot.name, nextPlayerName, newState.pendingDrawCount);
     if (chat) emitSystemChat(io, room, chat);
   }
 
-  const newState = room.getPublicState();
   io.to(room.code).emit('room:state', newState);
 
   if (newState.status === 'FINISHED') {
@@ -585,7 +623,13 @@ export function initializeSocketServer(
           (room.engine as any).playCard(player.id, cardId, chosenColor, isTapada);
 
           if (card) {
-            const chat = specialCardChatMessage(card, player.name, nextPlayer?.name);
+            const nextState = room.getPublicState();
+            const chat = specialCardChatMessage(
+              card,
+              player.name,
+              nextPlayer?.name,
+              nextState.pendingDrawCount
+            );
             if (chat && card.type !== 'WILD') emitSystemChat(io, room, chat);
           }
         }
@@ -620,7 +664,9 @@ export function initializeSocketServer(
           return callback({ success: false, error: 'Este juego no permite robar cartas del mazo' });
         }
 
-        const turnBefore = room.getPublicState().currentTurnPlayerId;
+        const stateBefore = room.getPublicState();
+        const pendingBefore = stateBefore.pendingDrawCount ?? 0;
+        const turnBefore = stateBefore.currentTurnPlayerId;
         const drawnCard = (room.engine as ModularGameEngine).drawCard(player.id);
 
         broadcastPlayerHands(io, room);
@@ -628,8 +674,14 @@ export function initializeSocketServer(
         const state = room.getPublicState();
         io.to(room.code).emit('room:state', state);
 
-        if (state.currentTurnPlayerId !== turnBefore) {
+        if (pendingBefore > 0) {
+          io.to(room.code).emit('player:forced_draw', { count: pendingBefore, byName: player.name });
+          emitSystemChat(io, room, `💥 ${player.name} se comió el pozo acumulado de ${pendingBefore} cartas.`);
+        } else if (state.currentTurnPlayerId !== turnBefore) {
           emitSystemChat(io, room, `🃏 ${player.name} robó una carta (pase automático).`);
+        }
+
+        if (state.currentTurnPlayerId !== turnBefore) {
           scheduleTurnLifecycle(io, room);
         }
 
@@ -661,17 +713,20 @@ export function initializeSocketServer(
 
         broadcastPlayerHands(io, room);
 
+        const stateAfterColor = room.getPublicState();
         const topValue = String(topCard?.value ?? topCard?.type ?? '');
         if (topValue === 'WILD_DRAW_4') {
-          emitSystemChat(
-            io,
-            room,
-            `🃏 ${player.name} tiró un +4. ${nextPlayer?.name ?? 'El siguiente jugador'} roba 4 cartas.`
+          const chat = specialCardChatMessage(
+            topCard!,
+            player.name,
+            nextPlayer?.name,
+            stateAfterColor.pendingDrawCount
           );
+          if (chat) emitSystemChat(io, room, chat);
         } else if (topValue === 'WILD') {
           emitSystemChat(io, room, `🎨 ${player.name} cambió el color a ${color}.`);
         }
-        io.to(room.code).emit('room:state', room.getPublicState());
+        io.to(room.code).emit('room:state', stateAfterColor);
 
         scheduleTurnLifecycle(io, room);
         callback({ success: true });

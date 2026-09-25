@@ -82,7 +82,7 @@ describe('ColorMatch Mechanics via GameEngine', () => {
     expect(state.currentTurnPlayerId).toBe('p3');
   });
 
-  it('triggers DRAW_2 effect forcing target to draw 2 cards without skipping', () => {
+  it('triggers DRAW_2 effect accumulating 2 cards for next player', () => {
     engine.start();
     const p1 = engine.getCurrentPlayer();
     const top = engine.getTopDiscardCard()!;
@@ -98,12 +98,15 @@ describe('ColorMatch Mechanics via GameEngine', () => {
     const p2HandBefore = engine.getPlayerHand('p2').length;
     engine.playCard('p1', 'd2_card');
 
-    // p2 draws 2 cards
-    const p2HandAfter = engine.getPlayerHand('p2').length;
-    expect(p2HandAfter).toBe(p2HandBefore + 2);
-
-    // p2 is not skipped, turn goes to p2
+    // With stacking enabled by default, p2 faces a pending draw penalty of 2 cards
+    expect(engine.getPublicState().pendingDrawCount).toBe(2);
     expect(engine.getPublicState().currentTurnPlayerId).toBe('p2');
+
+    // When p2 draws, p2 takes the 2 accumulated cards and turn advances to p3
+    engine.drawCard('p2');
+    expect(engine.getPlayerHand('p2').length).toBe(p2HandBefore + 2);
+    expect(engine.getPublicState().pendingDrawCount).toBe(0);
+    expect(engine.getPublicState().currentTurnPlayerId).toBe('p3');
   });
 
   it('handles WILD card and color selection', () => {

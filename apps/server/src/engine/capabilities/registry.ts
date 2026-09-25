@@ -22,6 +22,22 @@ export const BUILTIN_ACTIONS: ActionDefinition[] = [
     requiredConditions: [{ type: 'IS_ACTIVE_PLAYER' }],
   },
   {
+    id: 'REVEAL_CARD',
+    name: 'Reveal Card',
+    description:
+      'Reveal the top card of the draw pile face-up in a public zone without adding it to a hand. Useful for prompt/question games.',
+    requiredConditions: [{ type: 'IS_ACTIVE_PLAYER' }, { type: 'HAS_DRAW_PILE_CARDS' }],
+    effects: [{ type: 'REVEAL_CARD' }, { type: 'ADVANCE_TURN' }],
+  },
+  {
+    id: 'END_GAME',
+    name: 'End Game',
+    description:
+      'Finish the match immediately. Optionally wins as the acting player or leaves no winner (params.winner: ACTOR | NONE).',
+    requiredConditions: [{ type: 'IS_ACTIVE_PLAYER' }],
+    effects: [{ type: 'END_GAME', params: { winner: 'NONE' } }],
+  },
+  {
     id: 'CHOOSE_COLOR',
     name: 'Choose Color',
     description: 'Resolve a pending color choice after playing a wild card.',
@@ -163,6 +179,7 @@ export const BUILTIN_CONDITIONS: Array<{ type: ConditionType; description: strin
   { type: 'IS_ACTIVE_PLAYER', description: 'The acting player owns the current turn.' },
   { type: 'MATCH_TOP_CARD', description: 'The played card matches the top card by color or value.' },
   { type: 'HAS_MIN_CARDS', description: 'The acting player holds at least a minimum number of cards.' },
+  { type: 'HAS_DRAW_PILE_CARDS', description: 'The draw pile still holds at least one card.' },
   {
     type: 'EVALUATE_CARD_HIERARCHY',
     description: 'Compares card strength using the definition card hierarchy.',
@@ -206,6 +223,16 @@ export const BUILTIN_EFFECTS: Array<{ type: EffectType; description: string }> =
   { type: 'DROP_TO_TABLE', description: 'Move card from player hand to community table.' },
   { type: 'DEAL_COMMUNITY', description: 'Deal cards to the community zone.' },
   { type: 'EVALUATE_ROUND_SCORING', description: 'Calculate round scores based on captured cards and majorities.' },
+  {
+    type: 'REVEAL_CARD',
+    description:
+      'Reveal the top card of the draw pile face-up in the discard zone, keeping it out of any hand.',
+  },
+  {
+    type: 'END_GAME',
+    description:
+      'Finish the match immediately, optionally declaring the actor as winner or leaving the game without one.',
+  },
 ];
 
 export const BUILTIN_ZONES: ZoneDefinition[] = [

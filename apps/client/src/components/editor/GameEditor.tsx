@@ -519,8 +519,11 @@ export default function GameEditor() {
             targetScore={gameData.rules.winCondition.targetScore}
             matchingProperties={gameData.rules.matchingProperties ?? ["color", "value"]}
             allowWildOnAny={gameData.rules.allowWildOnAny ?? true}
+            drawStack={gameData.rules.drawStack}
             activeZones={gameData.rules.zones ?? []}
             phases={gameData.rules.phases ?? []}
+            turnTimeoutSeconds={gameData.rules.turnTimeoutSeconds}
+            gameMode={gameData.rules.gameMode}
             onChange={(fields) =>
               setGameData((prev) => ({
                 ...prev,
@@ -535,8 +538,14 @@ export default function GameEditor() {
                   },
                   matchingProperties: fields.matchingProperties ?? prev.rules.matchingProperties,
                   allowWildOnAny: fields.allowWildOnAny ?? prev.rules.allowWildOnAny,
+                  drawStack: fields.drawStack !== undefined ? fields.drawStack : prev.rules.drawStack,
                   zones: fields.activeZones ?? prev.rules.zones,
                   phases: fields.phases ?? prev.rules.phases,
+                  turnTimeoutSeconds:
+                    fields.turnTimeoutSeconds ?? prev.rules.turnTimeoutSeconds,
+                  ...(fields.gameMode !== undefined
+                    ? { gameMode: fields.gameMode === "AUTO" ? undefined : fields.gameMode }
+                    : {}),
                 },
               }))
             }

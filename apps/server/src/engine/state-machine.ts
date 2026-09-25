@@ -1,6 +1,8 @@
 import { DeckManager } from './deck.js';
 import {
   Card,
+  DEFAULT_DRAW_STACK_CONFIG,
+  DrawStackConfig,
   GameSchemaDefinition,
   PlayerPublicInfo,
   PublicGameState,
@@ -27,11 +29,20 @@ export class GameEngine {
   protected activeColor: string | null = null;
   protected status: 'LOBBY' | 'IN_PROGRESS' | 'FINISHED' = 'LOBBY';
   protected winnerId: string | null = null;
+  protected pendingDrawCount = 0;
   private pendingChoice: { playerId: string; type: 'COLOR' } | null = null;
 
   constructor(definition: GameSchemaDefinition) {
     this.definition = definition;
     this.deckManager = new DeckManager(definition.deckConfig);
+  }
+
+  public get drawStackConfig(): DrawStackConfig {
+    return this.definition.rules.drawStack ?? DEFAULT_DRAW_STACK_CONFIG;
+  }
+
+  public getPendingDrawCount(): number {
+    return this.pendingDrawCount;
   }
 
   public addPlayer(id: string, name: string, isBot = false): void {
@@ -148,7 +159,8 @@ export class GameEngine {
           card,
           this.getTopDiscardCard(),
           this.activeColor,
-          this.definition.rules
+          this.definition.rules,
+          this.pendingDrawCount
         ).isValid
     );
   }
@@ -179,7 +191,8 @@ export class GameEngine {
       card,
       topCard,
       this.activeColor,
-      this.definition.rules
+      this.definition.rules,
+      this.pendingDrawCount
     );
 
     if (!validation.isValid) {
@@ -278,6 +291,10 @@ export class GameEngine {
       throw new Error('Game is not in progress');
     }
 
+    if (this.pendingChoice) {
+      throw new Error(`Player ${this.pendingChoice.playerId} must choose color before continuing`);
+    }
+
     const currentPlayer = this.getCurrentPlayer();
     if (currentPlayer.id !== playerId) {
       throw new Error('Not your turn');
@@ -285,6 +302,39 @@ export class GameEngine {
 
     if (currentPlayer.hasDrawnThisTurn) {
       throw new Error('Already drawn a card this turn');
+    }
+
+    if (this.pendingDrawCount > 0) {
+      const count = this.pendingDrawCount;
+      const stackConfig = this.drawStackConfig;
+
+      if (this.deckManager.count < count && this.definition.rules.reshuffleDiscardPile) {
+        this.deckManager.recycleDiscard(this.discardPile);
+      }
+
+      const drawnCards = this.deckManager.drawMultiple(count);
+      if (drawnCards.length === 0) {
+        throw new Error('No cards left in draw pile');
+      }
+
+      currentPlayer.hand.push(...drawnCards);
+      this.pendingDrawCount = 0;
+
+      if (stackConfig.endsTurnOnDraw) {
+        currentPlayer.hasDrawnThisTurn = false;
+        this.advanceTurn(1);
+      } else {
+        currentPlayer.hasDrawnThisTurn = true;
+        if (
+          this.definition.rules.autoPassOnDraw &&
+          !this.hasPlayableCard(playerId)
+        ) {
+          currentPlayer.hasDrawnThisTurn = false;
+          this.advanceTurn(1);
+        }
+      }
+
+      return drawnCards[0];
     }
 
     if (this.deckManager.count === 0 && this.definition.rules.reshuffleDiscardPile) {
@@ -313,6 +363,10 @@ export class GameEngine {
   public passTurn(playerId: string): void {
     if (this.status !== 'IN_PROGRESS') {
       throw new Error('Game is not in progress');
+    }
+
+    if (this.pendingDrawCount > 0) {
+      throw new Error('Hay cartas de robo acumuladas. Debes responder o robar el acumulado.');
     }
 
     const currentPlayer = this.getCurrentPlayer();
@@ -348,6 +402,14 @@ export class GameEngine {
       }
 
       case 'DRAW_CARDS': {
+        const stackConfig = this.drawStackConfig;
+        if (stackConfig.rule !== 'OFF') {
+          const count = effect.params?.drawCount ?? 2;
+          this.pendingDrawCount += count;
+          this.advanceTurn(1);
+          break;
+        }
+
         const count = effect.params?.drawCount ?? 2;
         const targetIndex = this.getNextPlayerIndex(1);
         const targetPlayer = this.players[targetIndex];
@@ -424,6 +486,7 @@ export class GameEngine {
       players: publicPlayers,
       winnerId: this.winnerId,
       pendingChoice: this.pendingChoice,
+      pendingDrawCount: this.pendingDrawCount,
     };
   }
 }

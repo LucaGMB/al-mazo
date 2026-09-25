@@ -1,4 +1,4 @@
-import type { Card, PublicGameState } from './engine.js';
+import type { Card, DrawStackConfig, PublicGameState } from './engine.js';
 
 export interface ChatMessage {
   id: string;
@@ -18,6 +18,7 @@ export interface RoomOptions {
   disconnectGraceSeconds?: number;
   disconnectPolicy?: DisconnectPolicy;
   turnTimeoutSeconds?: number;
+  drawStack?: DrawStackConfig;
 }
 
 export interface ClientToServerEvents {
