@@ -68,8 +68,13 @@ const ACTION_OPTIONS = [
   { id: "CON_FLOR_QUIERO", label: "Con Flor Quiero", desc: "Aceptar envite de flor rival" },
   { id: "CON_FLOR_ME_ACHICO", label: "Con Flor Me Achico", desc: "Rechazar envite de flor rival" },
   { id: "CALL_ENVIDO", label: "Cantar Envido", desc: "Envido, Real Envido o Falta Envido" },
+  { id: "CALL_REAL_ENVIDO", label: "Cantar Real Envido", desc: "Subir el envite a 3 puntos" },
+  { id: "CALL_FALTA_ENVIDO", label: "Cantar Falta Envido", desc: "Apostar lo que le falta al rival para ganar" },
   { id: "EL_ENVIDO_ESTA_PRIMERO", label: "El Envido está primero", desc: "Priorizar envido ante truco cantado en 1ª baza" },
   { id: "CALL_TRUCO", label: "Cantar Truco", desc: "Truco, Retruco o Vale Cuatro" },
+  { id: "CALL_RETRUCO", label: "Cantar Retruco", desc: "Subir el truco a 3 puntos" },
+  { id: "CALL_VALE_CUATRO", label: "Cantar Vale Cuatro", desc: "Subir el truco a 4 puntos" },
+  { id: "CALL_CONTRA_FLOR_AL_RESTO", label: "Contraflor al Resto", desc: "Apostar la partida al envite de flor" },
   { id: "QUIERO", label: "Quiero", desc: "Aceptar apuesta o envite pendiente" },
   { id: "NO_QUIERO", label: "No Quiero", desc: "Rechazar apuesta o envite pendiente" },
   { id: "RESPOND_BET", label: "Responder Envite", desc: "Aceptar, subir o no querer" },
@@ -102,13 +107,18 @@ export default function RulesSection({
       ? currentActions.filter((a) => a !== actionId)
       : [...currentActions, actionId];
 
-    const updatedPhases: PhaseDefinition[] = [
-      {
-        id: phases[0]?.id || "main",
-        name: phases[0]?.name || "Turno Principal",
-        allowedActions: nextActions,
-      },
-    ];
+    const updatedPhases: PhaseDefinition[] =
+      phases.length > 0
+        ? phases.map((phase, index) =>
+            index === 0 ? { ...phase, allowedActions: nextActions } : phase
+          )
+        : [
+            {
+              id: "main",
+              name: "Turno Principal",
+              allowedActions: nextActions,
+            },
+          ];
     onChange({ phases: updatedPhases });
   }
 
