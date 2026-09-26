@@ -4,19 +4,6 @@ import { useRef, useState } from "react";
 import type { Card } from "@/types/engine";
 import CardView from "./CardView";
 
-// Abanico: cada carta rota un poco más cuanto más lejos está del centro de la
-// mano, con un leve descenso hacia los bordes (look de mano de naipes real).
-// El spread total se achica en manos grandes para no desparramar demasiado.
-function fanTransform(i: number, total: number): string {
-  if (total <= 1) return "";
-  const mid = (total - 1) / 2;
-  const offset = i - mid;
-  const step = Math.min(6, 40 / (total - 1));
-  const rotate = offset * step;
-  const lift = Math.abs(offset) * 2;
-  return `rotate(${rotate}deg) translateY(${lift}px)`;
-}
-
 // Distancia que hay que arrastrar una carta hacia arriba para soltarla y que
 // se juegue (en vez de volver a la mano).
 const DRAG_PLAY_THRESHOLD = 64;
@@ -57,7 +44,6 @@ export default function Hand({
             key={card.id}
             card={card}
             index={i}
-            total={cards.length}
             isSelected={isSelected}
             interactive={canPlay}
             matches={matches}
@@ -73,7 +59,6 @@ export default function Hand({
 function HandCard({
   card,
   index,
-  total,
   isSelected,
   interactive,
   matches,
@@ -82,7 +67,6 @@ function HandCard({
 }: {
   card: Card;
   index: number;
-  total: number;
   isSelected: boolean;
   interactive: boolean;
   matches: boolean;
@@ -157,17 +141,17 @@ function HandCard({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
       style={{
-        transform: drag ? dragTransform : fanTransform(index, total),
+        transform: drag ? dragTransform : undefined,
         zIndex: drag ? 50 : isSelected ? 35 : index,
         touchAction: interactive ? "none" : undefined,
         transition: drag ? "none" : "transform 150ms",
       }}
-      className={`group -mx-2.5 md:-mx-3.5 ${drag ? "" : "transition-all duration-150"} ${
+      className={`group -mx-1.5 md:-mx-2 ${drag ? "" : "transition-all duration-150"} ${
         interactive ? (matches ? "hover:-translate-y-4 hover:scale-105 hover:!z-30 cursor-grab active:cursor-grabbing" : "cursor-not-allowed") : ""
       } ${isSelected ? "-translate-y-4 scale-105 !z-30" : ""} ${invalid ? "animate-table-shake" : ""}`}
     >
       <div
-        className={`animate-deal-in opacity-0 ${dimmed ? "opacity-45 grayscale-[0.6]" : ""} ${
+        className={`animate-deal-in opacity-0 ${dimmed ? "[filter:grayscale(0.6)_opacity(0.5)]" : ""} ${
           interactive && matches
             ? "ring-2 ring-warning/50 shadow-[0_0_12px_rgba(245,197,24,0.35)] group-hover:ring-warning group-hover:shadow-[0_0_20px_rgba(245,197,24,0.65)]"
             : ""

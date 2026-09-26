@@ -34,7 +34,7 @@ export default function DrawPile({
  <div className="absolute inset-0 translate-x-1.5 translate-y-3 bg-wood-dark border-2 border-[#241a44]" />
  <div className="absolute inset-0 translate-x-1 translate-y-2 bg-wood-dark border-2 border-[#241a44]" />
  <div className="absolute inset-0 translate-x-0.5 translate-y-1 bg-surface border-2 border-[#241a44]" />
-        <CardBack size="md" interactive={interactive} glow={interactive} />
+        <CardBack size="lg" interactive={interactive} glow={interactive} />
         {interactive && (
           <span
             className={`absolute -top-6 left-1/2 -translate-x-1/2 inline-flex items-center gap-0.5 whitespace-nowrap border-2 px-2 py-0.5 font-display text-[9px] uppercase tracking-wider ${
