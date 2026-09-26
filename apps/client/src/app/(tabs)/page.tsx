@@ -22,10 +22,12 @@ function levelFor(matchesPlayed: number, matchesWon: number): number {
   return Math.min(50, Math.floor(Math.sqrt(matchesPlayed * 3 + matchesWon * 6)) + 1);
 }
 
-function categoryFor(slug: string): string {
-  if (slug.includes("blitz")) return "quick";
-  if (slug.includes("chaos")) return "chaos";
-  return "classic";
+function matchesCategory(slug: string, filter: string): boolean {
+  if (filter === "all") return true;
+  if (slug === "color-match") return true; // ColorMatch incluye modos Clásico, Blitz (rápido) y Chaos
+  if (filter === "quick") return slug.includes("blitz") || slug === "descarte-criollo";
+  if (filter === "chaos") return slug.includes("chaos") || slug === "desconectados";
+  return !slug.includes("blitz") && !slug.includes("chaos");
 }
 
 // A diferencia de la demo (secciones "Populares"/"Seguís jugando"/"Comunidad"
@@ -56,7 +58,7 @@ export default function Hub() {
     return games.filter(
       (game) =>
         (!q || game.title.toLowerCase().includes(q) || game.description.toLowerCase().includes(q)) &&
-        (filter === "all" || categoryFor(game.slug) === filter),
+        matchesCategory(game.slug, filter),
     );
   }, [games, query, filter]);
 
@@ -84,7 +86,7 @@ export default function Hub() {
             Entrá en segundos, desafiá amigos o jugá contra bots inteligentes.
           </p>
           <div className="flex flex-wrap gap-2.5 pt-1">
-            <Button to="/juego/color-match-blitz"><Icon icon="pixelarticons:zap" width={16} height={16} /> Partida Rápida</Button>
+            <Button to="/juego/color-match/mesa?mode=blitz"><Icon icon="pixelarticons:zap" width={16} height={16} /> Partida Rápida</Button>
  <form onSubmit={joinRoom} className="flex h-11 overflow-hidden border border-paper/25 bg-black/25">
               <label htmlFor="room-code" className="sr-only">Código de sala</label>
               <input

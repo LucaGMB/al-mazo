@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Icon } from "@iconify/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/Button";
 import { createSocket } from "@/lib/socket/client";
 import { createRoom, waitForConnect } from "@/lib/socket/actions";
@@ -10,9 +10,39 @@ import { saveRoomCredentials } from "@/lib/room/credentials";
 import { encodePlayerName } from "@/lib/room/player-name";
 import { DISCONNECT_POLICIES } from "@/lib/room/room-context";
 import { useSession } from "@/lib/session/use-session";
-import type { DisconnectPolicy, DrawStackRule } from "@/types/realtime";
+import type { DisconnectPolicy, DrawStackRule, ColorMatchMode } from "@/types/realtime";
 
 type Tab = "crear" | "unirse";
+
+const COLOR_MATCH_MODES: {
+  value: ColorMatchMode;
+  label: string;
+  badge: string;
+  icon: string;
+  description: string;
+}[] = [
+  {
+    value: "CLASSIC",
+    label: "Clásico",
+    badge: "108 cartas",
+    icon: "pixelarticons:sliders",
+    description: "7 cartas por jugador, mazo estándar. El juego clásico que todos conocen.",
+  },
+  {
+    value: "BLITZ",
+    label: "Blitz",
+    badge: "52 cartas · Rápido",
+    icon: "pixelarticons:zap",
+    description: "4 cartas iniciales, ritmo rápido, números 1 al 5 y doble de cartas de acción.",
+  },
+  {
+    value: "CHAOS",
+    label: "Chaos",
+    badge: "62 cartas · Caos",
+    icon: "pixelarticons:reload",
+    description: "6 cartas iniciales con cartas de intercambio (SWAP) y descarte de color entero.",
+  },
+];
 
 const DRAW_STACK_OPTIONS: { value: DrawStackRule; label: string; description: string }[] = [
   {
@@ -66,18 +96,41 @@ const FUN_NAMES = [
 // unión si no hay credenciales guardadas para ese código.
 export default function CreateRoomForm({ slug }: { slug: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, createGuest } = useSession();
+
+  const isColorMatch =
+    slug === "color-match" || slug === "color-match-blitz" || slug === "color-match-chaos";
+
+  const urlMode = searchParams?.get("mode")?.toUpperCase();
+  const initialMode: ColorMatchMode =
+    urlMode === "BLITZ" || slug.includes("blitz")
+      ? "BLITZ"
+      : urlMode === "CHAOS" || slug.includes("chaos")
+      ? "CHAOS"
+      : "CLASSIC";
+
   const [tab, setTab] = useState<Tab>("crear");
   const [name, setName] = useState(user?.name ?? "");
   const [roomCode, setRoomCode] = useState("");
+  const [colorMatchMode, setColorMatchMode] = useState<ColorMatchMode>(initialMode);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [graceSeconds, setGraceSeconds] = useState(25);
+  const [graceSeconds, setGraceSeconds] = useState(initialMode === "BLITZ" ? 15 : 25);
   const [policy, setPolicy] = useState<DisconnectPolicy>("DISCARD_AND_CONTINUE");
   const [drawStackRule, setDrawStackRule] = useState<DrawStackRule>("ALL");
   const [endsTurnOnDraw, setEndsTurnOnDraw] = useState(true);
   const [allowAnyColorDraw2OnDraw4, setAllowAnyColorDraw2OnDraw4] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function handleSelectMode(m: ColorMatchMode) {
+    setColorMatchMode(m);
+    if (m === "BLITZ" && graceSeconds === 25) {
+      setGraceSeconds(15);
+    } else if (m !== "BLITZ" && graceSeconds === 15) {
+      setGraceSeconds(25);
+    }
+  }
 
   function randomizeName() {
     const options = FUN_NAMES.filter((n) => n !== name.trim());
@@ -98,8 +151,9 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
       socket.connect();
       await waitForConnect(socket);
 
+      const targetSlug = isColorMatch ? "color-match" : slug;
       const res = await createRoom(socket, {
-        gameSlug: slug,
+        gameSlug: targetSlug,
         playerName: encodePlayerName(name.trim(), guest.id),
         options: {
           disconnectGraceSeconds: graceSeconds,
@@ -110,6 +164,7 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
             endsTurnOnDraw,
             allowAnyColorDraw2OnDraw4,
           },
+          ...(isColorMatch ? { colorMatchMode } : {}),
         },
       });
 
@@ -121,12 +176,12 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
       }
 
       saveRoomCredentials(res.roomCode, {
-        gameSlug: slug,
+        gameSlug: targetSlug,
         playerId: res.playerId,
         reconnectToken: res.reconnectToken,
         isHost: true,
       });
-      router.push(`/juego/${slug}/mesa/${res.roomCode}`);
+      router.push(`/juego/${targetSlug}/mesa/${res.roomCode}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo crear la sala");
     } finally {
@@ -140,8 +195,9 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
       setError("Ingresá el código de la sala");
       return;
     }
+    const targetSlug = isColorMatch ? "color-match" : slug;
     const params = name.trim() ? `?name=${encodeURIComponent(name.trim())}` : "";
-    router.push(`/juego/${slug}/mesa/${code}${params}`);
+    router.push(`/juego/${targetSlug}/mesa/${code}${params}`);
   }
 
   return (
@@ -224,6 +280,49 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
 
       {tab === "crear" && (
         <div className="flex flex-col gap-3">
+          {isColorMatch && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between text-[13px] text-ink-soft">
+                <span>Modo de juego</span>
+                <span className="text-[11px] font-bold text-accent">
+                  {COLOR_MATCH_MODES.find((m) => m.value === colorMatchMode)?.badge}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {COLOR_MATCH_MODES.map((modeOpt) => {
+                  const active = colorMatchMode === modeOpt.value;
+                  return (
+                    <button
+                      key={modeOpt.value}
+                      type="button"
+                      onClick={() => handleSelectMode(modeOpt.value)}
+                      className={`border-2 p-2 text-left transition-colors duration-150 cursor-pointer flex flex-col justify-between ${
+                        active
+                          ? "border-accent bg-accent/15 text-ink shadow-[0_0_10px_rgba(255,210,63,0.2)]"
+                          : "border-subtle text-ink-faint hover:border-medium hover:text-ink"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-black flex items-center gap-1 text-ink">
+                          <Icon
+                            icon={modeOpt.icon}
+                            width={14}
+                            height={14}
+                            className={active ? "text-accent" : "text-ink-faint"}
+                          />
+                          {modeOpt.label}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-ink-soft leading-tight mt-1 line-clamp-2">
+                        {modeOpt.description}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col gap-2">
             <div className="text-[13px] text-ink-soft">Ritmo de turnos</div>
             <div className="grid grid-cols-3 gap-2">

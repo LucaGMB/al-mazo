@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { GameEngine } from '../../src/engine/state-machine.js';
 import { colorMatchChaosDefinition } from '../../src/games/color-match-chaos/definition.js';
 import { DeckManager } from '../../src/engine/deck.js';
-import { officialGames } from '../../src/games/registry.js';
+import { getOfficialGame } from '../../src/games/registry.js';
+import { GameRoom } from '../../src/realtime/room.js';
+import { getColorMatchDefinition } from '../../src/games/color-match/definition.js';
 
 const COLORS = ['RED', 'BLUE', 'GREEN', 'YELLOW'];
 
@@ -16,8 +18,17 @@ describe('ColorMatch Chaos Game Definition', () => {
     expect(cards.filter((c) => c.value === 'SWAP').length).toBe(4);
   });
 
-  it('is registered as an official game', () => {
-    expect(officialGames[colorMatchChaosDefinition.slug]).toBe(colorMatchChaosDefinition);
+  it('is accessible via getOfficialGame compatibility lookup', () => {
+    const game = getOfficialGame(colorMatchChaosDefinition.slug);
+    expect(game).toBeDefined();
+    expect(game?.title).toBe('ColorMatch Chaos');
+  });
+
+  it('can be retrieved via getColorMatchDefinition("CHAOS")', () => {
+    const chaos = getColorMatchDefinition('CHAOS');
+    expect(chaos.rules.initialHandSize).toBe(6);
+    expect(chaos.rules.effects?.SWAP).toBeDefined();
+    expect(chaos.rules.effects?.DISCARD_ALL).toBeDefined();
   });
 });
 
@@ -78,5 +89,27 @@ describe('ColorMatch Chaos Mechanics via GameEngine', () => {
 
     const remaining = engine.getPlayerHand('p1');
     expect(remaining.map((c) => c.id)).toEqual(['other']);
+  });
+});
+
+describe('ColorMatch Chaos via GameRoom configuration', () => {
+  it('applies CHAOS rules when colorMatchMode is set to CHAOS on color-match room', () => {
+    const base = getColorMatchDefinition('CLASSIC');
+    const room = new GameRoom(
+      'CHAS1',
+      base,
+      { id: 'p1', name: 'Alice', socketId: 's1', reconnectToken: 't1' },
+      { colorMatchMode: 'CHAOS' }
+    );
+    room.addPlayer('p2', 'Bob', 's2', 't2');
+
+    expect(room.definition.rules.initialHandSize).toBe(6);
+    expect(room.definition.rules.effects?.SWAP).toBeDefined();
+    expect(room.definition.rules.effects?.DISCARD_ALL).toBeDefined();
+    expect(room.getPublicState().customState?.colorMatchMode).toBe('CHAOS');
+
+    room.engine.start();
+    expect(room.engine.getPlayerHand('p1').length).toBe(6);
+    expect(room.engine.getPlayerHand('p2').length).toBe(6);
   });
 });

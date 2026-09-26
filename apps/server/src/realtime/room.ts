@@ -1,5 +1,6 @@
 import { ModularGameEngine } from '../engine/modular-engine.js';
 import { GameSchemaDefinition, PublicGameState, Card } from '../engine/types.js';
+import { getColorMatchDefinition } from '../games/color-match/definition.js';
 import { ChatMessage, DisconnectPolicy, RoomOptions, RoomPlayer } from './types.js';
 
 export class GameRoom {
@@ -32,15 +33,30 @@ export class GameRoom {
     this.disconnectPolicy = options?.disconnectPolicy ?? 'DISCARD_AND_CONTINUE';
     this.turnTimeoutSeconds =
       options?.turnTimeoutSeconds ?? definition.rules.turnTimeoutSeconds ?? 25;
+    let baseDef = definition;
+    if (
+      (definition.slug === 'color-match' || definition.slug === 'color-match-blitz' || definition.slug === 'color-match-chaos') &&
+      (options?.colorMatchMode || definition.slug.includes('blitz') || definition.slug.includes('chaos'))
+    ) {
+      const mode =
+        options?.colorMatchMode ??
+        (definition.slug.includes('blitz') ? 'BLITZ' : definition.slug.includes('chaos') ? 'CHAOS' : 'CLASSIC');
+      baseDef = getColorMatchDefinition(mode);
+    }
+
     const effectiveRules = {
-      ...definition.rules,
+      ...baseDef.rules,
       // Editor schemas may omit effects; keep GameRoom.definition valid for all
       // consumers (bots, action checks), mirroring the engine normalization.
-      effects: definition.rules.effects ?? {},
+      effects: baseDef.rules.effects ?? {},
       ...(options?.drawStack ? { drawStack: options.drawStack } : {}),
+      customState: {
+        ...(baseDef.rules.customState ?? {}),
+        ...(options?.colorMatchMode ? { colorMatchMode: options.colorMatchMode } : {}),
+      },
     };
     const effectiveDefinition = {
-      ...definition,
+      ...baseDef,
       rules: effectiveRules,
     };
     this.definition = effectiveDefinition;

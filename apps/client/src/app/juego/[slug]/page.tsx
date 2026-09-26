@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import BackButton from "@/components/BackButton";
 import Button from "@/components/Button";
 import Thumb from "@/components/Thumb";
@@ -10,8 +10,9 @@ import { getGame, isSupportedGame, type GameDetail } from "@/lib/api/games";
 
 const GAME_SHOWCASE: Record<string, { tagline: string; mechanics: string[] }> = {
   "color-match": {
-    tagline: "Descarta por color o valor y vaciá tu mano antes que el resto.",
+    tagline: "Descarta por color o valor y vaciá tu mano antes que el resto. ¡Incluye modos Clásico, Blitz y Chaos!",
     mechanics: [
+      "Modos configurables: Clásico (7 cartas), Blitz (4 cartas y ultra rápido) y Chaos (con SWAP y DISCARD ALL)",
       "Cartas de colores y números",
       "Reversa, salto y robar +2",
       "Comodines y comodín +4",
@@ -78,10 +79,20 @@ const GAME_SHOWCASE: Record<string, { tagline: string; mechanics: string[] }> = 
 
 export default function GameDetailPage() {
   const { slug } = useParams<{ slug: string }>();
+  const router = useRouter();
   const [game, setGame] = useState<GameDetail | null | undefined>(undefined); // undefined = cargando
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (slug === "color-match-blitz") {
+      router.replace("/juego/color-match/mesa?mode=blitz");
+      return;
+    }
+    if (slug === "color-match-chaos") {
+      router.replace("/juego/color-match/mesa?mode=chaos");
+      return;
+    }
+
     let cancelled = false;
     getGame(slug)
       .then((data) => {

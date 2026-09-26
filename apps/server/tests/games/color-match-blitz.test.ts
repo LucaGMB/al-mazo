@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { GameEngine } from '../../src/engine/state-machine.js';
 import { colorMatchBlitzDefinition } from '../../src/games/color-match-blitz/definition.js';
 import { DeckManager } from '../../src/engine/deck.js';
-import { officialGames } from '../../src/games/registry.js';
+import { getOfficialGame } from '../../src/games/registry.js';
+import { GameRoom } from '../../src/realtime/room.js';
+import { getColorMatchDefinition } from '../../src/games/color-match/definition.js';
 
 describe('ColorMatch Blitz Game Definition', () => {
   it('generates the complete 52-card blitz deck', () => {
@@ -37,8 +39,17 @@ describe('ColorMatch Blitz Game Definition', () => {
     }
   });
 
-  it('is registered as an official game', () => {
-    expect(officialGames[colorMatchBlitzDefinition.slug]).toBe(colorMatchBlitzDefinition);
+  it('is accessible via getOfficialGame compatibility lookup', () => {
+    const game = getOfficialGame(colorMatchBlitzDefinition.slug);
+    expect(game).toBeDefined();
+    expect(game?.title).toBe('ColorMatch Blitz');
+  });
+
+  it('can be retrieved via getColorMatchDefinition("BLITZ")', () => {
+    const blitz = getColorMatchDefinition('BLITZ');
+    expect(blitz.rules.initialHandSize).toBe(4);
+    expect(blitz.rules.maxPlayers).toBe(6);
+    expect(blitz.deckConfig.templates).toBeDefined();
   });
 });
 
@@ -68,5 +79,27 @@ describe('ColorMatch Blitz Mechanics via GameEngine', () => {
       engine.addPlayer(`p${i}`, `Player ${i}`);
     }
     expect(() => engine.addPlayer('p7', 'Player 7')).toThrow();
+  });
+});
+
+describe('ColorMatch Blitz via GameRoom configuration', () => {
+  it('applies BLITZ rules when colorMatchMode is set to BLITZ on color-match room', () => {
+    const base = getColorMatchDefinition('CLASSIC');
+    const room = new GameRoom(
+      'BLTZ1',
+      base,
+      { id: 'p1', name: 'Alice', socketId: 's1', reconnectToken: 't1' },
+      { colorMatchMode: 'BLITZ' }
+    );
+    room.addPlayer('p2', 'Bob', 's2', 't2');
+
+    expect(room.definition.rules.initialHandSize).toBe(4);
+    expect(room.definition.rules.maxPlayers).toBe(6);
+    expect(room.definition.deckConfig.templates.length).toBe(34); // blitz deck templates
+    expect(room.getPublicState().customState?.colorMatchMode).toBe('BLITZ');
+
+    room.engine.start();
+    expect(room.engine.getPlayerHand('p1').length).toBe(4);
+    expect(room.engine.getPlayerHand('p2').length).toBe(4);
   });
 });

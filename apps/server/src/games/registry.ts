@@ -1,7 +1,9 @@
 import { GameSchemaDefinition } from '../engine/types.js';
-import { colorMatchDefinition } from './color-match/definition.js';
-import { colorMatchBlitzDefinition } from './color-match-blitz/definition.js';
-import { colorMatchChaosDefinition } from './color-match-chaos/definition.js';
+import {
+  colorMatchDefinition,
+  colorMatchBlitzDefinition,
+  colorMatchChaosDefinition,
+} from './color-match/definition.js';
 import { descarteCriolloDefinition } from './descarte-criollo/definition.js';
 import { desconectadosDefinition } from './desconectados/definition.js';
 import { escobaDefinition } from './escoba/definition.js';
@@ -10,8 +12,6 @@ import { trucoDefinition } from './truco/definition.js';
 
 export const officialGames: Record<string, GameSchemaDefinition> = {
   [colorMatchDefinition.slug]: colorMatchDefinition,
-  [colorMatchBlitzDefinition.slug]: colorMatchBlitzDefinition,
-  [colorMatchChaosDefinition.slug]: colorMatchChaosDefinition,
   [descarteCriolloDefinition.slug]: descarteCriolloDefinition,
   [desconectadosDefinition.slug]: desconectadosDefinition,
   [escobaDefinition.slug]: escobaDefinition,
@@ -20,6 +20,8 @@ export const officialGames: Record<string, GameSchemaDefinition> = {
 };
 
 export function getOfficialGame(slug: string): GameSchemaDefinition | undefined {
+  if (slug === 'color-match-blitz') return colorMatchBlitzDefinition;
+  if (slug === 'color-match-chaos') return colorMatchChaosDefinition;
   return officialGames[slug];
 }
 

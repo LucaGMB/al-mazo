@@ -14,11 +14,14 @@ export type DisconnectPolicy =
   | 'AUTO_PASS'
   | 'ABORT_MATCH';
 
+export type ColorMatchMode = 'CLASSIC' | 'BLITZ' | 'CHAOS';
+
 export interface RoomOptions {
   disconnectGraceSeconds?: number;
   disconnectPolicy?: DisconnectPolicy;
   turnTimeoutSeconds?: number;
   drawStack?: DrawStackConfig;
+  colorMatchMode?: ColorMatchMode;
 }
 
 export interface ClientToServerEvents {

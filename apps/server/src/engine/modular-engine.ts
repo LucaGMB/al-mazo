@@ -170,6 +170,7 @@ export class ModularGameEngine extends GameEngine {
 
   constructor(definition: GameSchemaDefinition) {
     super(definition);
+    this.customState = { ...(definition.rules.customState ?? {}) };
     this.targetScore =
       definition.rules.targetScore ??
       (definition.rules.winCondition.type === 'SCORE_THRESHOLD'

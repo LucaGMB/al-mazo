@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useParams } from "next/navigation";
 import BackButton from "@/components/BackButton";
 import CreateRoomForm from "@/components/game/CreateRoomForm";
@@ -13,7 +14,9 @@ export default function MesaEntryPage() {
         <BackButton />
       </div>
       <div className="flex-1 flex items-center justify-center p-4">
-        <CreateRoomForm slug={slug} />
+        <Suspense fallback={<div className="text-ink-faint text-sm">Cargando mesa...</div>}>
+          <CreateRoomForm slug={slug} />
+        </Suspense>
       </div>
     </div>
   );

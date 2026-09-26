@@ -28,6 +28,11 @@ export default function RoomLobby({
   // El server agrega al host primero (GameRoom.addPlayer), así que el primer
   // jugador de la lista es el creador de la sala.
   const hostPlayerId = publicState.players[0]?.id;
+  const colorMatchMode = publicState.customState?.colorMatchMode as
+    | "CLASSIC"
+    | "BLITZ"
+    | "CHAOS"
+    | undefined;
 
   async function handleCopy() {
     await navigator.clipboard?.writeText(window.location.href);
@@ -58,6 +63,29 @@ export default function RoomLobby({
         <div className="font-mono text-4xl md:text-5xl font-black tracking-[0.3em] text-accent [text-shadow:3px_3px_0_rgba(0,0,0,0.35)]">
           {roomCode}
         </div>
+        {colorMatchMode && (
+          <div className="inline-flex items-center gap-1.5 border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-bold text-accent">
+            <Icon
+              icon={
+                colorMatchMode === "BLITZ"
+                  ? "pixelarticons:zap"
+                  : colorMatchMode === "CHAOS"
+                  ? "pixelarticons:reload"
+                  : "pixelarticons:sliders"
+              }
+              width={14}
+              height={14}
+            />
+            <span>
+              Modo:{" "}
+              {colorMatchMode === "BLITZ"
+                ? "Blitz (4 cartas · Rápido)"
+                : colorMatchMode === "CHAOS"
+                ? "Chaos (Swap & Discard)"
+                : "Clásico"}
+            </span>
+          </div>
+        )}
         <div className="flex flex-wrap items-center justify-center gap-2">
           <Button variant="outline" onClick={handleCopy}>
             <Icon icon="pixelarticons:copy" width={16} height={16} />
