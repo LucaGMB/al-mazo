@@ -151,6 +151,14 @@ function gameHeaders(authorId?: string, token?: string) {
   };
 }
 
+function gameApiErrorMessage(
+  err: { message?: string; error?: string; errors?: string[] },
+  fallback: string
+): string {
+  const base = err.message || err.error || fallback;
+  return err.errors?.length ? `${base}: ${err.errors.join("; ")}` : base;
+}
+
 export async function createGame(
   game: unknown,
   authorId?: string,
@@ -166,8 +174,9 @@ export async function createGame(
     const err = (await res.json().catch(() => ({ error: "Error creating game" }))) as {
       message?: string;
       error?: string;
+      errors?: string[];
     };
-    throw new Error(err.message || err.error || "Error al crear el juego");
+    throw new Error(gameApiErrorMessage(err, "Error al crear el juego"));
   }
   return res.json();
 }
@@ -188,8 +197,9 @@ export async function updateGame(
     const err = (await res.json().catch(() => ({ error: "Error updating game" }))) as {
       message?: string;
       error?: string;
+      errors?: string[];
     };
-    throw new Error(err.message || err.error || "Error al actualizar el juego");
+    throw new Error(gameApiErrorMessage(err, "Error al actualizar el juego"));
   }
   return res.json();
 }
@@ -209,8 +219,9 @@ export async function publishGame(
     const err = (await res.json().catch(() => ({ error: "Error publishing game" }))) as {
       message?: string;
       error?: string;
+      errors?: string[];
     };
-    throw new Error(err.message || err.error || "Error al publicar el juego");
+    throw new Error(gameApiErrorMessage(err, "Error al publicar el juego"));
   }
   return res.json();
 }
@@ -230,8 +241,9 @@ export async function forkGame(
     const err = (await res.json().catch(() => ({ error: "Error forking game" }))) as {
       message?: string;
       error?: string;
+      errors?: string[];
     };
-    throw new Error(err.message || err.error || "Error al clonar el juego");
+    throw new Error(gameApiErrorMessage(err, "Error al clonar el juego"));
   }
   return res.json();
 }

@@ -34,6 +34,9 @@ export class GameRoom {
       options?.turnTimeoutSeconds ?? definition.rules.turnTimeoutSeconds ?? 25;
     const effectiveRules = {
       ...definition.rules,
+      // Editor schemas may omit effects; keep GameRoom.definition valid for all
+      // consumers (bots, action checks), mirroring the engine normalization.
+      effects: definition.rules.effects ?? {},
       ...(options?.drawStack ? { drawStack: options.drawStack } : {}),
     };
     const effectiveDefinition = {
