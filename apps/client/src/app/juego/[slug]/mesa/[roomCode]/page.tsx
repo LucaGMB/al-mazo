@@ -78,6 +78,7 @@ export default function MesaPage() {
   const [isActing, setIsActing] = useState(false);
   const [isTapada, setIsTapada] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [showQuickReactions, setShowQuickReactions] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
   const [maxPlayers, setMaxPlayers] = useState<number | undefined>(undefined);
   const [targetScore, setTargetScore] = useState<number | undefined>(undefined);
@@ -749,25 +750,10 @@ export default function MesaPage() {
         />
       ) : isTruco ? (
         <div
-          className={`flex-1 relative px-3 py-2 ${
+          className={`flex-1 min-h-0 relative overflow-y-auto px-3 py-2 ${
             isShaking ? "animate-table-shake" : ""
           }`}
         >
-          {others[0] && (
-            <div className="relative w-full h-12 md:h-11 flex justify-center mb-1">
-              <PlayerBadge
-                player={others[0]}
-                position="top"
-                isHost={others[0].id === hostPlayerId}
-                isCurrentTurn={publicState.currentTurnPlayerId === others[0].id}
-                turnExpiresAt={
-                  publicState.currentTurnPlayerId === others[0].id ? publicState.turnExpiresAt : null
-                }
-                recentMessage={chatBubbles[others[0].id]?.text ?? null}
-              />
-            </div>
-          )}
-
           <TrucoTable
             publicState={publicState}
             selfPlayerId={selfPlayerId}
@@ -1044,23 +1030,45 @@ export default function MesaPage() {
       )}
 
       <div className="flex-none flex justify-center px-2 pb-1">
-        <div
+        {showQuickReactions ? (
+          <div
  className="flex max-w-full flex-wrap items-center justify-center gap-1 md:gap-1.5 py-1 px-2 md:px-3 bg-statusbar/80 border-2 border-subtle mx-auto"
-          role="group"
-          aria-label="Bandeja de reacciones"
-        >
-          {QUICK_REACTIONS.map((reaction) => (
-            <button
-              key={reaction.text}
-              type="button"
-              onClick={() => handleReaction(reaction.text)}
+            role="group"
+            aria-label="Bandeja de reacciones"
+          >
+            {QUICK_REACTIONS.map((reaction) => (
+              <button
+                key={reaction.text}
+                type="button"
+                onClick={() => {
+                  handleReaction(reaction.text);
+                  setShowQuickReactions(false);
+                }}
  className="inline-flex cursor-pointer items-center gap-1 border-2 border-subtle bg-app/60 px-2 py-0.5 text-[10px] md:text-[11px] font-bold text-ink-soft transition-colors duration-150 hover:border-accent hover:text-accent"
+              >
+                <Icon icon={reaction.icon} width={13} height={13} aria-hidden />
+                {reaction.text}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setShowQuickReactions(false)}
+              aria-label="Cerrar reacciones"
+ className="inline-flex cursor-pointer items-center border-2 border-subtle bg-app/60 p-0.5 text-ink-faint hover:border-accent hover:text-accent"
             >
-              <Icon icon={reaction.icon} width={13} height={13} aria-hidden />
-              {reaction.text}
+              <Icon icon="pixelarticons:close" width={13} height={13} aria-hidden />
             </button>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowQuickReactions(true)}
+ className="inline-flex cursor-pointer items-center gap-1.5 border-2 border-subtle bg-statusbar/80 px-2.5 py-1 text-[10px] font-bold text-ink-faint hover:border-accent hover:text-accent"
+          >
+            <Icon icon="pixelarticons:message-text" width={13} height={13} aria-hidden />
+            Reacciones
+          </button>
+        )}
       </div>
 
       {/* Truco, Submission y Town renderizan sus propios elementos en su mesa: no duplicar. */}

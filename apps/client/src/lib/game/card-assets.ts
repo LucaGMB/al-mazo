@@ -3,9 +3,8 @@ import type { Card } from "@/types/engine";
 // Familia B (color-match, color-match-chaos, color-match-blitz): el color
 // de la carta es literalmente uno de estos 4, coincide 1:1 con los assets
 // vendorizados en public/pixel/cards/. Familia A (truco/escoba/chinchon/
-// descarte-criollo) usa ESPADAS/BASTOS/OROS/COPAS y no tiene asset real
-// todavía — para esas, las funciones de acá devuelven null y el llamador
-// sigue usando el render vectorial existente.
+// descarte-criollo) usa ESPADAS/BASTOS/OROS/COPAS, con asset real en
+// public/pixel/cards-es/ (mazo español pixel-art de 40 cartas).
 const UNO_COLOR_SLUG: Record<string, string> = {
   RED: "red",
   BLUE: "blue",
@@ -13,7 +12,23 @@ const UNO_COLOR_SLUG: Record<string, string> = {
   YELLOW: "yellow",
 };
 
+const SPANISH_SUIT_SLUG: Record<string, string> = {
+  ESPADAS: "espadas",
+  BASTOS: "bastos",
+  OROS: "oros",
+  COPAS: "copas",
+};
+
 export const CARD_BACK_SRC = "/pixel/cards/back.png";
+export const SPANISH_CARD_BACK_SRC = "/pixel/cards-es/back.png";
+
+// Mazo español (Familia A): valores '1'-'7','10'-'12' (sin 8 ni 9), ver
+// generateSpanishDeckTemplates en packages/shared/src/truco-rules.ts.
+export function getSpanishCardImageSrc(card: Card): string | null {
+  const slug = card.color ? SPANISH_SUIT_SLUG[card.color] : undefined;
+  if (!slug || card.value == null) return null;
+  return `/pixel/cards-es/${slug}/${card.value}.png`;
+}
 
 export function getUnoCardImageSrc(card: Card): string | null {
   const slug = card.color ? UNO_COLOR_SLUG[card.color] : undefined;

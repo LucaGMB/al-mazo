@@ -204,3 +204,7 @@ img {
 .btn-panel-yellow:active { border-image-source: url(/pixel/ui/panel_yellow_pressed.png); }
 .btn-panel-grey { border-image-source: url(/pixel/ui/panel_grey.png); }
 .btn-panel-grey:active { border-image-source: url(/pixel/ui/panel_grey_pressed.png); }
+.btn-panel-green { border-image-source: url(/pixel/ui/panel_green.png); }
+.btn-panel-green:active { border-image-source: url(/pixel/ui/panel_green_pressed.png); }
+.btn-panel-red { border-image-source: url(/pixel/ui/panel_red.png); }
+.btn-panel-red:active { border-image-source: url(/pixel/ui/panel_red_pressed.png); }
