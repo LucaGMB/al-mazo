@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { nanoid } from 'nanoid';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../../db/prisma.js';
-import { authenticate, signToken } from './auth.middleware.js';
+import { authenticate, isAdminEmail, signToken } from './auth.middleware.js';
 
 const guestAuthSchema = z.object({
   name: z.string().min(1).max(30).optional(),
@@ -84,12 +84,13 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const passwordHash = await bcrypt.hash(password, 10);
+      const role = isAdminEmail(email) ? 'ADMIN' : 'USER';
       const user = await prisma.user.create({
         data: {
           email,
           name: name ?? email.split('@')[0],
           passwordHash,
-          role: 'USER',
+          role,
           isAnonymous: false,
         },
       });
@@ -143,9 +144,17 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(401).send({ error: 'Invalid credentials' });
       }
 
-      const token = signToken({ userId: user.id, role: user.role });
+      let effectiveRole = user.role;
+      if (user.email && isAdminEmail(user.email)) {
+        effectiveRole = 'ADMIN';
+        if (user.role !== 'ADMIN') {
+          await prisma.user.update({ where: { id: user.id }, data: { role: 'ADMIN' } }).catch(() => {});
+        }
+      }
+
+      const token = signToken({ userId: user.id, role: effectiveRole });
       return reply.send({
-        user: { id: user.id, email: user.email, name: user.name, role: user.role },
+        user: { id: user.id, email: user.email, name: user.name, role: effectiveRole },
         token,
       });
     } catch {
@@ -166,8 +175,16 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(404).send({ error: 'User not found' });
       }
 
+      let effectiveRole = user.role;
+      if (user.email && isAdminEmail(user.email)) {
+        effectiveRole = 'ADMIN';
+        if (user.role !== 'ADMIN') {
+          await prisma.user.update({ where: { id: user.id }, data: { role: 'ADMIN' } }).catch(() => {});
+        }
+      }
+
       return reply.send({
-        user: { id: user.id, email: user.email, name: user.name, role: user.role },
+        user: { id: user.id, email: user.email, name: user.name, role: effectiveRole },
       });
     } catch {
       return reply.status(503).send({ error: 'Database unavailable' });

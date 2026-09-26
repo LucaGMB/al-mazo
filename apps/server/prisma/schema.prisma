@@ -26,6 +26,7 @@ model User {
   createdGames  GameDefinition[]
   participations MatchParticipant[]
   stats         PlayerStat[]
+  reportsSent   GameReport[]
 
   @@map("users")
 }
@@ -52,8 +53,25 @@ model GameDefinition {
   updatedAt   DateTime           @updatedAt
 
   matches     Match[]
+  reports     GameReport[]
 
   @@map("game_definitions")
+}
+
+model GameReport {
+  id          String         @id @default(uuid())
+  gameId      String
+  game        GameDefinition @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  reporterId  String
+  reporter    User           @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  reason      String         // COPYRIGHT, INAPPROPRIATE, SPAM, BROKEN, OTHER
+  description String
+  status      String         @default("PENDING") // PENDING, RESOLVED, DISMISSED
+  adminNotes  String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@map("game_reports")
 }
 
 model Match {

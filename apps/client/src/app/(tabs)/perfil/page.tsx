@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Icon } from "@iconify/react";
 import Button from "@/components/Button";
 import MenuListItem from "@/components/MenuListItem";
@@ -44,6 +45,7 @@ function formatDate(iso: string | null): string {
 }
 
 export default function Profile() {
+  const router = useRouter();
   const { user, isLoading, isLoggedIn, updateName, logout } = useSession();
   const { stats } = useUserStats(isLoggedIn ? (user?.id ?? null) : null);
   const { matches, isLoading: matchesLoading } = useUserMatches(
@@ -186,14 +188,29 @@ export default function Profile() {
         )}
 
         <div className="flex flex-wrap items-center justify-center gap-2">
- <span className=" border border-success/40 bg-success/15 px-2.5 py-0.5 text-[11px] font-bold text-success">
+          {user.role === "ADMIN" && (
+            <span className="inline-flex items-center gap-1 border border-danger/40 bg-danger/15 px-2.5 py-0.5 text-[11px] font-bold text-danger">
+              <Icon icon="pixelarticons:shield" width={13} height={13} />
+              Admin
+            </span>
+          )}
+          <span className=" border border-success/40 bg-success/15 px-2.5 py-0.5 text-[11px] font-bold text-success">
             Registrado
           </span>
- <span className=" border border-accent/40 bg-accent/15 px-2.5 py-0.5 text-[11px] font-bold text-accent">
+          <span className=" border border-accent/40 bg-accent/15 px-2.5 py-0.5 text-[11px] font-bold text-accent">
             Nivel {level}
           </span>
           <span className="text-xs text-ink-faint">{levelTitle(level)}</span>
         </div>
+
+        {user.role === "ADMIN" && (
+          <div className="w-full max-w-[260px] mt-2">
+            <Button to="/admin" variant="cta" fullWidth className="!h-9 !text-xs">
+              <Icon icon="pixelarticons:shield" width={16} height={16} />
+              Panel de Administración
+            </Button>
+          </div>
+        )}
 
         {totals && (
           <div className="flex gap-5 mt-1.5">
@@ -285,6 +302,13 @@ export default function Profile() {
       </div>
 
       <div className="flex flex-col px-4 py-3">
+        {user.role === "ADMIN" && (
+          <MenuListItem
+            icon="shield"
+            label="Panel de Administración & Moderación"
+            onClick={() => router.push("/admin")}
+          />
+        )}
         <MenuListItem icon="logout" label="Cerrar sesión" danger onClick={logout} />
       </div>
     </div>

@@ -9,7 +9,7 @@ import { AUTH_SECRET } from '../auth/auth.middleware.js';
 import { GameSchemaDefinition } from '../../engine/types.js';
 import { prisma } from '../../db/prisma.js';
 
-interface GameRecord {
+export interface GameRecord {
   id: string;
   slug: string;
   title: string;
@@ -27,7 +27,7 @@ interface GameRecord {
 
 // In-memory fallback so the API keeps working when the database is unreachable
 // (local development without Postgres, preview deployments, tests).
-const memoryGames = new Map<string, GameRecord>();
+export const memoryGames = new Map<string, GameRecord>();
 
 interface ListFilters {
   status?: string;
@@ -45,7 +45,7 @@ function slugify(text: string): string {
   return slug || 'game';
 }
 
-function toRecord(game: {
+export function toRecord(game: {
   id: string;
   slug: string;
   title: string;
@@ -69,7 +69,7 @@ function logPersistenceFallback(message: string, error: unknown) {
   }
 }
 
-function toPublic(record: GameRecord) {
+export function toPublic(record: GameRecord) {
   const schema = (record.schemaJson ?? {}) as Record<string, unknown>;
   return {
     ...schema,
@@ -159,7 +159,7 @@ async function createGame(record: GameRecord): Promise<GameRecord> {
   }
 }
 
-async function findGame(idOrSlug: string): Promise<GameRecord | null> {
+export async function findGame(idOrSlug: string): Promise<GameRecord | null> {
   const inMemory =
     memoryGames.get(idOrSlug) ??
     Array.from(memoryGames.values()).find((game) => game.slug === idOrSlug);
@@ -175,7 +175,7 @@ async function findGame(idOrSlug: string): Promise<GameRecord | null> {
   }
 }
 
-async function persistGame(record: GameRecord): Promise<GameRecord> {
+export async function persistGame(record: GameRecord): Promise<GameRecord> {
   const stored = memoryGames.get(record.id);
   if (stored) {
     const updated = { ...record, updatedAt: new Date() };
@@ -231,11 +231,16 @@ function mergeMemoryFirst(
 async function listCommunityGames(): Promise<GameRecord[]> {
   try {
     const dbGames = await prisma.gameDefinition.findMany({
-      where: { isOfficial: false, isPublished: true },
+      where: { isOfficial: false, isPublished: true, status: { not: 'BANNED' } },
     });
-    return mergeMemoryFirst(dbGames.map(toRecord), (game) => !game.isOfficial && game.isPublished);
+    return mergeMemoryFirst(
+      dbGames.map(toRecord),
+      (game) => !game.isOfficial && game.isPublished && game.status !== 'BANNED'
+    );
   } catch {
-    return Array.from(memoryGames.values()).filter((game) => !game.isOfficial && game.isPublished);
+    return Array.from(memoryGames.values()).filter(
+      (game) => !game.isOfficial && game.isPublished && game.status !== 'BANNED'
+    );
   }
 }
 
@@ -251,6 +256,7 @@ async function listGamesByAuthor(authorId: string): Promise<GameRecord[]> {
 function applyFilters(games: GameRecord[], filters: ListFilters): GameRecord[] {
   const search = filters.search?.toLowerCase();
   return games.filter((game) => {
+    if (game.status === 'BANNED' && filters.status !== 'BANNED') return false;
     if (filters.status && game.status !== filters.status) return false;
     if (filters.type === 'official' && !game.isOfficial) return false;
     if (filters.type === 'community' && game.isOfficial) return false;
@@ -262,7 +268,7 @@ function applyFilters(games: GameRecord[], filters: ListFilters): GameRecord[] {
   });
 }
 
-function definitionOf(record: GameRecord): GameSchemaDefinition {
+export function definitionOf(record: GameRecord): GameSchemaDefinition {
   const schema = (record.schemaJson ?? {}) as Partial<GameSchemaDefinition>;
   return {
     slug: schema.slug ?? record.slug,
@@ -520,6 +526,16 @@ export const gamesRoutes: FastifyPluginAsync = async (fastify) => {
 
     const record = await findGame(slug);
     if (record) {
+      if (record.status === 'BANNED') {
+        return reply.status(403).send({
+          error: 'Game removed by moderation',
+          message: 'Este juego ha sido retirado por moderación debido a una infracción de normas o derechos de autor.',
+          status: 'BANNED',
+          isOfficial: false,
+          id: record.id,
+          game: definitionOf(record),
+        });
+      }
       return reply.send({
         game: definitionOf(record),
         isOfficial: false,
