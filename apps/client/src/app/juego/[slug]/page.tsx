@@ -87,6 +87,16 @@ const GAME_SHOWCASE: Record<string, { tagline: string; mechanics: string[] }> = 
       "Recambio de cartas del HDP y partida a 5 puntos",
     ],
   },
+  "town-of-salem": {
+    tagline: "Deducción social, roles ocultos y engaño. ¿Podrá el Pueblo desenmascarar a la Mafia?",
+    mechanics: [
+      "Roles ocultos: Mafioso, Doctor, Sheriff y Aldeano",
+      "Fase nocturna: la Mafia ataca, el Doctor protege y el Sheriff investiga",
+      "Fase diurna: debate abierto en el chat del pueblo",
+      "Juicio y votación: linchamiento por mayoría de votos o salto",
+      "Condición de victoria por eliminación de la facción rival",
+    ],
+  },
 };
 
 export default function GameDetailPage() {

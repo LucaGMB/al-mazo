@@ -58,7 +58,7 @@ const gameDetailSchema = z.object({
       reshuffleDiscardPile: z.boolean().optional(),
       winCondition: z
         .object({
-          type: z.enum(["EMPTY_HAND", "SCORE_THRESHOLD", "LAST_REMAINING", "NONE"]),
+          type: z.enum(["EMPTY_HAND", "SCORE_THRESHOLD", "LAST_REMAINING", "NONE", "FACTION_ELIMINATION"]),
           targetScore: z.number().optional(),
         })
         .optional(),
@@ -67,7 +67,7 @@ const gameDetailSchema = z.object({
       cardHierarchy: z.record(z.string(), z.number()).optional(),
       targetScore: z.number().optional(),
       turnTimeoutSeconds: z.number().optional(),
-      gameMode: z.enum(["TRICK", "COMMUNITY", "DISCARD", "PROMPT"]).optional(),
+      gameMode: z.enum(["TRICK", "COMMUNITY", "DISCARD", "PROMPT", "TOWN"]).optional(),
       customState: z.record(z.string(), z.unknown()).optional(),
       submission: z.record(z.string(), z.unknown()).optional(),
     }),
@@ -124,6 +124,7 @@ export const SUPPORTED_GAME_SLUGS = [
   "chinchon",
   "desconectados",
   "hdp",
+  "town-of-salem",
 ] as const;
 
 export interface GameResponseRecord {
@@ -145,13 +146,13 @@ export interface GameResponseRecord {
     allowWildOnAny?: boolean;
     reshuffleDiscardPile?: boolean;
     winCondition?: {
-      type: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE";
+      type: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE" | "FACTION_ELIMINATION";
       targetScore?: number;
     };
     zones?: unknown[];
     phases?: unknown[];
     effects?: Record<string, unknown>;
-    gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT";
+    gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT" | "TOWN";
     customState?: Record<string, unknown>;
   };
 }

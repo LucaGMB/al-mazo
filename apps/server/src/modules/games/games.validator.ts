@@ -41,7 +41,7 @@ const phaseSchema = z.object({
 });
 
 const winConditionSchema = z.object({
-  type: z.enum(['EMPTY_HAND', 'SCORE_THRESHOLD', 'LAST_REMAINING', 'NONE']),
+  type: z.enum(['EMPTY_HAND', 'SCORE_THRESHOLD', 'LAST_REMAINING', 'NONE', 'FACTION_ELIMINATION']),
   targetScore: z.number().optional(),
 });
 
@@ -72,7 +72,7 @@ const rulesSchema = z.object({
   customState: z.record(z.string(), z.unknown()).optional(),
   targetScore: z.number().optional(),
   roundScoring: z.record(z.string(), z.unknown()).optional(),
-  gameMode: z.enum(['TRICK', 'COMMUNITY', 'DISCARD', 'PROMPT']).optional(),
+  gameMode: z.enum(['TRICK', 'COMMUNITY', 'DISCARD', 'PROMPT', 'TOWN']).optional(),
   turnTimeoutSeconds: z.number().int().min(0).optional(),
   submission: submissionSchema.optional(),
 });
