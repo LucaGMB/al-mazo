@@ -19,6 +19,8 @@ services:
     image: postgres:16-alpine
     container_name: al-mazo-postgres-local
     restart: unless-stopped
+    ports:
+      - "5433:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -37,6 +39,8 @@ services:
     image: redis:7-alpine
     container_name: al-mazo-redis-local
     restart: unless-stopped
+    ports:
+      - "6380:6379"
     volumes:
       - redis_local_data:/data
     healthcheck:

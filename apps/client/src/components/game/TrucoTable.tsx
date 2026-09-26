@@ -67,21 +67,65 @@ function ScoreChip({
   accentClass: string;
 }) {
   return (
-    <div className="inline-flex items-center gap-2 bg-statusbar border-2 border-subtle px-3 py-1.5 shadow-[3px_3px_0_0_rgba(0,0,0,0.35)]">
+    <div className="inline-flex items-center gap-2.5 bg-statusbar border-2 border-subtle px-3.5 py-2 shadow-[3px_3px_0_0_rgba(0,0,0,0.35)]">
       <div className="flex flex-col leading-none">
-        <span className={`text-[11px] md:text-xs font-bold truncate max-w-[110px] ${accentClass}`}>
+        <span className={`text-sm font-bold truncate max-w-[130px] ${accentClass}`}>
           {name}
         </span>
-        <span className="text-[9px] text-ink-faint">{score < 15 ? "Malas" : "Buenas"}</span>
+        <span className="text-[10px] text-ink-faint">{score < 15 ? "Malas" : "Buenas"}</span>
       </div>
-      <span className="font-display text-lg md:text-xl font-black text-ink">
+      <span className="font-display text-xl md:text-2xl font-black text-ink">
         {score}
-        <span className="text-[10px] font-normal text-ink-faint">/{targetScore}</span>
+        <span className="text-[11px] font-normal text-ink-faint">/{targetScore}</span>
       </span>
       {isMano && (
-        <span className="shrink-0 border-2 border-warning bg-warning/15 px-1.5 py-0.5 text-[8px] font-black text-warning">
+        <span className="shrink-0 border-2 border-warning bg-warning/15 px-1.5 py-0.5 text-[9px] font-black text-warning">
           MANO
         </span>
+      )}
+    </div>
+  );
+}
+
+// Botón que agrupa varias opciones de canto (p.ej. Envido/Real Envido/Falta
+// Envido) detrás de un solo botón + ventanita, en vez de 3 botones sueltos
+// ocupando toda la fila.
+function BetMenu({
+  label,
+  isActing,
+  options,
+}: {
+  label: string;
+  isActing: boolean;
+  options: Array<{ label: string; onClick: () => void }>;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <Button variant="cta" disabled={isActing} onClick={() => setOpen((prev) => !prev)}>
+        {label}
+        <Icon icon={open ? "pixelarticons:chevron-up" : "pixelarticons:chevron-down"} width={12} height={12} />
+      </Button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div className="absolute z-40 bottom-full left-0 mb-1.5 flex flex-col gap-1 border-2 border-subtle bg-statusbar p-1.5 shadow-[3px_3px_0_0_rgba(0,0,0,0.4)] min-w-[170px]">
+            {options.map((opt) => (
+              <Button
+                key={opt.label}
+                variant="cta"
+                disabled={isActing}
+                onClick={() => {
+                  setOpen(false);
+                  opt.onClick();
+                }}
+                className="!justify-start"
+              >
+                {opt.label}
+              </Button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
@@ -189,7 +233,7 @@ export default function TrucoTable({
   }
 
   return (
-    <div className="flex flex-col gap-2 md:gap-3 w-full max-w-2xl mx-auto select-none">
+    <div className="flex flex-col gap-2 w-full max-w-2xl mx-auto select-none">
       {/* Ficha del rival, arriba */}
       <div className="flex justify-center">
         <ScoreChip
@@ -202,62 +246,77 @@ export default function TrucoTable({
       </div>
 
       {/* Mesa de fieltro: mismo look que color-match, sin gradiente ni cajas
-          por baza — solo espaciado y un indicador chico de ganador. */}
-      <div className="felt-texture relative border-[6px] border-[#0b0812] shadow-[6px_6px_0_0_rgba(0,0,0,0.5)] px-2 py-3 md:px-4 md:py-4">
+          por baza — solo espaciado y un indicador chico de ganador. Mobile
+          first: llena el ancho disponible del celular (w-full) y recién en
+          desktop se le pone un techo, para no quedar un fieltro angosto con
+          todo minúsculo adentro. */}
+      <div className="felt-texture relative mx-auto w-full max-w-[440px] border-[6px] border-[#0b0812] shadow-[6px_6px_0_0_rgba(0,0,0,0.5)] px-2.5 py-3">
         <span className="pixel-rivet" style={{ top: 6, left: 6 }} />
         <span className="pixel-rivet" style={{ top: 6, right: 6 }} />
         <span className="pixel-rivet" style={{ bottom: 6, left: 6 }} />
         <span className="pixel-rivet" style={{ bottom: 6, right: 6 }} />
 
         <div className="text-center text-[9px] md:text-[11px] font-black uppercase tracking-widest text-ink-faint mb-2">
-          Ronda {customState.round ?? 1} · {currentTrick}ª baza
+          Ronda {customState.round ?? 1}
         </div>
 
-        <div className="grid grid-cols-3 gap-1.5 md:gap-3">
+        {/* Historial de bazas: franja chica (no 3 columnas con cartas
+            grandes) — deja lugar para que la baza actual se vea grande y
+            legible, que era el pedido concreto. */}
+        <div className="flex items-center justify-center gap-2 mb-2.5">
           {[1, 2, 3].map((bazaNum) => {
             const trick = roundTricks.find((t) => t.trickNumber === bazaNum);
             const isCurrent = currentTrick === bazaNum;
-            const rivalTrickCard =
-              trick?.cards.find((c) => c.playerId === rival?.id) ??
-              (isCurrent ? publicState.trickCards?.find((c) => c.playerId === rival?.id) : null);
-            const selfTrickCard =
-              trick?.cards.find((c) => c.playerId === self?.id) ??
-              (isCurrent ? publicState.trickCards?.find((c) => c.playerId === self?.id) : null);
-
             const winnerColor =
               trick?.winnerId === self?.id
-                ? "text-success"
+                ? "border-success text-success bg-success/15"
                 : trick?.winnerId === rival?.id
-                  ? "text-danger"
+                  ? "border-danger text-danger bg-danger/15"
                   : trick?.winnerId === "EMPATE"
-                    ? "text-warning"
-                    : "text-ink-faint/50";
-
+                    ? "border-warning text-warning bg-warning/15"
+                    : isCurrent
+                      ? "border-accent text-accent bg-accent/10"
+                      : "border-white/15 text-ink-faint/60";
             return (
-              <div
+              <span
                 key={bazaNum}
-                className={`flex flex-col items-center justify-between gap-1 py-1 transition-opacity duration-200 ${
-                  isCurrent ? "" : "opacity-80"
-                }`}
+                className={`flex h-6 w-6 items-center justify-center border-2 text-[10px] font-black ${winnerColor}`}
               >
-                <span className={`text-[9px] md:text-[10px] font-black ${winnerColor}`}>
-                  {bazaNum}ª
-                </span>
-                <div className="flex flex-col items-center gap-1.5">
-                  {rivalTrickCard ? (
-                    <CardView card={rivalTrickCard.card} size="sm" />
-                  ) : (
-                    <div className="w-7 h-9 md:w-11 md:h-[60px] border-2 border-dashed border-white/15" />
-                  )}
-                  {selfTrickCard ? (
-                    <CardView card={selfTrickCard.card} size="sm" />
-                  ) : (
-                    <div className="w-7 h-9 md:w-11 md:h-[60px] border-2 border-dashed border-white/15" />
-                  )}
-                </div>
-              </div>
+                {bazaNum}
+              </span>
             );
           })}
+        </div>
+
+        {/* Baza actual: grande, es la única que importa para jugar ya. */}
+        <div className="flex items-center justify-center gap-3 md:gap-5">
+          {(() => {
+            const currentTrickData = roundTricks.find((t) => t.trickNumber === currentTrick);
+            const rivalTrickCard =
+              currentTrickData?.cards.find((c) => c.playerId === rival?.id) ??
+              publicState.trickCards?.find((c) => c.playerId === rival?.id);
+            const selfTrickCard =
+              currentTrickData?.cards.find((c) => c.playerId === self?.id) ??
+              publicState.trickCards?.find((c) => c.playerId === self?.id);
+            return (
+              <>
+                {rivalTrickCard ? (
+                  <CardView card={rivalTrickCard.card} size="xl" />
+                ) : (
+                  <div className="w-24 h-[136px] md:w-28 md:h-[160px] border-2 border-dashed border-white/15 flex items-center justify-center text-[10px] text-white/25">
+                    Rival
+                  </div>
+                )}
+                {selfTrickCard ? (
+                  <CardView card={selfTrickCard.card} size="xl" />
+                ) : (
+                  <div className="w-24 h-[136px] md:w-28 md:h-[160px] border-2 border-dashed border-white/15 flex items-center justify-center text-[10px] text-white/25">
+                    Vos
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         <div className="mt-2 md:mt-3 flex flex-wrap items-center justify-center gap-2 text-[10px] md:text-xs">
@@ -275,6 +334,10 @@ export default function TrucoTable({
         </div>
       </div>
 
+      {/* Dock inferior sticky: cantos/acciones/mano siempre en el mismo
+          lugar — si no, cuando aparece la bandeja de acciones (tu turno)
+          empuja todo lo de abajo (mano incluida) fuera de la pantalla. */}
+      <div className="sticky bottom-0 z-20 -mx-2 px-2 pt-2 pb-1 bg-app flex flex-col gap-2">
       {lastActionText && (
         <div className="flex items-center justify-center gap-1.5 border-2 border-accent bg-accent/10 px-3 py-1.5 text-center text-[11px] md:text-sm font-bold text-accent">
           <Icon icon="pixelarticons:zap" width={14} height={14} className="text-warning shrink-0" />
@@ -289,9 +352,11 @@ export default function TrucoTable({
         </div>
       )}
 
-      {/* Canto pendiente para mí */}
+      {/* Canto pendiente para mí: flotante sobre el juego, no metido en el
+          layout — si no, empujaba mano y acciones fuera de la pantalla. */}
       {isPendingForMe && (
-        <div className="border-2 border-warning bg-warning/10 p-3 md:p-4 shadow-[4px_4px_0_0_rgba(0,0,0,0.4)]">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 px-4">
+        <div className="w-full max-w-sm border-2 border-warning bg-statusbar p-3 md:p-4 shadow-[6px_6px_0_0_rgba(0,0,0,0.5)]">
           <div className="text-center mb-2 md:mb-3">
             <div className="text-[10px] md:text-xs font-black uppercase tracking-widest text-warning">
               ¡Canto en curso!
@@ -405,6 +470,7 @@ export default function TrucoTable({
             </div>
           )}
         </div>
+        </div>
       )}
 
       {/* Acciones de mi turno */}
@@ -426,17 +492,15 @@ export default function TrucoTable({
           )}
 
           {canCallEnvido && (
-            <>
-              <Button variant="cta" disabled={isActing} onClick={() => handleAction("CALL_ENVIDO")}>
-                Envido (+2)
-              </Button>
-              <Button variant="cta" disabled={isActing} onClick={() => handleAction("CALL_REAL_ENVIDO")}>
-                Real Envido (+3)
-              </Button>
-              <Button variant="cta" disabled={isActing} onClick={() => handleAction("CALL_FALTA_ENVIDO")}>
-                Falta Envido
-              </Button>
-            </>
+            <BetMenu
+              label="Envido"
+              isActing={isActing}
+              options={[
+                { label: "Envido (+2)", onClick: () => handleAction("CALL_ENVIDO") },
+                { label: "Real Envido (+3)", onClick: () => handleAction("CALL_REAL_ENVIDO") },
+                { label: "Falta Envido", onClick: () => handleAction("CALL_FALTA_ENVIDO") },
+              ]}
+            />
           )}
 
           {canCallTruco && (
@@ -470,7 +534,7 @@ export default function TrucoTable({
           isMano={manoPlayerId === self?.id}
           accentClass="text-accent"
         />
-        <span className="text-[10px] md:text-[11px] font-bold text-ink-faint text-right">
+        <span className="text-xs font-bold text-ink-faint text-right">
           {canAct && !pendingBet ? (
             <span className="text-success font-black animate-pulse">
               {tapadaMode ? "Tirá TAPADA" : "Tocá una carta"}
@@ -496,19 +560,20 @@ export default function TrucoTable({
             <div
               key={card.id}
               style={{ zIndex: selectedCardId === card.id ? 30 : i }}
-              className={`-mx-1.5 md:-mx-2 transition-all duration-150 ${
+              className={`-mx-2.5 md:-mx-3 transition-all duration-150 ${
                 isPlayable ? "hover:-translate-y-3 hover:scale-105 cursor-pointer" : ""
               } ${selectedCardId === card.id ? "-translate-y-3 scale-105" : ""}`}
             >
               <CardView
                 card={card}
-                size="lg"
+                size="xl"
                 selected={selectedCardId === card.id}
                 onClick={isPlayable ? () => handleCardClick(card.id) : undefined}
               />
             </div>
           );
         })}
+      </div>
       </div>
     </div>
   );

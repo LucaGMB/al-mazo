@@ -72,6 +72,7 @@ const SIZE_CLASSES = {
   sm: "w-8 h-11 md:w-11 md:h-[60px] text-xs",
   md: "w-10 h-14 md:w-12 md:h-16 text-sm",
   lg: "w-[58px] h-[82px] md:w-20 md:h-[114px] text-base",
+  xl: "w-24 h-[136px] text-lg",
 } as const;
 
 export default function CardView({
