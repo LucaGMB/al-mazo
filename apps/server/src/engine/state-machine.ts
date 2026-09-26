@@ -35,6 +35,7 @@ export class GameEngine {
   protected status: 'LOBBY' | 'IN_PROGRESS' | 'FINISHED' = 'LOBBY';
   protected winnerId: string | null = null;
   protected pendingDrawCount = 0;
+  protected pendingDrawByPlayerId: string | null = null;
   private pendingChoice: { playerId: string; type: 'COLOR' } | null = null;
 
   constructor(definition: GameSchemaDefinition) {
@@ -53,6 +54,10 @@ export class GameEngine {
 
   public getPendingDrawCount(): number {
     return this.pendingDrawCount;
+  }
+
+  public getPendingDrawByPlayerId(): string | null {
+    return this.pendingDrawByPlayerId;
   }
 
   public addPlayer(id: string, name: string, isBot = false): void {
@@ -483,6 +488,7 @@ export class GameEngine {
         if (stackConfig.rule !== 'OFF') {
           const count = effect.params?.drawCount ?? 2;
           this.pendingDrawCount += count;
+          this.pendingDrawByPlayerId = this.getCurrentPlayer().id;
           this.advanceTurn(1);
           break;
         }
