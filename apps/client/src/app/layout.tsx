@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   title: "Al Mazo",
   description: "Plataforma de juegos de cartas en tiempo real",
   icons: {
-    icon: "/favicon.png",
+    icon: "/favicon.svg",
   },
 };
 

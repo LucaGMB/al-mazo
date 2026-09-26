@@ -107,7 +107,7 @@ export default function GameDetailPage() {
     return (
       <div className="min-h-screen bg-app flex flex-col">
         <div className="max-w-4xl w-full mx-auto py-8 px-4 md:px-8">
-          <BackButton />
+          <BackButton to="/" />
         </div>
         <div className="flex-1 flex items-center justify-center text-[13px] text-ink-faint text-center px-6">
           {error ?? "No encontramos ese juego."}
@@ -124,7 +124,7 @@ export default function GameDetailPage() {
     <div className="min-h-screen bg-app">
       <div className="max-w-4xl mx-auto py-8 px-4 md:px-8">
         <div className="mb-6 md:mb-8">
-          <BackButton />
+          <BackButton to="/" />
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 md:gap-10 md:items-start">
