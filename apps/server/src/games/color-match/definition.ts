@@ -167,6 +167,7 @@ export function getColorMatchDefinition(mode: ColorMatchMode = 'CLASSIC'): GameS
       allowWildOnAny: true,
       reshuffleDiscardPile: true,
       autoPassOnDraw: true,
+      requireNormalInitialCard: true,
       drawStack: DEFAULT_DRAW_STACK_CONFIG,
       effects: baseEffects,
       winCondition: {

@@ -17,6 +17,7 @@ interface RulesSectionProps {
   phases: PhaseDefinition[];
   turnTimeoutSeconds?: number;
   gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT";
+  requireNormalInitialCard?: boolean;
   onChange: (fields: Partial<{
     winConditionType: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE";
     targetScore?: number;
@@ -31,6 +32,7 @@ interface RulesSectionProps {
     phases: PhaseDefinition[];
     turnTimeoutSeconds?: number;
     gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT" | "AUTO";
+    requireNormalInitialCard?: boolean;
   }>) => void;
 }
 
@@ -95,6 +97,7 @@ export default function RulesSection({
   phases,
   turnTimeoutSeconds,
   gameMode,
+  requireNormalInitialCard = false,
   onChange,
 }: RulesSectionProps) {
   const currentActions = phases[0]?.allowedActions || ["PLAY_CARD", "DRAW_CARD", "PASS_TURN"];
@@ -278,13 +281,13 @@ export default function RulesSection({
           Habilita cómo los jugadores pueden jugar cartas sobre la mesa
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
- <label className="flex items-center gap-2.5 border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <label className="flex items-center gap-2.5 border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
             <input
               type="checkbox"
               checked={matchingProperties.includes("color")}
               onChange={() => toggleMatchProperty("color")}
- className="w-4 h-4 accent-accent cursor-pointer"
+              className="w-4 h-4 accent-accent cursor-pointer"
             />
             <div className="flex flex-col">
               <span className="text-xs font-bold text-ink">Coincidir Color / Palo</span>
@@ -292,12 +295,12 @@ export default function RulesSection({
             </div>
           </label>
 
- <label className="flex items-center gap-2.5 border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+          <label className="flex items-center gap-2.5 border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
             <input
               type="checkbox"
               checked={matchingProperties.includes("value")}
               onChange={() => toggleMatchProperty("value")}
- className="w-4 h-4 accent-accent cursor-pointer"
+              className="w-4 h-4 accent-accent cursor-pointer"
             />
             <div className="flex flex-col">
               <span className="text-xs font-bold text-ink">Coincidir Valor / Número</span>
@@ -305,16 +308,29 @@ export default function RulesSection({
             </div>
           </label>
 
- <label className="flex items-center gap-2.5 border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+          <label className="flex items-center gap-2.5 border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
             <input
               type="checkbox"
               checked={allowWildOnAny}
               onChange={(e) => onChange({ allowWildOnAny: e.target.checked })}
- className="w-4 h-4 accent-accent cursor-pointer"
+              className="w-4 h-4 accent-accent cursor-pointer"
             />
             <div className="flex flex-col">
               <span className="text-xs font-bold text-ink">Comodín Universal</span>
               <span className="text-[10px] text-ink-faint">Válido sobre cualquier carta</span>
+            </div>
+          </label>
+
+          <label className="flex items-center gap-2.5 border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+            <input
+              type="checkbox"
+              checked={requireNormalInitialCard}
+              onChange={(e) => onChange({ requireNormalInitialCard: e.target.checked })}
+              className="w-4 h-4 accent-accent cursor-pointer"
+            />
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-ink">Carta Inicial Normal</span>
+              <span className="text-[10px] text-ink-faint">Sin comodines ni cartas de acción al inicio</span>
             </div>
           </label>
         </div>

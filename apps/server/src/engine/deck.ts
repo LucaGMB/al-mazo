@@ -65,6 +65,15 @@ export class DeckManager {
     this.shuffle();
   }
 
+  /**
+   * Return cards back to the deck (draw pile) and shuffle.
+   */
+  public returnCards(cards: Card[]): void {
+    if (!cards.length) return;
+    this.cards.push(...cards);
+    this.shuffle();
+  }
+
   public get count(): number {
     return this.cards.length;
   }

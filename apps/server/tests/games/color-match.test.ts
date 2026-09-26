@@ -134,4 +134,64 @@ describe('ColorMatch Mechanics via GameEngine', () => {
     expect(state.pendingChoice).toBeNull();
     expect(state.currentTurnPlayerId).toBe('p2');
   });
+
+  it('guarantees that initial discard card is always a normal NUMBER card without special effects', () => {
+    // Run multiple starts to verify across random deck shuffles
+    for (let i = 0; i < 30; i++) {
+      const matchEngine = new GameEngine(colorMatchDefinition);
+      matchEngine.addPlayer('p1', 'Player 1');
+      matchEngine.addPlayer('p2', 'Player 2');
+      matchEngine.start();
+
+      const topCard = matchEngine.getTopDiscardCard();
+      expect(topCard).not.toBeNull();
+      expect(topCard!.type).toBe('NUMBER');
+      expect(colorMatchDefinition.rules.effects[String(topCard!.value)]).toBeUndefined();
+      expect(['RED', 'BLUE', 'GREEN', 'YELLOW']).toContain(topCard!.color);
+      expect(matchEngine.getPublicState().activeColor).toBe(topCard!.color);
+    }
+  });
+
+  it('recycles rejected action and wild cards back into the deck during start()', () => {
+    // Custom definition with requireNormalInitialCard: true and known deck
+    const customDef = {
+      ...colorMatchDefinition,
+      deckConfig: {
+        templates: [
+          { count: 10, type: 'WILD', color: 'ANY', value: 'WILD' },
+          { count: 10, type: 'ACTION', color: 'BLUE', value: 'DRAW_2' },
+          { count: 10, type: 'NUMBER', color: 'YELLOW', value: '5' },
+        ],
+      },
+      rules: {
+        ...colorMatchDefinition.rules,
+        initialHandSize: 2,
+        requireNormalInitialCard: true,
+      },
+    };
+
+    const matchEngine = new GameEngine(customDef);
+    matchEngine.addPlayer('p1', 'Player 1');
+    matchEngine.addPlayer('p2', 'Player 2');
+    matchEngine.start();
+
+    const topCard = matchEngine.getTopDiscardCard();
+    expect(topCard).not.toBeNull();
+    expect(topCard!.type).toBe('NUMBER');
+    expect(topCard!.value).toBe('5');
+    expect(topCard!.color).toBe('YELLOW');
+
+    const state = matchEngine.getPublicState();
+    // 30 total cards: 4 dealt to players (2 each) + 1 top discard + 25 in draw pile
+    expect(state.players[0].cardCount).toBe(2);
+    expect(state.players[1].cardCount).toBe(2);
+    expect(state.discardPileCount).toBe(1);
+    expect(state.drawPileCount).toBe(25);
+    expect(
+      state.players[0].cardCount +
+        state.players[1].cardCount +
+        state.discardPileCount +
+        state.drawPileCount
+    ).toBe(30);
+  });
 });
