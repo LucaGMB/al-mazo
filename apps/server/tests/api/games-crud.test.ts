@@ -192,4 +192,81 @@ describe('Games CRUD API', () => {
     expect(body.game.authorId).toBe('test-author');
     expect(body.game.deckConfig).toBeDefined();
   });
+
+  it('GET /api/games/mine requires authentication', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/games/mine' });
+
+    expect(res.statusCode).toBe(401);
+  });
+
+  it('GET /api/games/mine lists the author games including drafts, not other authors', async () => {
+    const otherToken = signToken({ userId: 'other-author', role: 'USER' });
+
+    const mineDraft = await app.inject({
+      method: 'POST',
+      url: '/api/games',
+      headers: authHeader,
+      payload: { ...validGame, title: 'Mine Draft' },
+    });
+    await app.inject({
+      method: 'POST',
+      url: '/api/games',
+      headers: { authorization: `Bearer ${otherToken}` },
+      payload: { ...validGame, title: 'Other Draft' },
+    });
+
+    const res = await app.inject({ method: 'GET', url: '/api/games/mine', headers: authHeader });
+    expect(res.statusCode).toBe(200);
+    const slugs = JSON.parse(res.body).games.map((g: { slug: string }) => g.slug);
+
+    expect(slugs).toContain('mine-draft');
+    expect(slugs).not.toContain('other-draft');
+    expect(slugs).not.toContain('color-match');
+    expect(JSON.parse(mineDraft.body).game.status).toBe('DRAFT');
+  });
+
+  it('GET /api/games hides drafts from the public catalog until published', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/games',
+      headers: authHeader,
+      payload: { ...validGame, title: 'Hidden Draft' },
+    });
+    const gameId = JSON.parse(created.body).game.id;
+
+    const draftList = await app.inject({ method: 'GET', url: '/api/games?search=hidden-draft' });
+    expect(JSON.parse(draftList.body).games).toHaveLength(0);
+
+    await app.inject({
+      method: 'POST',
+      url: `/api/games/${gameId}/publish`,
+      headers: authHeader,
+    });
+
+    const publishedList = await app.inject({
+      method: 'GET',
+      url: '/api/games?search=hidden-draft',
+    });
+    const published = JSON.parse(publishedList.body).games;
+    expect(published).toHaveLength(1);
+    expect(published[0].slug).toBe('hidden-draft');
+  });
+
+  it('GET /api/games/:slug returns id and status so the editor can resume a draft', async () => {
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/games',
+      headers: authHeader,
+      payload: { ...validGame, title: 'Resumable Draft' },
+    });
+    const createdGame = JSON.parse(created.body).game;
+
+    const res = await app.inject({ method: 'GET', url: '/api/games/resumable-draft' });
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.id).toBe(createdGame.id);
+    expect(body.status).toBe('DRAFT');
+    expect(body.authorId).toBe('test-author');
+    expect(body.game.rules.minPlayers).toBe(2);
+  });
 });

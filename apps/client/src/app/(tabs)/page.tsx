@@ -78,9 +78,6 @@ export default function Hub() {
           <div className="absolute inset-3 border border-paper/25" />
         </div>
         <div className="relative flex max-w-xl flex-col gap-3 md:gap-4">
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em] text-warning">
- <span className="h-2 w-2 animate-pulse bg-warning" /> Mesa abierta
-          </div>
           <h2 className="font-display text-2xl font-black uppercase tracking-tight text-ink md:text-4xl">AL MAZO: Partidas en Vivo</h2>
           <p className="text-[13px] text-ink-soft md:text-[15px]">
             Entrá en segundos, desafiá amigos o jugá contra bots inteligentes.

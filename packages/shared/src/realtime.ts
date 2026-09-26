@@ -22,6 +22,7 @@ export interface RoomOptions {
   turnTimeoutSeconds?: number;
   drawStack?: DrawStackConfig;
   colorMatchMode?: ColorMatchMode;
+  targetScore?: number;
 }
 
 export interface ClientToServerEvents {

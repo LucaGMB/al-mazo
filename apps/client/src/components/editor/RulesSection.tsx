@@ -24,6 +24,7 @@ interface RulesSectionProps {
   turnTimeoutSeconds?: number;
   gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT";
   submission?: SubmissionConfig;
+  requireNormalInitialCard?: boolean;
   onChange: (fields: Partial<{
     winConditionType: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE";
     targetScore?: number;
@@ -39,6 +40,7 @@ interface RulesSectionProps {
     turnTimeoutSeconds?: number;
     gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT" | "AUTO";
     submission?: SubmissionConfig | null;
+    requireNormalInitialCard?: boolean;
   }>) => void;
 }
 
@@ -76,8 +78,13 @@ const ACTION_OPTIONS = [
   { id: "CON_FLOR_QUIERO", label: "Con Flor Quiero", desc: "Aceptar envite de flor rival" },
   { id: "CON_FLOR_ME_ACHICO", label: "Con Flor Me Achico", desc: "Rechazar envite de flor rival" },
   { id: "CALL_ENVIDO", label: "Cantar Envido", desc: "Envido, Real Envido o Falta Envido" },
+  { id: "CALL_REAL_ENVIDO", label: "Cantar Real Envido", desc: "Subir el envite a 3 puntos" },
+  { id: "CALL_FALTA_ENVIDO", label: "Cantar Falta Envido", desc: "Apostar lo que le falta al rival para ganar" },
   { id: "EL_ENVIDO_ESTA_PRIMERO", label: "El Envido está primero", desc: "Priorizar envido ante truco cantado en 1ª baza" },
   { id: "CALL_TRUCO", label: "Cantar Truco", desc: "Truco, Retruco o Vale Cuatro" },
+  { id: "CALL_RETRUCO", label: "Cantar Retruco", desc: "Subir el truco a 3 puntos" },
+  { id: "CALL_VALE_CUATRO", label: "Cantar Vale Cuatro", desc: "Subir el truco a 4 puntos" },
+  { id: "CALL_CONTRA_FLOR_AL_RESTO", label: "Contraflor al Resto", desc: "Apostar la partida al envite de flor" },
   { id: "QUIERO", label: "Quiero", desc: "Aceptar apuesta o envite pendiente" },
   { id: "NO_QUIERO", label: "No Quiero", desc: "Rechazar apuesta o envite pendiente" },
   { id: "RESPOND_BET", label: "Responder Envite", desc: "Aceptar, subir o no querer" },
@@ -103,6 +110,7 @@ export default function RulesSection({
   turnTimeoutSeconds,
   gameMode,
   submission,
+  requireNormalInitialCard = false,
   onChange,
 }: RulesSectionProps) {
   const currentActions = phases[0]?.allowedActions || ["PLAY_CARD", "DRAW_CARD", "PASS_TURN"];
@@ -115,13 +123,18 @@ export default function RulesSection({
       ? currentActions.filter((a) => a !== actionId)
       : [...currentActions, actionId];
 
-    const updatedPhases: PhaseDefinition[] = [
-      {
-        id: phases[0]?.id || "main",
-        name: phases[0]?.name || "Turno Principal",
-        allowedActions: nextActions,
-      },
-    ];
+    const updatedPhases: PhaseDefinition[] =
+      phases.length > 0
+        ? phases.map((phase, index) =>
+            index === 0 ? { ...phase, allowedActions: nextActions } : phase
+          )
+        : [
+            {
+              id: "main",
+              name: "Turno Principal",
+              allowedActions: nextActions,
+            },
+          ];
     onChange({ phases: updatedPhases });
   }
 
@@ -281,13 +294,13 @@ export default function RulesSection({
           Habilita cómo los jugadores pueden jugar cartas sobre la mesa
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
- <label className="flex items-center gap-2.5 border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <label className="flex items-center gap-2.5 border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
             <input
               type="checkbox"
               checked={matchingProperties.includes("color")}
               onChange={() => toggleMatchProperty("color")}
- className="w-4 h-4 accent-accent cursor-pointer"
+              className="w-4 h-4 accent-accent cursor-pointer"
             />
             <div className="flex flex-col">
               <span className="text-xs font-bold text-ink">Coincidir Color / Palo</span>
@@ -295,12 +308,12 @@ export default function RulesSection({
             </div>
           </label>
 
- <label className="flex items-center gap-2.5 border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+          <label className="flex items-center gap-2.5 border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
             <input
               type="checkbox"
               checked={matchingProperties.includes("value")}
               onChange={() => toggleMatchProperty("value")}
- className="w-4 h-4 accent-accent cursor-pointer"
+              className="w-4 h-4 accent-accent cursor-pointer"
             />
             <div className="flex flex-col">
               <span className="text-xs font-bold text-ink">Coincidir Valor / Número</span>
@@ -308,16 +321,29 @@ export default function RulesSection({
             </div>
           </label>
 
- <label className="flex items-center gap-2.5 border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+          <label className="flex items-center gap-2.5 border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
             <input
               type="checkbox"
               checked={allowWildOnAny}
               onChange={(e) => onChange({ allowWildOnAny: e.target.checked })}
- className="w-4 h-4 accent-accent cursor-pointer"
+              className="w-4 h-4 accent-accent cursor-pointer"
             />
             <div className="flex flex-col">
               <span className="text-xs font-bold text-ink">Comodín Universal</span>
               <span className="text-[10px] text-ink-faint">Válido sobre cualquier carta</span>
+            </div>
+          </label>
+
+          <label className="flex items-center gap-2.5 border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+            <input
+              type="checkbox"
+              checked={requireNormalInitialCard}
+              onChange={(e) => onChange({ requireNormalInitialCard: e.target.checked })}
+              className="w-4 h-4 accent-accent cursor-pointer"
+            />
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-ink">Carta Inicial Normal</span>
+              <span className="text-[10px] text-ink-faint">Sin comodines ni cartas de acción al inicio</span>
             </div>
           </label>
         </div>

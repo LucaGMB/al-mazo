@@ -22,13 +22,34 @@ export async function getGames(): Promise<GameSummary[]> {
   return gamesListSchema.parse(data).games;
 }
 
+const myGameSchema = gameSummarySchema.extend({
+  id: z.string(),
+  status: z.string(),
+});
+const myGamesSchema = z.object({ games: z.array(myGameSchema) });
+
+export type MyGameSummary = z.infer<typeof myGameSchema>;
+
+export async function getMyGames(token?: string): Promise<MyGameSummary[]> {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+  const res = await fetchWithTimeout(`${baseUrl}/api/games/mine`, {
+    headers: gameHeaders(undefined, token),
+  });
+  if (!res.ok) {
+    return [];
+  }
+  return myGamesSchema.parse(await res.json()).games;
+}
+
 const gameDetailSchema = z.object({
   game: z.object({
     slug: z.string(),
     title: z.string(),
     description: z.string(),
     deckConfig: z.unknown(),
-    rules: z.object({
+    // looseObject preserves engine fields the editor does not edit yet
+    // (effects, drawStack, customState, roundScoring, ...) when re-saving.
+    rules: z.looseObject({
       minPlayers: z.number(),
       maxPlayers: z.number(),
       initialHandSize: z.number().optional(),
@@ -52,6 +73,9 @@ const gameDetailSchema = z.object({
     }),
   }),
   isOfficial: z.boolean(),
+  id: z.string().optional(),
+  status: z.string().optional(),
+  authorId: z.string().nullable().optional(),
 });
 
 export type GameDetail = z.infer<typeof gameDetailSchema>;
@@ -141,6 +165,18 @@ export async function validateGame(game: unknown): Promise<ValidationResponse> {
 }
 
 const TOKEN_STORAGE_KEY = "almazo.token";
+const REQUEST_TIMEOUT_MS = 15000;
+
+// Sin timeout, una request colgada deja al editor en "Guardando..." para siempre.
+async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function gameHeaders(authorId?: string, token?: string) {
   const resolvedToken =
@@ -167,7 +203,7 @@ export async function createGame(
   token?: string,
 ): Promise<{ game: GameResponseRecord }> {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
-  const res = await fetch(`${baseUrl}/api/games`, {
+  const res = await fetchWithTimeout(`${baseUrl}/api/games`, {
     method: "POST",
     headers: gameHeaders(authorId, token),
     body: JSON.stringify({ game, authorId }),
@@ -190,7 +226,7 @@ export async function updateGame(
   token?: string,
 ): Promise<{ game: GameResponseRecord }> {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
-  const res = await fetch(`${baseUrl}/api/games/${encodeURIComponent(id)}`, {
+  const res = await fetchWithTimeout(`${baseUrl}/api/games/${encodeURIComponent(id)}`, {
     method: "PUT",
     headers: gameHeaders(authorId, token),
     body: JSON.stringify({ game, authorId }),
@@ -212,7 +248,7 @@ export async function publishGame(
   token?: string,
 ): Promise<{ game: GameResponseRecord }> {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
-  const res = await fetch(`${baseUrl}/api/games/${encodeURIComponent(id)}/publish`, {
+  const res = await fetchWithTimeout(`${baseUrl}/api/games/${encodeURIComponent(id)}/publish`, {
     method: "POST",
     headers: gameHeaders(authorId, token),
     body: JSON.stringify({ authorId }),
@@ -234,7 +270,7 @@ export async function forkGame(
   token?: string,
 ): Promise<{ game: GameResponseRecord }> {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
-  const res = await fetch(`${baseUrl}/api/games/${encodeURIComponent(id)}/fork`, {
+  const res = await fetchWithTimeout(`${baseUrl}/api/games/${encodeURIComponent(id)}/fork`, {
     method: "POST",
     headers: gameHeaders(authorId, token),
     body: JSON.stringify({ authorId }),

@@ -121,6 +121,8 @@ export interface GameRulesConfig {
   /** Seconds before the server auto-passes a human turn. 0 disables the timer. */
   turnTimeoutSeconds?: number;
   submission?: SubmissionConfig;
+  /** Whether the starting discard card must be a normal number card without special effects. */
+  requireNormalInitialCard?: boolean;
 }
 
 export interface GameSchemaDefinition {

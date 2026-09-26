@@ -38,6 +38,7 @@ export const descarteCriolloDefinition: GameSchemaDefinition = {
     matchingProperties: ['color', 'value'],
     allowWildOnAny: true,
     reshuffleDiscardPile: true,
+    requireNormalInitialCard: true,
     drawStack: DEFAULT_DRAW_STACK_CONFIG,
     effects: {
       '1': {

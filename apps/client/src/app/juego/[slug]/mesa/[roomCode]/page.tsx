@@ -294,7 +294,7 @@ export default function MesaPage() {
     return (
       <div className="max-w-[480px] mx-auto min-h-screen flex flex-col bg-app">
         <div className="px-4 pt-4">
-          <BackButton />
+          <BackButton to={`/juego/${slug}`} />
         </div>
         <Suspense fallback={null}>
           <JoinRoomForm roomCode={roomCode.toUpperCase()} />
@@ -315,7 +315,7 @@ export default function MesaPage() {
     return (
       <div className="max-w-[480px] mx-auto min-h-screen flex flex-col bg-app">
         <div className="px-4 pt-4">
-          <BackButton />
+          <BackButton to={`/juego/${slug}`} />
         </div>
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-6">
           <div className="text-[13px] text-danger">{lastError ?? "Ocurrió un error"}</div>
@@ -339,7 +339,7 @@ export default function MesaPage() {
     return (
       <div className="relative min-h-screen bg-app flex flex-col">
         <div className="flex items-center justify-between px-4 pt-4">
-          <BackButton />
+          <BackButton to={`/juego/${slug}`} />
           <div className="flex items-center gap-1">
             <span className="relative">
               <IconButton
@@ -664,7 +664,7 @@ export default function MesaPage() {
         </div>
       )}
       <div className="flex-none px-3.5 md:px-6 py-2.5 md:py-4 flex items-center justify-between">
-        <BackButton />
+        <BackButton to={`/juego/${slug}`} />
         <div className="text-center">
  <div className="inline-flex flex-col items-center border-2 border-subtle bg-statusbar/90 px-4 py-1.5 shadow-[3px_3px_0_0_rgba(0,0,0,0.35)]">
             <div className="flex items-center gap-1.5 font-display text-xs md:text-sm font-black uppercase tracking-wider text-ink">
@@ -793,8 +793,25 @@ export default function MesaPage() {
             />
           ))}
           {others.length > 3 && (
-            <div className="absolute top-1 right-1 text-[10px] text-ink-faint">
-              +{others.length - 3} más
+            <div className="absolute top-1 right-1 left-1 flex flex-wrap justify-end gap-1">
+              {others.slice(3).map((player) => (
+                <PlayerBadge
+                  key={player.id}
+                  player={player}
+                  position="top"
+                  compact
+                  isHost={player.id === hostPlayerId}
+                  isCurrentTurn={publicState.currentTurnPlayerId === player.id}
+                  turnExpiresAt={
+                    publicState.currentTurnPlayerId === player.id ? publicState.turnExpiresAt : null
+                  }
+                  drawPulse={drawPulses[player.id] ?? null}
+                  score={publicState.scores?.[player.id]}
+                  escobas={
+                    (publicState.customState?.escobas as Record<string, number> | undefined)?.[player.id]
+                  }
+                />
+              ))}
             </div>
           )}
 

@@ -81,14 +81,12 @@ export class DeckManager {
   }
 
   /**
-   * Returns every card in the given list to the draw pile (clearing the list)
-   * and reshuffles. Unlike recycleDiscard it recycles the whole list.
+   * Return cards back to the deck (draw pile) and shuffle.
    */
-  public recycleAll(cards: Card[]): number {
-    const recycled = cards.splice(0, cards.length);
-    this.cards.push(...recycled);
+  public returnCards(cards: Card[]): void {
+    if (!cards.length) return;
+    this.cards.push(...cards);
     this.shuffle();
-    return recycled.length;
   }
 
   public get count(): number {
