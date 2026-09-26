@@ -52,6 +52,7 @@ const rulesSchema = z.object({
   matchingProperties: z.array(z.enum(['color', 'value'])).optional(),
   allowWildOnAny: z.boolean().optional(),
   reshuffleDiscardPile: z.boolean().optional(),
+  finishOnSpecialCard: z.enum(['ALLOW', 'BLOCK', 'DRAW_PENALTY']).optional(),
   effects: z.record(z.string(), effectSchema).optional(),
   winCondition: winConditionSchema,
   zones: z.array(zoneSchema).optional(),

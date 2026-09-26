@@ -50,6 +50,15 @@ export interface CardEffect {
 
 export type DrawStackRule = 'OFF' | 'SAME_TYPE' | 'HIGHER_OR_EQUAL' | 'ALL';
 
+/**
+ * What happens when a player would empty their hand with a special card
+ * (ACTION or WILD) under an EMPTY_HAND win condition:
+ * - ALLOW: the play wins (default, classic behavior).
+ * - BLOCK: the play is rejected; the player must play another card or draw.
+ * - DRAW_PENALTY: the card is played, the player draws 2 and the game continues.
+ */
+export type FinishOnSpecialCardRule = 'ALLOW' | 'BLOCK' | 'DRAW_PENALTY';
+
 export interface DrawStackConfig {
   rule: DrawStackRule;
   endsTurnOnDraw: boolean;
@@ -72,6 +81,8 @@ export interface GameRulesConfig {
   autoPassOnDraw?: boolean;
   drawStack?: DrawStackConfig;
   effects: Record<string, CardEffect>; // keyed by card.value or card.type
+  /** Emptying the hand with a special card (ACTION/WILD). Defaults to ALLOW. */
+  finishOnSpecialCard?: FinishOnSpecialCardRule;
   winCondition: WinConditionDefinition;
   zones?: ZoneDefinition[];
   phases?: PhaseDefinition[];

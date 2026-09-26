@@ -11,7 +11,12 @@ import { encodePlayerName } from "@/lib/room/player-name";
 import { DISCONNECT_POLICIES } from "@/lib/room/room-context";
 import { useSession } from "@/lib/session/use-session";
 import { getGame, type GameDetail } from "@/lib/api/games";
-import type { DisconnectPolicy, DrawStackRule, ColorMatchMode } from "@/types/realtime";
+import type {
+  DisconnectPolicy,
+  DrawStackRule,
+  ColorMatchMode,
+  FinishOnSpecialCardRule,
+} from "@/types/realtime";
 
 type Tab = "crear" | "unirse";
 
@@ -42,6 +47,28 @@ const COLOR_MATCH_MODES: {
     badge: "62 cartas · Caos",
     icon: "pixelarticons:reload",
     description: "6 cartas iniciales con cartas de intercambio (SWAP) y descarte de color entero.",
+  },
+];
+
+const FINISH_ON_SPECIAL_OPTIONS: {
+  value: FinishOnSpecialCardRule;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "ALLOW",
+    label: "Permitido (gana con especial)",
+    description: "Podés vaciar tu mano con una carta de acción o comodín y ganar la partida.",
+  },
+  {
+    value: "BLOCK",
+    label: "Bloqueado (no puede terminar)",
+    description: "No podés bajar tu última carta si es especial: debés jugar otra carta o robar.",
+  },
+  {
+    value: "DRAW_PENALTY",
+    label: "Roba 2 y sigue",
+    description: "La carta especial se juega, pero robás 2 cartas automáticamente y la partida continúa.",
   },
 ];
 
@@ -116,6 +143,8 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
   const [name, setName] = useState(user?.name ?? "");
   const [roomCode, setRoomCode] = useState("");
   const [colorMatchMode, setColorMatchMode] = useState<ColorMatchMode>(initialMode);
+  const [finishOnSpecialCard, setFinishOnSpecialCard] =
+    useState<FinishOnSpecialCardRule>("ALLOW");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [graceSeconds, setGraceSeconds] = useState(initialMode === "BLITZ" ? 15 : 25);
   const [policy, setPolicy] = useState<DisconnectPolicy>("DISCARD_AND_CONTINUE");
@@ -210,7 +239,7 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
               }
             : {}),
           ...(isScoreThreshold ? { targetScore } : {}),
-          ...(isColorMatch ? { colorMatchMode } : {}),
+          ...(isColorMatch ? { colorMatchMode, finishOnSpecialCard } : {}),
         },
       });
 
@@ -369,6 +398,27 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
                   );
                 })}
               </div>
+
+              <label className="flex flex-col gap-1.5 border-2 border-subtle bg-app/40 p-3 text-[13px] text-ink-soft">
+                <span className="font-bold text-ink">Terminar con carta especial</span>
+                <span className="text-[11px] text-ink-faint">
+                  Qué pasa si un jugador intenta vaciar su mano con una carta de acción o comodín:
+                </span>
+                <select
+                  value={finishOnSpecialCard}
+                  onChange={(e) => setFinishOnSpecialCard(e.target.value as FinishOnSpecialCardRule)}
+                  className="h-10 border border-subtle bg-app/60 text-ink text-sm px-3 focus:outline-none focus:border-accent"
+                >
+                  {FINISH_ON_SPECIAL_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-[11px] text-accent leading-snug">
+                  {FINISH_ON_SPECIAL_OPTIONS.find((opt) => opt.value === finishOnSpecialCard)?.description}
+                </span>
+              </label>
             </div>
           )}
 

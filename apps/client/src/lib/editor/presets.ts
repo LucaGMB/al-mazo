@@ -37,6 +37,7 @@ export interface GameDefinitionData {
     matchingProperties?: Array<"color" | "value">;
     allowWildOnAny?: boolean;
     reshuffleDiscardPile?: boolean;
+    finishOnSpecialCard?: "ALLOW" | "BLOCK" | "DRAW_PENALTY";
     drawStack?: {
       rule: "OFF" | "SAME_TYPE" | "HIGHER_OR_EQUAL" | "ALL";
       endsTurnOnDraw?: boolean;

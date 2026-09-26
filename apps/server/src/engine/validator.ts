@@ -5,6 +5,39 @@ export interface PlayValidationResult {
   reason?: string;
 }
 
+export const SPECIAL_CARD_BLOCK_REASON =
+  'No podés terminar con una carta especial: jugá otra carta o robá.';
+
+/** Special = anything that is not a number card (ACTION or WILD). */
+export function isSpecialCard(card: Card): boolean {
+  return card.type !== 'NUMBER';
+}
+
+/**
+ * True when playing `card` would empty the hand with a special card while
+ * `finishOnSpecialCard` is BLOCK. Covers both the direct last-card play and
+ * DISCARD_ALL_COLOR effects that clear the remaining matching cards.
+ */
+export function blocksFinishWithSpecialCard(
+  card: Card,
+  hand: Card[],
+  rules: GameRulesConfig,
+  activeColor: string | null
+): boolean {
+  if ((rules.finishOnSpecialCard ?? 'ALLOW') !== 'BLOCK') return false;
+  if (rules.winCondition.type !== 'EMPTY_HAND') return false;
+  if (!isSpecialCard(card)) return false;
+
+  const remaining = hand.filter((c) => c.id !== card.id);
+  if (remaining.length === 0) return true;
+
+  const effect = rules.effects?.[String(card.value ?? card.type)];
+  return (
+    effect?.type === 'DISCARD_ALL_COLOR' &&
+    remaining.every((c) => c.color === (card.color ?? activeColor))
+  );
+}
+
 export function validateCardPlay(
   card: Card,
   topDiscardCard: Card | null,

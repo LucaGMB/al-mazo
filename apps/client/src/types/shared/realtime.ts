@@ -1,4 +1,9 @@
-import type { Card, DrawStackConfig, PublicGameState } from './engine.js';
+import type {
+  Card,
+  DrawStackConfig,
+  FinishOnSpecialCardRule,
+  PublicGameState,
+} from './engine.js';
 
 export interface ChatMessage {
   id: string;
@@ -23,6 +28,7 @@ export interface RoomOptions {
   drawStack?: DrawStackConfig;
   colorMatchMode?: ColorMatchMode;
   targetScore?: number;
+  finishOnSpecialCard?: FinishOnSpecialCardRule;
 }
 
 export interface ClientToServerEvents {
