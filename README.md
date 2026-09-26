@@ -53,13 +53,7 @@ Architecture, REST API and Socket.io events: [docs/ARCHITECTURE.md](docs/ARCHITE
 
 ## Status
 
-The platform and its official games are stable. The visual editor is in beta: schemas and capabilities may still change.
-
-## Español
-
-Al Mazo es una plataforma modular de juegos de mesa y cartas, local y online. Cada juego es un esquema JSON que ejecuta un motor de reglas declarativo, sin lógica cableada por juego. El servidor es autoritativo: la mano de cada jugador viaja solo a su propio socket. Incluye juegos oficiales, reconexión ante caídas y modo local sin conexión.
-
-[Jugar ahora](https://al-mazo.webflow.io) · [Documentación técnica](docs/ARCHITECTURE.md)
+Al Mazo is a work in progress: everything described here is playable today, and new games, mechanics and editor capabilities are added continuously. The visual editor is in beta, so schemas and capabilities may still change.
 
 ## License
 
