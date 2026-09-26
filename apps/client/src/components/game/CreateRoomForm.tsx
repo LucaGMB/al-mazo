@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
-import { randomPlayerName } from "@al-mazo/shared";
+import { randomPlayerName } from "@/types/shared/names";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/Button";
 import { createSocket } from "@/lib/socket/client";
