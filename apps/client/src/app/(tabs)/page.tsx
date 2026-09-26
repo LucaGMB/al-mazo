@@ -140,7 +140,12 @@ export default function Hub() {
 
       {games && (
         <div className="flex flex-col gap-2">
- <div className="flex items-center gap-2"><h2 className="text-base font-bold text-ink">Catálogo de Juegos</h2><span className=" bg-accent/15 px-2 py-0.5 text-[10px] font-bold text-accent">4 Modos</span></div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-bold text-ink">Catálogo de Juegos</h2>
+            <span className="bg-accent/15 px-2 py-0.5 text-[10px] font-bold text-accent">
+              {filtered.length} {filtered.length === 1 ? "juego" : "juegos"}
+            </span>
+          </div>
           {filtered.length === 0 ? (
             <div className="text-[13px] text-ink-faint">No encontramos juegos con ese criterio.</div>
           ) : (

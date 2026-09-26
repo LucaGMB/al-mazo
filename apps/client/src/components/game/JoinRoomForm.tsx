@@ -27,11 +27,11 @@ export default function JoinRoomForm({ roomCode }: { roomCode: string }) {
 
   return (
     <div className="flex flex-col gap-4 max-w-sm mx-auto px-4 py-10 text-center">
-      <div className="text-[13px] text-ink-faint">Unirte a la sala</div>
-      <div className="text-2xl font-bold tracking-widest text-ink">{roomCode}</div>
+      <div className="text-[13px] text-ink-faint">Unirse a la sala</div>
+      <div className="text-2xl font-bold tracking-widest text-accent font-mono">{roomCode}</div>
 
       <label className="flex flex-col gap-1.5 text-[13px] text-ink-soft text-left">
-        Tu nombre
+        <span className="font-bold text-ink">Tu nombre o apodo</span>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -43,7 +43,7 @@ export default function JoinRoomForm({ roomCode }: { roomCode: string }) {
       {lastError && <div className="text-[13px] text-danger">{lastError}</div>}
 
       <Button variant="primary" fullWidth disabled={isSubmitting} onClick={handleSubmit}>
-        {isSubmitting ? "Uniéndote..." : "Unirme"}
+        {isSubmitting ? "Ingresando a la mesa..." : "Entrar a la partida"}
       </Button>
     </div>
   );

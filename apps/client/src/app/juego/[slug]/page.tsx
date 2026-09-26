@@ -218,7 +218,7 @@ export default function GameDetailPage() {
                   className="!h-14 !text-base !px-7 md:w-auto"
                 >
                   <Icon icon="pixelarticons:play" width={20} height={20} />
-                  Jugar online
+                  Crear o unirse a sala online
                 </Button>
                 {localSupported && (
                   <Button
@@ -228,13 +228,13 @@ export default function GameDetailPage() {
                     className="!h-14 !text-sm !px-7 md:w-auto"
                   >
                     <Icon icon="pixelarticons:device-mobile" width={18} height={18} />
-                    Jugar en este dispositivo
+                    Jugar local (en este dispositivo)
                   </Button>
                 )}
               </div>
             ) : (
- <div className=" border-2 border-subtle px-4 py-3 text-[13px] text-ink-faint">
-                Este juego todavía no se puede jugar desde el cliente.
+              <div className="border-2 border-subtle px-4 py-3 text-[13px] text-ink-faint">
+                Este juego está en desarrollo y pronto estará disponible para jugar.
               </div>
             )}
           </div>

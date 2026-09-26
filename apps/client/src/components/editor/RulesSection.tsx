@@ -38,22 +38,22 @@ const DRAW_STACK_MODES = [
   {
     rule: "ALL" as const,
     label: "Todo acumulable",
-    desc: "+2 y +4 combinables entre sí de cualquier forma",
+    desc: "Permite responder +2 o +4 con cualquier otra carta de robo",
   },
   {
     rule: "SAME_TYPE" as const,
     label: "Mismo tipo",
-    desc: "+2 solo sobre +2, +4 solo sobre +4",
+    desc: "Solo +2 sobre +2, o +4 sobre +4. No se combinan entre sí",
   },
   {
     rule: "HIGHER_OR_EQUAL" as const,
-    label: "Igual o mayor",
-    desc: "+4 contrarresta +2 o +4; +2 solo sobre +2",
+    label: "Mismo o mayor",
+    desc: "+4 puede responder a +2 o +4; +2 solo responde a +2",
   },
   {
     rule: "OFF" as const,
     label: "Desactivado",
-    desc: "Sin acumulación, el siguiente jugador roba de inmediato",
+    desc: "Sin encadenar: quien recibe el castigo roba y pierde el turno",
   },
 ];
 
@@ -379,9 +379,9 @@ export default function RulesSection({
                 className="w-4 h-4 accent-accent rounded cursor-pointer"
               />
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-ink">Fin de turno al robar pozo</span>
+                <span className="text-xs font-bold text-ink">Perder el turno al robar pozo</span>
                 <span className="text-[10px] text-ink-faint">
-                  Si no puede contrarrestar, roba todo el pozo y su turno termina
+                  Si no tiene carta para contrarrestar, roba todo el pozo y su turno termina en el acto
                 </span>
               </div>
             </label>
@@ -403,9 +403,9 @@ export default function RulesSection({
                   className="w-4 h-4 accent-accent rounded cursor-pointer"
                 />
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-ink">+2 comodín sobre +4</span>
+                  <span className="text-xs font-bold text-ink">Responder a un +4 con cualquier +2</span>
                   <span className="text-[10px] text-ink-faint">
-                    Permite responder a un +4 con un +2 de cualquier color
+                    Permite tirar un +2 sin respetar el color elegido en el comodín +4
                   </span>
                 </div>
               </label>
