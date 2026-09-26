@@ -63,6 +63,12 @@ function toRecord(game: {
   return { ...game };
 }
 
+function logPersistenceFallback(message: string, error: unknown) {
+  if (process.env.NODE_ENV !== 'test') {
+    console.error(message, error);
+  }
+}
+
 function toPublic(record: GameRecord) {
   const schema = (record.schemaJson ?? {}) as Record<string, unknown>;
   return {
@@ -143,7 +149,11 @@ async function createGame(record: GameRecord): Promise<GameRecord> {
       },
     });
     return toRecord(created);
-  } catch {
+  } catch (error) {
+    logPersistenceFallback(
+      `[games] Could not persist game '${record.slug}' in the database; kept in memory only`,
+      error
+    );
     memoryGames.set(record.id, record);
     return record;
   }
@@ -188,7 +198,11 @@ async function persistGame(record: GameRecord): Promise<GameRecord> {
       },
     });
     return toRecord(updated);
-  } catch {
+  } catch (error) {
+    logPersistenceFallback(
+      `[games] Could not update game '${record.slug}' in the database; kept in memory only`,
+      error
+    );
     memoryGames.set(record.id, record);
     return record;
   }
@@ -197,7 +211,13 @@ async function persistGame(record: GameRecord): Promise<GameRecord> {
 async function listCommunityGames(): Promise<GameRecord[]> {
   try {
     const dbGames = await prisma.gameDefinition.findMany({ where: { isOfficial: false } });
-    return dbGames.map(toRecord);
+    const records = dbGames.map(toRecord);
+    const knownIds = new Set(records.map((game) => game.id));
+    const knownSlugs = new Set(records.map((game) => game.slug));
+    const memoryOnly = Array.from(memoryGames.values()).filter(
+      (game) => !game.isOfficial && !knownIds.has(game.id) && !knownSlugs.has(game.slug)
+    );
+    return [...records, ...memoryOnly];
   } catch {
     return Array.from(memoryGames.values()).filter((game) => !game.isOfficial);
   }

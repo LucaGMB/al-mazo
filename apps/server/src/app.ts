@@ -15,6 +15,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(cors, {
     origin: env.CORS_ORIGIN === '*' ? true : env.CORS_ORIGIN,
     credentials: true,
+    // @fastify/cors v11 defaults to GET,HEAD,POST; the API also needs PUT/PATCH/DELETE.
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
   await app.register(helmet, {
