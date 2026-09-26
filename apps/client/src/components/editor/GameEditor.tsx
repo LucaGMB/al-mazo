@@ -122,6 +122,14 @@ export default function GameEditor() {
     return null;
   }
 
+  // The server may rename the slug on collision; keep the editor in sync so
+  // "Probar Mesa" and subsequent saves target the persisted game.
+  function syncSavedSlug(res: { game?: { slug?: string } }) {
+    const savedSlug = res.game?.slug;
+    if (!savedSlug) return;
+    setGameData((prev) => (prev.slug === savedSlug ? prev : { ...prev, slug: savedSlug }));
+  }
+
   async function handleSaveDraft() {
     const authorId = requireAuthorId();
     if (!authorId) return;
@@ -141,12 +149,14 @@ export default function GameEditor() {
         const res = await updateGame(gameId, payload, authorId, token ?? undefined);
         setStatusMessage({ text: "¡Borrador actualizado con éxito!", type: "success" });
         if (res.game?.id) setGameId(res.game.id);
+        syncSavedSlug(res);
       } else {
         const res = await createGame(payload, authorId, token ?? undefined);
         setStatusMessage({ text: "¡Borrador creado con éxito!", type: "success" });
         if (res.game?.id) {
           setGameId(res.game.id);
         }
+        syncSavedSlug(res);
       }
     } catch (err) {
       setStatusMessage({
@@ -192,8 +202,9 @@ export default function GameEditor() {
         );
         targetId = createRes.game?.id;
         if (targetId) setGameId(targetId);
+        syncSavedSlug(createRes);
       } else {
-        await updateGame(
+        const updateRes = await updateGame(
           targetId,
           {
             slug: gameData.slug,
@@ -205,6 +216,7 @@ export default function GameEditor() {
           authorId,
           authToken
         );
+        syncSavedSlug(updateRes);
       }
 
       if (!targetId) throw new Error("No se pudo obtener el identificador del juego");
@@ -675,14 +687,24 @@ export default function GameEditor() {
             {isPublishing ? "Publicando..." : "Publicar en Comunidad"}
           </Button>
 
-          <Link
-            href={`/juego/${gameData.slug}/mesa`}
-            target="_blank"
- className="inline-flex items-center gap-1.5 h-10 px-4 border border-accent/40 bg-accent/15 text-accent text-xs font-bold hover:bg-accent/25 transition-all no-underline shadow-[0_0_12px_rgba(32,168,216,0.2)]"
-          >
-            <Icon icon="pixelarticons:play" width={16} height={16} />
-            Probar Mesa
-          </Link>
+          {gameId ? (
+            <Link
+              href={`/juego/${gameData.slug}/mesa`}
+              target="_blank"
+              className="inline-flex items-center gap-1.5 h-10 px-4 border border-accent/40 bg-accent/15 text-accent text-xs font-bold hover:bg-accent/25 transition-all no-underline shadow-[0_0_12px_rgba(32,168,216,0.2)]"
+            >
+              <Icon icon="pixelarticons:play" width={16} height={16} />
+              Probar Mesa
+            </Link>
+          ) : (
+            <span
+              title="Guardá el borrador para poder probar la mesa"
+              className="inline-flex items-center gap-1.5 h-10 px-4 border border-subtle text-ink-faint text-xs font-bold opacity-60 cursor-not-allowed"
+            >
+              <Icon icon="pixelarticons:play" width={16} height={16} />
+              Probar Mesa
+            </span>
+          )}
         </div>
       </div>
 

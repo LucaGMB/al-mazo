@@ -33,7 +33,12 @@ export class GameEngine {
   private pendingChoice: { playerId: string; type: 'COLOR' } | null = null;
 
   constructor(definition: GameSchemaDefinition) {
-    this.definition = definition;
+    // Editor-generated schemas may omit `effects`; the engine dereferences it on
+    // every card play, so default it once here for every game source.
+    this.definition = {
+      ...definition,
+      rules: { ...definition.rules, effects: definition.rules.effects ?? {} },
+    };
     this.deckManager = new DeckManager(definition.deckConfig);
   }
 

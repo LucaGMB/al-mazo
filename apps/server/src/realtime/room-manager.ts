@@ -1,7 +1,7 @@
 import { customAlphabet } from 'nanoid';
 import { GameRoom } from './room.js';
 import { RoomOptions, RoomPlayer } from './types.js';
-import { getOfficialGame } from '../games/registry.js';
+import { resolveGameDefinition } from '../games/resolver.js';
 import { redis } from '../db/redis.js';
 
 // 5-character readable alphanumeric code (excluding ambiguous 0, O, 1, I)
@@ -15,9 +15,9 @@ export class RoomManager {
     host: { id: string; name: string; socketId: string },
     options?: RoomOptions
   ): Promise<{ room: GameRoom; reconnectToken: string }> {
-    const definition = getOfficialGame(gameSlug);
+    const definition = await resolveGameDefinition(gameSlug);
     if (!definition) {
-      throw new Error(`Game '${gameSlug}' not found in registry`);
+      throw new Error(`Game '${gameSlug}' not found`);
     }
 
     let code: string;
