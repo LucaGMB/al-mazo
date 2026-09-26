@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/Button";
@@ -10,6 +10,7 @@ import { saveRoomCredentials } from "@/lib/room/credentials";
 import { encodePlayerName } from "@/lib/room/player-name";
 import { DISCONNECT_POLICIES } from "@/lib/room/room-context";
 import { useSession } from "@/lib/session/use-session";
+import { getGame, type GameDetail } from "@/lib/api/games";
 import type { DisconnectPolicy, DrawStackRule, ColorMatchMode } from "@/types/realtime";
 
 type Tab = "crear" | "unirse";
@@ -101,6 +102,7 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
 
   const isColorMatch =
     slug === "color-match" || slug === "color-match-blitz" || slug === "color-match-chaos";
+  const isTruco = slug === "truco";
 
   const urlMode = searchParams?.get("mode")?.toUpperCase();
   const initialMode: ColorMatchMode =
@@ -120,8 +122,47 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
   const [drawStackRule, setDrawStackRule] = useState<DrawStackRule>("ALL");
   const [endsTurnOnDraw, setEndsTurnOnDraw] = useState(true);
   const [allowAnyColorDraw2OnDraw4, setAllowAnyColorDraw2OnDraw4] = useState(true);
+  const [targetScore, setTargetScore] = useState<number>(30);
+  const [gameDetail, setGameDetail] = useState<GameDetail | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getGame(slug)
+      .then((data) => {
+        if (!cancelled && data) {
+          setGameDetail(data);
+          const score = data.game.rules.targetScore ?? data.game.rules.winCondition?.targetScore;
+          if (score) {
+            setTargetScore(score);
+          }
+        }
+      })
+      .catch(() => {
+        // Non-blocking fallback for preview/offline
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  const supportsDrawStack = Boolean(
+    gameDetail
+      ? gameDetail.game.rules.drawStack !== undefined ||
+        (gameDetail.game.rules.effects &&
+          Object.values(gameDetail.game.rules.effects).some(
+            (e: unknown) =>
+              typeof e === "object" &&
+              e !== null &&
+              "type" in e &&
+              (e as { type?: unknown }).type === "DRAW_CARDS"
+          ))
+      : isColorMatch || slug === "descarte-criollo"
+  );
+
+  const isScoreThreshold =
+    isTruco || gameDetail?.game.rules.winCondition?.type === "SCORE_THRESHOLD";
 
   function handleSelectMode(m: ColorMatchMode) {
     setColorMatchMode(m);
@@ -159,11 +200,16 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
           disconnectGraceSeconds: graceSeconds,
           disconnectPolicy: policy,
           turnTimeoutSeconds: graceSeconds,
-          drawStack: {
-            rule: drawStackRule,
-            endsTurnOnDraw,
-            allowAnyColorDraw2OnDraw4,
-          },
+          ...(supportsDrawStack
+            ? {
+                drawStack: {
+                  rule: drawStackRule,
+                  endsTurnOnDraw,
+                  allowAnyColorDraw2OnDraw4,
+                },
+              }
+            : {}),
+          ...(isScoreThreshold ? { targetScore } : {}),
           ...(isColorMatch ? { colorMatchMode } : {}),
         },
       });
@@ -371,64 +417,107 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
           </button>
           {showAdvanced && (
             <div className="flex flex-col gap-3.5 border-2 border-subtle p-3.5 bg-app/40">
-              <label className="flex flex-col gap-1.5 text-[13px] text-ink-soft">
-                <span className="font-bold text-ink">Acumulación de cartas de robo (+2 / +4)</span>
-                <span className="text-[11px] text-ink-faint">
-                  Permite responder a un castigo de cartas jugando otra carta de robo en lugar de robar en el acto:
-                </span>
-                <select
-                  value={drawStackRule}
-                  onChange={(e) => setDrawStackRule(e.target.value as DrawStackRule)}
-                  className="h-10 border border-subtle bg-app/60 text-ink text-sm px-3 focus:outline-none focus:border-accent"
-                >
-                  {DRAW_STACK_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                <span className="text-[11px] text-accent leading-snug">
-                  {DRAW_STACK_OPTIONS.find((opt) => opt.value === drawStackRule)?.description}
-                </span>
-              </label>
-
-              {drawStackRule !== "OFF" && (
-                <div className="flex flex-col gap-2.5 pt-2.5 border-t border-subtle/50">
-                  <label className="flex items-start gap-2.5 text-[12px] text-ink cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={endsTurnOnDraw}
-                      onChange={(e) => setEndsTurnOnDraw(e.target.checked)}
-                      className="accent-accent h-4 w-4 mt-0.5 border-subtle shrink-0"
-                    />
-                    <div className="flex flex-col">
-                      <span className="font-bold">Finalizar turno al robar pozo acumulado</span>
-                      <span className="text-[11px] text-ink-faint">
-                        Si no podés responder y robás el pozo de cartas acumuladas, tu turno termina de inmediato.
-                      </span>
-                    </div>
-                  </label>
-
-                  {drawStackRule === "ALL" && (
-                    <label className="flex items-start gap-2.5 text-[12px] text-ink cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={allowAnyColorDraw2OnDraw4}
-                        onChange={(e) => setAllowAnyColorDraw2OnDraw4(e.target.checked)}
-                        className="accent-accent h-4 w-4 mt-0.5 border-subtle shrink-0"
-                      />
-                      <div className="flex flex-col">
-                        <span className="font-bold">Responder a un +4 con un +2 de cualquier color</span>
-                        <span className="text-[11px] text-ink-faint">
-                          Permite jugar un +2 sin importar qué color haya elegido quien tiró el comodín +4.
-                        </span>
-                      </div>
-                    </label>
-                  )}
+              {isTruco && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[13px] font-bold text-ink">Puntos de la partida</span>
+                    <span className="text-[11px] text-ink-faint">
+                      Límite de puntos para consagrar al ganador del Truco:
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { points: 15, label: "15 Puntos", badge: "Partida corta", desc: "A las 15 malas" },
+                      { points: 30, label: "30 Puntos", badge: "Predeterminado", desc: "15 malas y 15 buenas" },
+                    ].map((opt) => {
+                      const active = targetScore === opt.points;
+                      return (
+                        <button
+                          key={opt.points}
+                          type="button"
+                          onClick={() => setTargetScore(opt.points)}
+                          className={`border-2 p-2.5 text-left transition-colors duration-150 cursor-pointer flex flex-col justify-between ${
+                            active
+                              ? "border-accent bg-accent/15 text-ink shadow-[0_0_10px_rgba(255,210,63,0.25)]"
+                              : "border-subtle text-ink-faint hover:border-medium hover:text-ink"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <span className="text-sm font-black text-ink">{opt.label}</span>
+                            <span className="text-[10px] font-bold text-accent font-mono">
+                              {opt.badge}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-ink-soft leading-tight">{opt.desc}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
-              <label className="flex flex-col gap-1.5 text-[13px] text-ink-soft pt-2.5 border-t border-subtle/50">
+              {supportsDrawStack && (
+                <>
+                  <label className="flex flex-col gap-1.5 text-[13px] text-ink-soft">
+                    <span className="font-bold text-ink">Acumulación de cartas de robo (+2 / +4)</span>
+                    <span className="text-[11px] text-ink-faint">
+                      Permite responder a un castigo de cartas jugando otra carta de robo en lugar de robar en el acto:
+                    </span>
+                    <select
+                      value={drawStackRule}
+                      onChange={(e) => setDrawStackRule(e.target.value as DrawStackRule)}
+                      className="h-10 border border-subtle bg-app/60 text-ink text-sm px-3 focus:outline-none focus:border-accent"
+                    >
+                      {DRAW_STACK_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-[11px] text-accent leading-snug">
+                      {DRAW_STACK_OPTIONS.find((opt) => opt.value === drawStackRule)?.description}
+                    </span>
+                  </label>
+
+                  {drawStackRule !== "OFF" && (
+                    <div className="flex flex-col gap-2.5 pt-2.5 border-t border-subtle/50">
+                      <label className="flex items-start gap-2.5 text-[12px] text-ink cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={endsTurnOnDraw}
+                          onChange={(e) => setEndsTurnOnDraw(e.target.checked)}
+                          className="accent-accent h-4 w-4 mt-0.5 border-subtle shrink-0"
+                        />
+                        <div className="flex flex-col">
+                          <span className="font-bold">Finalizar turno al robar pozo acumulado</span>
+                          <span className="text-[11px] text-ink-faint">
+                            Si no podés responder y robás el pozo de cartas acumuladas, tu turno termina de inmediato.
+                          </span>
+                        </div>
+                      </label>
+
+                      {drawStackRule === "ALL" && (
+                        <label className="flex items-start gap-2.5 text-[12px] text-ink cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={allowAnyColorDraw2OnDraw4}
+                            onChange={(e) => setAllowAnyColorDraw2OnDraw4(e.target.checked)}
+                            className="accent-accent h-4 w-4 mt-0.5 border-subtle shrink-0"
+                          />
+                          <div className="flex flex-col">
+                            <span className="font-bold">Responder a un +4 con un +2 de cualquier color</span>
+                            <span className="text-[11px] text-ink-faint">
+                              Permite jugar un +2 sin importar qué color haya elegido quien tiró el comodín +4.
+                            </span>
+                          </div>
+                        </label>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+
+              <label className={`flex flex-col gap-1.5 text-[13px] text-ink-soft ${supportsDrawStack || isTruco ? "pt-2.5 border-t border-subtle/50" : ""}`}>
                 <span className="font-bold text-ink">Si un jugador se desconecta y no regresa:</span>
                 <span className="text-[11px] text-ink-faint">
                   Acción a aplicar tras cumplirse el tiempo de reconexión ({graceSeconds}s):
