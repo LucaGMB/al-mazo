@@ -11,7 +11,7 @@ export default function MesaEntryPage() {
   return (
     <div className="relative min-h-screen bg-app flex flex-col">
       <div className="absolute top-4 left-4 z-10">
-        <BackButton />
+        <BackButton to={`/juego/${slug}`} />
       </div>
       <div className="flex-1 flex items-center justify-center p-4">
         <Suspense fallback={<div className="text-ink-faint text-sm">Cargando mesa...</div>}>

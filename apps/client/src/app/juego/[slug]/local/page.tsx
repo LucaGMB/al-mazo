@@ -45,7 +45,7 @@ export default function LocalGamePage() {
     return (
       <div className="min-h-screen bg-app flex flex-col">
         <div className="max-w-2xl w-full mx-auto py-8 px-4 md:px-8">
-          <BackButton />
+          <BackButton to={`/juego/${slug}`} />
         </div>
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-6">
           <Icon icon="pixelarticons:device-mobile" width={40} height={40} className="text-ink-faint" />

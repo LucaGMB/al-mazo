@@ -153,7 +153,7 @@ function HandCard({
       <div
         className={`animate-deal-in opacity-0 ${dimmed ? "[filter:grayscale(0.6)_opacity(0.5)]" : ""} ${
           interactive && matches
-            ? "ring-2 ring-warning/50 shadow-[0_0_12px_rgba(245,197,24,0.35)] group-hover:ring-warning group-hover:shadow-[0_0_20px_rgba(245,197,24,0.65)]"
+            ? "[filter:drop-shadow(0_0_6px_rgba(245,197,24,0.7))] group-hover:[filter:drop-shadow(0_0_10px_rgba(245,197,24,0.95))]"
             : ""
         }`}
         style={{ animationDelay: `${index * 60}ms` }}
