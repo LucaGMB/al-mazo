@@ -208,18 +208,43 @@ async function persistGame(record: GameRecord): Promise<GameRecord> {
   }
 }
 
+/**
+ * Memory records are authoritative (mirrors findGame/persistGame): they replace
+ * DB rows with the same id/slug and add games whose DB write fell back.
+ */
+function mergeMemoryFirst(
+  records: GameRecord[],
+  predicate: (game: GameRecord) => boolean
+): GameRecord[] {
+  const memory = Array.from(memoryGames.values()).filter(predicate);
+  if (memory.length === 0) return records;
+  const shadowedIds = new Set(memory.map((game) => game.id));
+  const shadowedSlugs = new Set(memory.map((game) => game.slug));
+  return [
+    ...records.filter(
+      (game) => !shadowedIds.has(game.id) && !shadowedSlugs.has(game.slug)
+    ),
+    ...memory,
+  ];
+}
+
 async function listCommunityGames(): Promise<GameRecord[]> {
   try {
-    const dbGames = await prisma.gameDefinition.findMany({ where: { isOfficial: false } });
-    const records = dbGames.map(toRecord);
-    const knownIds = new Set(records.map((game) => game.id));
-    const knownSlugs = new Set(records.map((game) => game.slug));
-    const memoryOnly = Array.from(memoryGames.values()).filter(
-      (game) => !game.isOfficial && !knownIds.has(game.id) && !knownSlugs.has(game.slug)
-    );
-    return [...records, ...memoryOnly];
+    const dbGames = await prisma.gameDefinition.findMany({
+      where: { isOfficial: false, isPublished: true },
+    });
+    return mergeMemoryFirst(dbGames.map(toRecord), (game) => !game.isOfficial && game.isPublished);
   } catch {
-    return Array.from(memoryGames.values()).filter((game) => !game.isOfficial);
+    return Array.from(memoryGames.values()).filter((game) => !game.isOfficial && game.isPublished);
+  }
+}
+
+async function listGamesByAuthor(authorId: string): Promise<GameRecord[]> {
+  try {
+    const dbGames = await prisma.gameDefinition.findMany({ where: { authorId } });
+    return mergeMemoryFirst(dbGames.map(toRecord), (game) => game.authorId === authorId);
+  } catch {
+    return Array.from(memoryGames.values()).filter((game) => game.authorId === authorId);
   }
 }
 
@@ -297,6 +322,22 @@ export const gamesRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.send({ games });
     }
   );
+
+  /**
+   * GET /api/games/mine
+   * Lists every game owned by the authenticated author, drafts included
+   */
+  fastify.get('/api/games/mine', async (request, reply) => {
+    const authorId = await resolveAuthor(request);
+    if (!authorId) {
+      return reply
+        .status(401)
+        .send({ error: 'Exclusivo para jugadores registrados. Iniciá sesión para ver tus juegos.' });
+    }
+
+    const games = await listGamesByAuthor(authorId);
+    return reply.send({ games: games.map(toPublic) });
+  });
 
   /**
    * POST /api/games
@@ -471,6 +512,9 @@ export const gamesRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.send({
         game: official,
         isOfficial: true,
+        id: slug,
+        status: 'PUBLISHED',
+        authorId: null,
       });
     }
 
@@ -479,6 +523,10 @@ export const gamesRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.send({
         game: definitionOf(record),
         isOfficial: false,
+        id: record.id,
+        status: record.status,
+        isPublished: record.isPublished,
+        authorId: record.authorId,
       });
     }
 

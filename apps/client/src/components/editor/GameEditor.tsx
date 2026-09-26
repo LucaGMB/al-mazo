@@ -18,9 +18,11 @@ import {
   createGame,
   getGame,
   getGames,
+  getMyGames,
   publishGame,
   updateGame,
   validateGame,
+  type MyGameSummary,
 } from "@/lib/api/games";
 import { useSession } from "@/lib/session/use-session";
 import type { GameSummary } from "@/types/api";
@@ -45,6 +47,7 @@ export default function GameEditor() {
   const clientValidation = useMemo(() => validateGameClient(gameData), [gameData]);
   const [serverErrors, setServerErrors] = useState<string[]>([]);
   const [isValidating, setIsValidating] = useState(false);
+  const [validationRetry, setValidationRetry] = useState(0);
 
   const validationErrors = useMemo(() => {
     if (!clientValidation.valid) return clientValidation.errors;
@@ -64,12 +67,70 @@ export default function GameEditor() {
   const [isForkModalOpen, setIsForkModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [myGames, setMyGames] = useState<MyGameSummary[]>([]);
+  const [isMyGamesOpen, setIsMyGamesOpen] = useState(false);
+  const [isLoadingGame, setIsLoadingGame] = useState(false);
 
   // Fetch games list for fork options
   useEffect(() => {
     getGames()
       .then((games) => setAvailableGames(games))
       .catch(() => {});
+  }, []);
+
+  async function refreshMyGames() {
+    if (!isLoggedIn) return;
+    try {
+      setMyGames(await getMyGames(token ?? undefined));
+    } catch {
+      // Offline or server unreachable: keep the previous list.
+    }
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void refreshMyGames();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn, token]);
+
+  // Resume a saved game (draft or published) from /editor?game=<slug>
+  async function loadGame(slug: string) {
+    setIsLoadingGame(true);
+    setStatusMessage(null);
+    try {
+      const detail = await getGame(slug);
+      if (!detail) throw new Error("El juego ya no existe");
+      startTransition(() => {
+        const rules = (detail.game.rules ?? {}) as Partial<GameDefinitionData["rules"]>;
+        setGameData({
+          slug: detail.game.slug,
+          title: detail.game.title,
+          description: detail.game.description,
+          deckConfig:
+            (detail.game.deckConfig as GameDefinitionData["deckConfig"] | null) ??
+            DEFAULT_NEW_GAME.deckConfig,
+          rules: { ...DEFAULT_NEW_GAME.rules, ...rules },
+        });
+        setGameId(detail.id ?? null);
+        setIsPublished(detail.status === "PUBLISHED");
+        setActiveTab("metadata");
+      });
+      window.history.replaceState(null, "", `/editor?game=${encodeURIComponent(slug)}`);
+      setStatusMessage({ text: `'${detail.game.title}' cargado para editar.`, type: "success" });
+    } catch (err) {
+      setStatusMessage({
+        text: err instanceof Error ? err.message : "No se pudo cargar el juego",
+        type: "error",
+      });
+    } finally {
+      setIsLoadingGame(false);
+    }
+  }
+
+  useEffect(() => {
+    const slug = new URLSearchParams(window.location.search).get("game");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (slug) void loadGame(slug);
   }, []);
 
   // Validate on server when client validation passes
@@ -100,8 +161,10 @@ export default function GameEditor() {
           }
         }
       } catch {
-        // Backend offline or unreachable: fall back cleanly
-        if (!cancelled) setServerErrors([]);
+        // Backend offline or unreachable: do not assume the schema is valid.
+        if (!cancelled) {
+          setServerErrors(["No se pudo validar con el servidor. Revisá tu conexión."]);
+        }
       } finally {
         if (!cancelled) {
           setIsValidating(false);
@@ -113,7 +176,7 @@ export default function GameEditor() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [gameData, clientValidation.valid]);
+  }, [gameData, clientValidation.valid, validationRetry]);
 
   function requireAuthorId(): string | null {
     if (isLoggedIn && user) return user.id;
@@ -150,6 +213,7 @@ export default function GameEditor() {
         setStatusMessage({ text: "¡Borrador actualizado con éxito!", type: "success" });
         if (res.game?.id) setGameId(res.game.id);
         syncSavedSlug(res);
+        void refreshMyGames();
       } else {
         const res = await createGame(payload, authorId, token ?? undefined);
         setStatusMessage({ text: "¡Borrador creado con éxito!", type: "success" });
@@ -157,6 +221,7 @@ export default function GameEditor() {
           setGameId(res.game.id);
         }
         syncSavedSlug(res);
+        void refreshMyGames();
       }
     } catch (err) {
       setStatusMessage({
@@ -227,6 +292,7 @@ export default function GameEditor() {
         text: "¡Juego publicado en la comunidad! Ya está disponible en Explorar y listo para jugar en línea.",
         type: "success",
       });
+      void refreshMyGames();
     } catch (err) {
       setStatusMessage({
         text: err instanceof Error ? err.message : "Error al publicar el juego",
@@ -281,6 +347,7 @@ export default function GameEditor() {
       setIsPublished(false);
       setStatusMessage(null);
       setActiveTab("metadata");
+      window.history.replaceState(null, "", "/editor");
     }
   }
 
@@ -376,6 +443,21 @@ export default function GameEditor() {
             >
               <Icon icon="pixelarticons:login" width={16} height={16} />
               Iniciar sesión
+            </button>
+          )}
+
+          {isLoggedIn && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsMyGamesOpen(true);
+                void refreshMyGames();
+              }}
+              disabled={isLoadingGame}
+              className="flex items-center gap-1.5 border border-subtle bg-statusbar/80 px-3 py-2 text-xs font-bold text-ink-soft hover:border-accent hover:text-ink transition-colors cursor-pointer disabled:opacity-60"
+            >
+              <Icon icon="pixelarticons:folder" width={16} height={16} className="text-success" />
+              {isLoadingGame ? "Cargando..." : "Mis Juegos"}
             </button>
           )}
 
@@ -616,13 +698,23 @@ export default function GameEditor() {
                   {validationErrors.map((err, idx) => (
                     <div
                       key={idx}
- className="flex items-center gap-2 border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
+  className="flex items-center gap-2 border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
                     >
                       <Icon icon="pixelarticons:close" width={14} height={14} className="shrink-0" />
                       <span>{err}</span>
                     </div>
                   ))}
                 </div>
+                {clientValidation.valid && serverErrors.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setValidationRetry((r) => r + 1)}
+                    className="flex items-center gap-1.5 self-start border border-subtle px-3 py-1.5 text-xs font-bold text-ink-soft hover:border-accent hover:text-ink transition-colors cursor-pointer"
+                  >
+                    <Icon icon="pixelarticons:reload" width={14} height={14} />
+                    Reintentar validación
+                  </button>
+                )}
               </div>
             )}
 
@@ -772,6 +864,93 @@ export default function GameEditor() {
                   </span>
                 </button>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* My Games Modal */}
+      {isMyGamesOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85">
+  <div className="flex flex-col w-full max-w-lg max-h-[80vh] border-2 border-subtle bg-statusbar shadow-[6px_6px_0_0_rgba(0,0,0,0.4)] overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-subtle bg-surface">
+              <div className="flex items-center gap-2">
+                <Icon icon="pixelarticons:folder" width={20} height={20} className="text-success" />
+                <h3 className="text-sm font-bold text-ink">Mis Juegos</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMyGamesOpen(false)}
+  className="flex h-8 w-8 items-center justify-center border border-subtle text-ink-faint hover:text-ink cursor-pointer"
+              >
+                <Icon icon="pixelarticons:close" width={18} height={18} />
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMyGamesOpen(false);
+                  handleReset();
+                }}
+  className="flex items-center justify-center gap-1.5 border-2 border-dashed border-accent/40 bg-accent/10 px-3 py-2.5 text-xs font-bold text-accent hover:bg-accent/20 transition-colors cursor-pointer"
+              >
+                <Icon icon="pixelarticons:plus" width={16} height={16} />
+                Nuevo Juego
+              </button>
+
+              {myGames.length === 0 ? (
+                <p className="py-6 text-center text-xs text-ink-faint">
+                  Todavía no creaste juegos. Guardá un borrador para verlo acá.
+                </p>
+              ) : (
+                myGames.map((game) => (
+                  <div
+                    key={game.id}
+                    className="flex items-center justify-between gap-3 border border-subtle bg-app/50 p-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-xs font-bold text-ink">{game.title}</span>
+                        <span
+                          className={`shrink-0 border px-2 py-0.5 text-[10px] font-black uppercase ${
+                            game.status === "PUBLISHED"
+                              ? "border-success/40 bg-success/15 text-success"
+                              : "border-warning/40 bg-warning/15 text-warning"
+                          }`}
+                        >
+                          {game.status === "PUBLISHED" ? "Publicado" : "Borrador"}
+                        </span>
+                      </div>
+                      <span className="block truncate font-mono text-[11px] text-ink-faint">
+                        {game.slug}
+                      </span>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsMyGamesOpen(false);
+                          void loadGame(game.slug);
+                        }}
+                        disabled={isLoadingGame}
+                        className="flex items-center gap-1 border border-accent/40 bg-accent/15 px-2.5 py-1.5 text-[11px] font-bold text-accent hover:bg-accent/25 transition-colors cursor-pointer disabled:opacity-60"
+                      >
+                        <Icon icon="pixelarticons:edit" width={14} height={14} />
+                        Editar
+                      </button>
+                      <Link
+                        href={`/juego/${game.slug}/mesa`}
+                        target="_blank"
+                        className="flex items-center gap-1 border border-subtle px-2.5 py-1.5 text-[11px] font-bold text-ink-soft hover:border-accent hover:text-ink transition-colors no-underline"
+                      >
+                        <Icon icon="pixelarticons:play" width={14} height={14} />
+                        Probar
+                      </Link>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
