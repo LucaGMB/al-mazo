@@ -8,8 +8,9 @@ import { descarteCriolloDefinition } from '../../src/games/descarte-criollo/defi
 import { chinchonDefinition } from '../../src/games/chinchon/definition.js';
 import { escobaDefinition } from '../../src/games/escoba/definition.js';
 import { trucoDefinition } from '../../src/games/truco/definition.js';
+import { townOfSalemDefinition } from '../../src/games/town-of-salem/definition.js';
 
-const CASES: Array<[string, GameSchemaDefinition, 'TRICK' | 'COMMUNITY' | 'DISCARD']> = [
+const CASES: Array<[string, GameSchemaDefinition, 'TRICK' | 'COMMUNITY' | 'DISCARD' | 'TOWN']> = [
   ['color-match', colorMatchDefinition, 'DISCARD'],
   ['color-match-blitz', colorMatchBlitzDefinition, 'DISCARD'],
   ['color-match-chaos', colorMatchChaosDefinition, 'DISCARD'],
@@ -17,12 +18,15 @@ const CASES: Array<[string, GameSchemaDefinition, 'TRICK' | 'COMMUNITY' | 'DISCA
   ['chinchon', chinchonDefinition, 'DISCARD'],
   ['escoba-del-15', escobaDefinition, 'COMMUNITY'],
   ['truco', trucoDefinition, 'TRICK'],
+  ['town-of-salem', townOfSalemDefinition, 'TOWN'],
 ];
 
 function startEngine(definition: GameSchemaDefinition): ModularGameEngine {
   const engine = new ModularGameEngine(definition);
-  engine.addPlayer('p1', 'Player 1');
-  engine.addPlayer('p2', 'Player 2');
+  const count = definition.rules.minPlayers ?? 2;
+  for (let i = 1; i <= count; i++) {
+    engine.addPlayer(`p${i}`, `Player ${i}`);
+  }
   engine.start();
   return engine;
 }
@@ -30,8 +34,10 @@ function startEngine(definition: GameSchemaDefinition): ModularGameEngine {
 describe('PublicGameState.gameMode', () => {
   it.each(CASES)('%s expone el modo %s antes de empezar', (_slug, definition, expected) => {
     const engine = new ModularGameEngine(definition);
-    engine.addPlayer('p1', 'Player 1');
-    engine.addPlayer('p2', 'Player 2');
+    const count = definition.rules.minPlayers ?? 2;
+    for (let i = 1; i <= count; i++) {
+      engine.addPlayer(`p${i}`, `Player ${i}`);
+    }
 
     expect(engine.gameMode).toBe(expected);
     expect(engine.getPublicState().gameMode).toBe(expected);

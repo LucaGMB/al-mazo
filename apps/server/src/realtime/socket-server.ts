@@ -41,6 +41,24 @@ function broadcastPlayerHands(io: IoServer, room: GameRoom): void {
   }
 }
 
+function broadcastRoomState(io: IoServer, room: GameRoom): void {
+  const baseState = room.getPublicState();
+  if (room.engine.isTownGame()) {
+    const modularEngine = room.engine as ModularGameEngine;
+    for (const p of room.players.values()) {
+      if (p.socketId && p.isConnected) {
+        const personalizedTownState = modularEngine.getTownPublicState(p.id);
+        io.to(p.socketId).emit('room:state', {
+          ...baseState,
+          townState: personalizedTownState,
+        });
+      }
+    }
+  } else {
+    io.to(room.code).emit('room:state', baseState);
+  }
+}
+
 function getNextPlayer(room: GameRoom, state: PublicGameState): RoomPlayer | undefined {
   const index = state.players.findIndex((p) => p.id === state.currentTurnPlayerId);
   const total = state.players.length;
@@ -96,12 +114,58 @@ function specialCardChatMessage(
 
 function emitGameFinished(io: IoServer, room: GameRoom, winnerId: string | null): void {
   io.to(room.code).emit('game:finished', { winnerId });
-  const winner = winnerId ? room.getPlayer(winnerId) : undefined;
-  emitSystemChat(
-    io,
-    room,
-    winner ? `¡Partida finalizada! Ganador: ${winner.name}` : '¡Partida finalizada!'
-  );
+  if (room.engine.isTownGame()) {
+    const winnerFaction = room.getPublicState().townState?.winnerFaction;
+    const factionName = winnerFaction === 'TOWN' ? '¡El Pueblo!' : '¡La Mafia!';
+    emitSystemChat(io, room, `¡Partida finalizada! Facción victoriosa: ${factionName}`);
+  } else {
+    const winner = winnerId ? room.getPlayer(winnerId) : undefined;
+    emitSystemChat(
+      io,
+      room,
+      winner ? `¡Partida finalizada! Ganador: ${winner.name}` : '¡Partida finalizada!'
+    );
+  }
+}
+
+function scheduleTownBotTurns(io: IoServer, room: GameRoom): void {
+  if (!room.engine.isTownGame()) return;
+  const state = room.getPublicState();
+  if (state.status !== 'IN_PROGRESS') return;
+
+  const phase = state.townState?.phase;
+  if (phase !== 'NIGHT' && phase !== 'DAY_VOTE') return;
+
+  const bots = Array.from(room.players.values()).filter((p) => p.isBot);
+  if (bots.length === 0) return;
+
+  const delay =
+    BOT_MIN_DELAY_MS + Math.floor(Math.random() * (BOT_MAX_DELAY_MS - BOT_MIN_DELAY_MS + 1));
+
+  setTimeout(() => {
+    try {
+      const modularEngine = room.engine as ModularGameEngine;
+      for (const bot of bots) {
+        modularEngine.executeTownBotMove(bot.id);
+      }
+      broadcastPlayerHands(io, room);
+      broadcastRoomState(io, room);
+
+      const afterState = room.getPublicState();
+      if (afterState.status === 'FINISHED') {
+        emitGameFinished(io, room, afterState.winnerId);
+      } else if (afterState.townState?.phase !== phase) {
+        if (afterState.townState?.lastNightResult?.announcement) {
+          emitSystemChat(io, room, afterState.townState.lastNightResult.announcement);
+        } else if (afterState.townState?.lastDayResult?.announcement) {
+          emitSystemChat(io, room, afterState.townState.lastDayResult.announcement);
+        }
+        scheduleTownBotTurns(io, room);
+      }
+    } catch {
+      // safe fallback
+    }
+  }, delay);
 }
 
 /**
@@ -141,6 +205,11 @@ function scheduleTurnLifecycle(io: IoServer, room: GameRoom): void {
   const state = room.getPublicState();
   if (state.status !== 'IN_PROGRESS') return;
 
+  if (room.engine.isTownGame()) {
+    scheduleTownBotTurns(io, room);
+    return;
+  }
+
   const actors = getActingPlayerIds(room);
   if (actors.length === 0) return;
 
@@ -155,7 +224,7 @@ function scheduleTurnLifecycle(io: IoServer, room: GameRoom): void {
     room.startTurnTimer(() => {
       handleHumanTurnTimeout(io, room, humanActors);
     });
-    io.to(room.code).emit('room:state', room.getPublicState());
+    broadcastRoomState(io, room);
   }
 }
 
@@ -488,17 +557,23 @@ export function initializeSocketServer(
 
         const hand = room.getPlayerHand(playerId);
         const state = room.getPublicState();
+        const clientState = room.engine.isTownGame()
+          ? {
+              ...state,
+              townState: (room.engine as ModularGameEngine).getTownPublicState(playerId),
+            }
+          : state;
 
         callback({
           success: true,
-          state,
+          state: clientState,
           hand,
         });
 
         socket.emit('chat:history', room.chatHistory);
 
         socket.to(room.code).emit('player:reconnected', { playerId });
-        io.to(room.code).emit('room:state', state);
+        broadcastRoomState(io, room);
       } catch (err: unknown) {
         callback({
           success: false,
@@ -521,10 +596,18 @@ export function initializeSocketServer(
         room.engine.start();
 
         io.to(room.code).emit('game:started');
-        io.to(room.code).emit('room:state', room.getPublicState());
-        emitSystemChat(io, room, '¡La partida ha comenzado!');
-
         broadcastPlayerHands(io, room);
+        broadcastRoomState(io, room);
+
+        if (room.engine.isTownGame()) {
+          emitSystemChat(
+            io,
+            room,
+            '¡Comienza Town of Salem! Cada jugador ha recibido su rol secreto. La noche cae sobre el pueblo...'
+          );
+        } else {
+          emitSystemChat(io, room, '¡La partida ha comenzado!');
+        }
 
         scheduleTurnLifecycle(io, room);
         callback({ success: true });
@@ -629,11 +712,26 @@ export function initializeSocketServer(
         broadcastPlayerHands(io, room);
 
         const state = room.getPublicState();
-        io.to(room.code).emit('room:state', state);
+        broadcastRoomState(io, room);
 
         if (state.status === 'FINISHED') {
           emitGameFinished(io, room, state.winnerId);
         } else {
+          if (room.engine.isTownGame()) {
+            if (
+              action === 'SUBMIT_NIGHT_ACTION' &&
+              state.townState?.phase === 'DAY_CHAT' &&
+              state.townState.lastNightResult
+            ) {
+              emitSystemChat(io, room, state.townState.lastNightResult.announcement);
+            } else if (
+              action === 'CAST_VOTE' &&
+              state.townState?.phase === 'NIGHT' &&
+              state.townState.lastDayResult
+            ) {
+              emitSystemChat(io, room, state.townState.lastDayResult.announcement);
+            }
+          }
           scheduleTurnLifecycle(io, room);
         }
 

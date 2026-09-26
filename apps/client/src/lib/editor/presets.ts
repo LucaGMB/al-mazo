@@ -68,7 +68,7 @@ export interface GameDefinitionData {
       allowAnyColorDraw2OnDraw4?: boolean;
     };
     winCondition: {
-      type: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE";
+      type: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE" | "FACTION_ELIMINATION";
       targetScore?: number;
     };
     zones?: ZoneDefinition[];
@@ -76,7 +76,7 @@ export interface GameDefinitionData {
     cardHierarchy?: Record<string, number>;
     targetScore?: number;
     turnTimeoutSeconds?: number;
-    gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT";
+    gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT" | "TOWN";
     requireNormalInitialCard?: boolean;
     effects?: Record<string, { type: string; params?: Record<string, unknown> }>;
     submission?: SubmissionConfig;
@@ -401,6 +401,58 @@ export const HDP_GAME_PRESET: GameDefinitionData = {
   },
 };
 
+export const TOWN_OF_SALEM_PRESET: GameDefinitionData = {
+  slug: "town-of-salem",
+  title: "Town of Salem",
+  description:
+    "Juego de deducción social y roles ocultos. Cada noche la Mafia ataca, el Doctor protege y el Sheriff investiga. De día el Pueblo debate y vota para linchar a los sospechosos.",
+  deckConfig: {
+    templates: [
+      { count: 2, type: "ROLE", color: "MAFIA", value: "MAFIOSO" },
+      { count: 1, type: "ROLE", color: "TOWN", value: "DOCTOR" },
+      { count: 1, type: "ROLE", color: "TOWN", value: "SHERIFF" },
+      { count: 4, type: "ROLE", color: "TOWN", value: "TOWNIE" },
+    ],
+  },
+  rules: {
+    minPlayers: 4,
+    maxPlayers: 8,
+    initialHandSize: 1,
+    matchingProperties: [],
+    allowWildOnAny: false,
+    reshuffleDiscardPile: false,
+    gameMode: "TOWN",
+    turnTimeoutSeconds: 30,
+    winCondition: {
+      type: "FACTION_ELIMINATION",
+    },
+    zones: [
+      { id: "roles", name: "Mazo de Roles", type: "DRAW_PILE", visibility: "HIDDEN" },
+      { id: "town_square", name: "Plaza del Pueblo", type: "REVEALED", visibility: "PUBLIC" },
+    ],
+    phases: [
+      {
+        id: "TOWN_NIGHT",
+        name: "Noche",
+        allowedActions: ["SUBMIT_NIGHT_ACTION"],
+        nextPhase: "TOWN_DAY_CHAT",
+      },
+      {
+        id: "TOWN_DAY_CHAT",
+        name: "Día - Debate",
+        allowedActions: ["START_DAY_VOTE"],
+        nextPhase: "TOWN_DAY_VOTE",
+      },
+      {
+        id: "TOWN_DAY_VOTE",
+        name: "Día - Votación",
+        allowedActions: ["CAST_VOTE"],
+        nextPhase: "TOWN_NIGHT",
+      },
+    ],
+  },
+};
+
 export const GAME_PRESETS = [
   {
     id: "default",
@@ -419,6 +471,12 @@ export const GAME_PRESETS = [
     name: "HDP (Respuestas Ocultas y Jurado)",
     description: "Consigna secreta, respuestas anónimas y un HDP que elige la ganadora.",
     data: HDP_GAME_PRESET,
+  },
+  {
+    id: "town-of-salem",
+    name: "Town of Salem (Deducción Social)",
+    description: "Roles ocultos (Mafioso, Doctor, Sheriff, Aldeano), ciclos día/noche y votación.",
+    data: TOWN_OF_SALEM_PRESET,
   },
 ];
 

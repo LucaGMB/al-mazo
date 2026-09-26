@@ -15,8 +15,47 @@ export type TurnDirection = 1 | -1;
  * - COMMUNITY: cartas comunitarias que se capturan (escoba del 15).
  * - DISCARD: robo/descarte clásico (color-match/UNO, chinchón, descarte criollo).
  * - PROMPT: preguntas reveladas en público, sin manos (desconectados).
+ * - TOWN: deducción social, día/noche, roles ocultos y votación (town of salem).
  */
-export type GameMode = 'TRICK' | 'COMMUNITY' | 'DISCARD' | 'PROMPT';
+export type GameMode = 'TRICK' | 'COMMUNITY' | 'DISCARD' | 'PROMPT' | 'TOWN';
+
+export type TownRole = 'MAFIOSO' | 'DOCTOR' | 'SHERIFF' | 'TOWNIE';
+export type TownFaction = 'TOWN' | 'MAFIA';
+export type TownPhase = 'NIGHT' | 'DAY_CHAT' | 'DAY_VOTE';
+
+export interface TownPlayerInfo {
+  id: string;
+  name: string;
+  isAlive: boolean;
+  role?: TownRole;
+  faction?: TownFaction;
+}
+
+export interface TownPublicState {
+  phase: TownPhase;
+  dayNumber: number;
+  phaseExpiresAt?: number | null;
+  players: TownPlayerInfo[];
+  votes?: Record<string, string>;
+  voteCounts?: Record<string, number>;
+  nightTargetSubmitted?: string[];
+  lastNightResult?: {
+    killedPlayerId: string | null;
+    savedPlayerId: string | null;
+    announcement: string;
+  } | null;
+  lastDayResult?: {
+    lynchedPlayerId: string | null;
+    role: TownRole | null;
+    announcement: string;
+  } | null;
+  sheriffInvestigation?: {
+    targetPlayerId: string;
+    targetName: string;
+    verdict: 'Bueno' | 'Malvado';
+  } | null;
+  winnerFaction?: TownFaction | null;
+}
 
 export interface Card {
   id: string;
@@ -180,4 +219,5 @@ export interface PublicGameState {
   /** Players who owe an action right now (simultaneous phases). */
   awaitingPlayerIds?: string[];
   submission?: SubmissionRoundState | null;
+  townState?: TownPublicState;
 }

@@ -9,6 +9,11 @@ import type {
   PlayerPublicInfo,
   PublicGameState,
   SubmissionRoundState,
+  TownFaction,
+  TownPhase,
+  TownPlayerInfo,
+  TownPublicState,
+  TownRole,
 } from './types.js';
 import { GameEngine, InternalPlayer } from './state-machine.js';
 import { getBuiltinAction } from './capabilities/registry.js';
@@ -31,6 +36,11 @@ import {
   checkInitialTableSpecialRule,
   scoreEscobaMatchRound,
 } from '../games/escoba/definition.js';
+import {
+  TOWN_ROLES,
+  getRolesForPlayerCount,
+  checkTownWinCondition,
+} from '../games/town-of-salem/roles.js';
 
 export interface ActionResult {
   success: boolean;
@@ -194,6 +204,29 @@ export class ModularGameEngine extends GameEngine {
   protected dealerIndex = 0;
   protected dealerPlayerId: string | null = null;
 
+  // Town / Social Deduction state
+  protected townDayNumber = 1;
+  protected townPhase: TownPhase = 'NIGHT';
+  protected townPlayerRoles: Record<string, TownRole> = {};
+  protected townPlayerAlive: Record<string, boolean> = {};
+  protected townNightTargets: Record<string, string | null> = {};
+  protected townVotes: Record<string, string> = {};
+  protected townLastNightResult: {
+    killedPlayerId: string | null;
+    savedPlayerId: string | null;
+    announcement: string;
+  } | null = null;
+  protected townLastDayResult: {
+    lynchedPlayerId: string | null;
+    role: TownRole | null;
+    announcement: string;
+  } | null = null;
+  protected townSheriffVerdicts: Record<
+    string,
+    { targetPlayerId: string; targetName: string; verdict: 'Bueno' | 'Malvado' }
+  > = {};
+  protected townWinnerFaction: TownFaction | null = null;
+
   constructor(definition: GameSchemaDefinition) {
     super(definition);
     this.customState = { ...(definition.rules.customState ?? {}) };
@@ -247,8 +280,16 @@ export class ModularGameEngine extends GameEngine {
     return Boolean(this.definition.rules.submission);
   }
 
-  private get submissionConfig(): GameSchemaDefinition['rules']['submission'] | undefined {
+  private get submissionConfig(): GameSchemaDefinition["rules"]["submission"] | undefined {
     return this.definition.rules.submission;
+  }
+
+  public isTownGame(): boolean {
+    return (
+      this.definition.rules.gameMode === "TOWN" ||
+      this.definition.slug === "town-of-salem" ||
+      this.definition.rules.winCondition?.type === "FACTION_ELIMINATION"
+    );
   }
 
   /**
@@ -257,19 +298,21 @@ export class ModularGameEngine extends GameEngine {
    * start/play/bot routing and the client table always agree.
    */
   public get gameMode(): GameMode {
-    return this.definition.rules.gameMode ?? this.detectGameMode();
+    if (this.definition.rules.gameMode) return this.definition.rules.gameMode;
+    if (this.isTownGame()) return "TOWN";
+    return this.detectGameMode();
   }
 
   public get isRoundTrickGame(): boolean {
-    return this.gameMode === 'TRICK';
+    return this.gameMode === "TRICK";
   }
 
   public isCommunityGame(): boolean {
-    return this.gameMode === 'COMMUNITY';
+    return this.gameMode === "COMMUNITY";
   }
 
   public get isPromptGame(): boolean {
-    return this.gameMode === 'PROMPT';
+    return this.gameMode === "PROMPT";
   }
 
   public override start(): void {
@@ -289,7 +332,9 @@ export class ModularGameEngine extends GameEngine {
     this.activeBets = {};
     this.round = 1;
 
-    if (this.isRoundTrickGame) {
+    if (this.isTownGame()) {
+      this.startTownGame();
+    } else if (this.isRoundTrickGame) {
       this.status = 'IN_PROGRESS';
       this.manoIndex = 0;
       this.startNewRound();
@@ -325,7 +370,7 @@ export class ModularGameEngine extends GameEngine {
     }
 
     const phases = this.phases;
-    if (phases && phases.length > 0 && !this.isRoundTrickGame) {
+    if (phases && phases.length > 0 && !this.isRoundTrickGame && !this.isTownGame()) {
       this.enterPhase(phases[0].id);
     }
   }
@@ -625,6 +670,20 @@ export class ModularGameEngine extends GameEngine {
   }
 
   public override getPublicState(): PublicGameState {
+    if (this.isTownGame()) {
+      return {
+        ...super.getPublicState(),
+        currentPhase: this.currentPhase,
+        scores: { ...this.scores },
+        customState: { ...this.customState },
+        tableCards: [],
+        trickCards: [],
+        activeBets: {},
+        gameMode: 'TOWN',
+        townState: this.getTownPublicState(),
+      };
+    }
+
     if (!this.isRoundTrickGame) {
       const base = super.getPublicState();
 
@@ -2190,6 +2249,13 @@ export class ModularGameEngine extends GameEngine {
       }
     }
 
+    if (this.isTownGame()) {
+      if (actionType === 'ADVANCE_TOWN_PHASE') return null;
+      if (this.townPhase === 'DAY_CHAT' && actionType === 'START_DAY_VOTE') return null;
+      if (this.townPhase === 'DAY_VOTE' && actionType === 'CAST_VOTE') return null;
+      if (this.townPhase === 'NIGHT' && actionType === 'SUBMIT_NIGHT_ACTION') return null;
+    }
+
     if (!phase.allowedActions.includes(actionType)) {
       return `Action ${actionType} not allowed in phase ${phase.id}`;
     }
@@ -2202,6 +2268,18 @@ export class ModularGameEngine extends GameEngine {
     payload: Record<string, unknown>
   ): unknown {
     switch (actionType) {
+      case 'SUBMIT_NIGHT_ACTION':
+        return this.executeTownNightAction(playerId, payload);
+
+      case 'START_DAY_VOTE':
+        return this.startTownDayVote(playerId);
+
+      case 'CAST_VOTE':
+        return this.executeTownVote(playerId, payload);
+
+      case 'ADVANCE_TOWN_PHASE':
+        return this.advanceTownPhase();
+
       case 'CAPTURE_CARDS': {
         const cardId = String(payload.cardId ?? '');
         const tableCardIds = Array.isArray(payload.tableCardIds)
@@ -2581,6 +2659,15 @@ export class ModularGameEngine extends GameEngine {
             this.submissionRound.judgeId === playerId
         );
 
+      case 'IS_ALIVE':
+        return this.townPlayerAlive[playerId] ?? true;
+
+      case 'IS_NIGHT_PHASE':
+        return this.townPhase === 'NIGHT';
+
+      case 'IS_VOTE_PHASE':
+        return this.townPhase === 'DAY_VOTE';
+
       default:
         return true;
     }
@@ -2607,5 +2694,504 @@ export class ModularGameEngine extends GameEngine {
       this.status = 'FINISHED';
       this.winnerId = playerId;
     }
+  }
+
+  // ==========================================
+  // --- Town / Social Deduction Engine Methods
+  // ==========================================
+
+  public startTownGame(): void {
+    this.status = 'IN_PROGRESS';
+    this.townDayNumber = 1;
+    this.townPhase = 'NIGHT';
+    this.townNightTargets = {};
+    this.townVotes = {};
+    this.townLastNightResult = null;
+    this.townLastDayResult = null;
+    this.townSheriffVerdicts = {};
+    this.townWinnerFaction = null;
+
+    const playerCount = this.players.length;
+    const rolesPool = getRolesForPlayerCount(playerCount);
+    // Fisher-Yates shuffle
+    const shuffledRoles = [...rolesPool];
+    for (let i = shuffledRoles.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledRoles[i], shuffledRoles[j]] = [shuffledRoles[j], shuffledRoles[i]];
+    }
+
+    this.townPlayerRoles = {};
+    this.townPlayerAlive = {};
+
+    for (let i = 0; i < this.players.length; i++) {
+      const player = this.players[i];
+      const role = shuffledRoles[i] ?? 'TOWNIE';
+      this.townPlayerRoles[player.id] = role;
+      this.townPlayerAlive[player.id] = true;
+    }
+
+    const mafiaNames = this.players
+      .filter((p) => this.townPlayerRoles[p.id] === 'MAFIOSO')
+      .map((p) => p.name);
+
+    for (const player of this.players) {
+      const role = this.townPlayerRoles[player.id];
+      const meta = TOWN_ROLES[role];
+      const roleCard: Card = {
+        id: `role_${player.id}`,
+        type: 'ROLE',
+        color: meta.faction === 'MAFIA' ? 'MAFIA' : 'TOWN',
+        value: role,
+        metadata: {
+          role,
+          faction: meta.faction,
+          name: meta.name,
+          icon: meta.icon,
+          color: meta.color,
+          description: meta.description,
+          nightAbility: meta.nightAbility,
+          allies: meta.faction === 'MAFIA' ? mafiaNames : undefined,
+        },
+      };
+      player.hand = [roleCard];
+      player.hasDrawnThisTurn = false;
+    }
+
+    this.currentPhase = 'TOWN_NIGHT';
+    this.currentTurnIndex = 0;
+    this.lastActionText = 'Comienza la Noche 1. Los roles nocturnos eligen su objetivo.';
+  }
+
+  public getTownPublicState(forPlayerId?: string): TownPublicState {
+    const isFinished = this.status === 'FINISHED';
+    const forPlayerRole = forPlayerId ? this.townPlayerRoles[forPlayerId] : undefined;
+    const isMafiaViewer = forPlayerRole === 'MAFIOSO';
+
+    const players: TownPlayerInfo[] = this.players.map((p) => {
+      const isAlive = this.townPlayerAlive[p.id] ?? true;
+      const role = this.townPlayerRoles[p.id];
+      const shouldRevealRole =
+        isFinished ||
+        !isAlive ||
+        p.id === forPlayerId ||
+        (isMafiaViewer && role === 'MAFIOSO');
+
+      const meta = role ? TOWN_ROLES[role] : undefined;
+
+      return {
+        id: p.id,
+        name: p.name,
+        isAlive,
+        role: shouldRevealRole ? role : undefined,
+        faction: shouldRevealRole && meta ? meta.faction : undefined,
+      };
+    });
+
+    const voteCounts: Record<string, number> = {};
+    for (const target of Object.values(this.townVotes)) {
+      if (target) {
+        voteCounts[target] = (voteCounts[target] ?? 0) + 1;
+      }
+    }
+
+    const nightTargetSubmitted = Object.keys(this.townNightTargets);
+
+    const sheriffInvestigation =
+      forPlayerId && this.townSheriffVerdicts[forPlayerId]
+        ? this.townSheriffVerdicts[forPlayerId]
+        : null;
+
+    return {
+      phase: this.townPhase,
+      dayNumber: this.townDayNumber,
+      players,
+      votes: this.townPhase === 'DAY_VOTE' ? { ...this.townVotes } : undefined,
+      voteCounts: this.townPhase === 'DAY_VOTE' ? voteCounts : undefined,
+      nightTargetSubmitted: this.townPhase === 'NIGHT' ? nightTargetSubmitted : undefined,
+      lastNightResult: this.townLastNightResult,
+      lastDayResult: this.townLastDayResult,
+      sheriffInvestigation,
+      winnerFaction: this.townWinnerFaction,
+    };
+  }
+
+  public executeTownNightAction(
+    playerId: string,
+    payload: Record<string, unknown>
+  ): { targetPlayerId: string; verdict?: string } {
+    if (this.status !== 'IN_PROGRESS') {
+      throw new Error('Game is not in progress');
+    }
+    if (this.townPhase !== 'NIGHT') {
+      throw new Error('Night actions can only be submitted during the night phase');
+    }
+    if (!this.townPlayerAlive[playerId]) {
+      throw new Error('Dead players cannot take night actions');
+    }
+
+    const role = this.townPlayerRoles[playerId];
+    if (!role || role === 'TOWNIE') {
+      throw new Error('This role has no night action');
+    }
+
+    const targetPlayerId = String(payload.targetPlayerId ?? '');
+    if (!targetPlayerId) {
+      throw new Error('A target player must be selected');
+    }
+
+    if (role === 'MAFIOSO' && targetPlayerId === playerId) {
+      throw new Error('Mafioso cannot target themselves');
+    }
+    if (role === 'SHERIFF' && targetPlayerId === playerId) {
+      throw new Error('Sheriff cannot investigate themselves');
+    }
+
+    const targetPlayer = this.players.find((p) => p.id === targetPlayerId);
+    if (!targetPlayer || !this.townPlayerAlive[targetPlayerId]) {
+      throw new Error('Target player is not alive or does not exist');
+    }
+
+    this.townNightTargets[playerId] = targetPlayerId;
+
+    let verdict: string | undefined;
+    if (role === 'SHERIFF') {
+      const targetRole = this.townPlayerRoles[targetPlayerId];
+      const isEvil = targetRole === 'MAFIOSO';
+      verdict = isEvil ? 'Malvado' : 'Bueno';
+      this.townSheriffVerdicts[playerId] = {
+        targetPlayerId,
+        targetName: targetPlayer.name,
+        verdict: isEvil ? 'Malvado' : 'Bueno',
+      };
+    }
+
+    this.checkAutoAdvanceNight();
+
+    return { targetPlayerId, verdict };
+  }
+
+  protected checkAutoAdvanceNight(): void {
+    const livingNightActors = this.players.filter((p) => {
+      if (!this.townPlayerAlive[p.id]) return false;
+      const role = this.townPlayerRoles[p.id];
+      return role === 'MAFIOSO' || role === 'DOCTOR' || role === 'SHERIFF';
+    });
+
+    const allSubmitted = livingNightActors.every(
+      (p) => this.townNightTargets[p.id] !== undefined
+    );
+
+    if (allSubmitted && livingNightActors.length > 0) {
+      this.resolveTownNight();
+    }
+  }
+
+  public resolveTownNight(): void {
+    if (this.status !== 'IN_PROGRESS' || this.townPhase !== 'NIGHT') return;
+
+    // 1. Determine Mafia target
+    const livingMafiosi = this.players.filter(
+      (p) => (this.townPlayerAlive[p.id] ?? true) && this.townPlayerRoles[p.id] === 'MAFIOSO'
+    );
+    let targetMafiaId: string | null = null;
+    const mafiaVotes: Record<string, number> = {};
+    for (const m of livingMafiosi) {
+      const t = this.townNightTargets[m.id];
+      if (t) {
+        mafiaVotes[t] = (mafiaVotes[t] ?? 0) + 1;
+      }
+    }
+    let maxMafiaVotes = 0;
+    for (const [tid, count] of Object.entries(mafiaVotes)) {
+      if (count > maxMafiaVotes) {
+        maxMafiaVotes = count;
+        targetMafiaId = tid;
+      }
+    }
+
+    // 2. Determine Doctor target
+    const livingDoctor = this.players.find(
+      (p) => (this.townPlayerAlive[p.id] ?? true) && this.townPlayerRoles[p.id] === 'DOCTOR'
+    );
+    const targetDoctorId = livingDoctor ? this.townNightTargets[livingDoctor.id] ?? null : null;
+
+    // 3. Process Attack & Heal
+    let killedPlayerId: string | null = null;
+    let savedPlayerId: string | null = null;
+    let announcement = '';
+
+    if (targetMafiaId) {
+      if (targetDoctorId && targetDoctorId === targetMafiaId) {
+        savedPlayerId = targetMafiaId;
+        announcement = '¡Amanece en el Pueblo! Nadie murió anoche (el Doctor protegió a la víctima).';
+      } else {
+        killedPlayerId = targetMafiaId;
+        this.townPlayerAlive[killedPlayerId] = false;
+        const victim = this.players.find((p) => p.id === killedPlayerId);
+        announcement = `¡Amanece en el Pueblo! ${victim?.name ?? 'Un jugador'} fue asesinado anoche por la Mafia.`;
+      }
+    } else {
+      announcement = '¡Amanece en el Pueblo! Nadie murió anoche.';
+    }
+
+    this.townLastNightResult = {
+      killedPlayerId,
+      savedPlayerId,
+      announcement,
+    };
+    this.lastActionText = announcement;
+
+    // 4. Check win conditions
+    const winner = this.evaluateTownWinCondition();
+    if (winner) return;
+
+    // 5. Advance to Day Chat
+    this.townPhase = 'DAY_CHAT';
+    this.currentPhase = 'TOWN_DAY_CHAT';
+    this.townNightTargets = {};
+    this.townVotes = {};
+  }
+
+  public startTownDayVote(playerId: string): void {
+    if (this.status !== 'IN_PROGRESS') {
+      throw new Error('Game is not in progress');
+    }
+    if (this.townPhase !== 'DAY_CHAT') {
+      throw new Error('Day vote can only be started from day chat phase');
+    }
+    if (!this.townPlayerAlive[playerId]) {
+      throw new Error('Dead players cannot start voting');
+    }
+
+    this.townPhase = 'DAY_VOTE';
+    this.currentPhase = 'TOWN_DAY_VOTE';
+    this.townVotes = {};
+    this.lastActionText = 'Comienza la votación de linchamiento. Elijan a un sospechoso o voten por no linchar.';
+  }
+
+  public executeTownVote(
+    playerId: string,
+    payload: Record<string, unknown>
+  ): { targetPlayerId: string } {
+    if (this.status !== 'IN_PROGRESS') {
+      throw new Error('Game is not in progress');
+    }
+    if (this.townPhase !== 'DAY_VOTE') {
+      throw new Error('Votes can only be cast during day vote phase');
+    }
+    if (!this.townPlayerAlive[playerId]) {
+      throw new Error('Dead players cannot vote');
+    }
+
+    const targetPlayerId = String(payload.targetPlayerId ?? '');
+    if (!targetPlayerId) {
+      throw new Error('Target player or SKIP must be provided');
+    }
+
+    if (targetPlayerId !== 'SKIP') {
+      const target = this.players.find((p) => p.id === targetPlayerId);
+      if (!target || !this.townPlayerAlive[targetPlayerId]) {
+        throw new Error('Cannot vote for a dead or non-existent player');
+      }
+    }
+
+    this.townVotes[playerId] = targetPlayerId;
+
+    this.checkAutoAdvanceVote();
+
+    return { targetPlayerId };
+  }
+
+  protected checkAutoAdvanceVote(): void {
+    const livingPlayers = this.players.filter((p) => this.townPlayerAlive[p.id] ?? true);
+    const allVoted = livingPlayers.every((p) => this.townVotes[p.id] !== undefined);
+    if (allVoted && livingPlayers.length > 0) {
+      this.resolveTownDayVote();
+    }
+  }
+
+  public resolveTownDayVote(): void {
+    if (this.status !== 'IN_PROGRESS' || this.townPhase !== 'DAY_VOTE') return;
+
+    const livingPlayers = this.players.filter((p) => this.townPlayerAlive[p.id] ?? true);
+    const voteCounts: Record<string, number> = {};
+
+    for (const p of livingPlayers) {
+      const v = this.townVotes[p.id];
+      if (v) {
+        voteCounts[v] = (voteCounts[v] ?? 0) + 1;
+      }
+    }
+
+    let topCandidate: string | null = null;
+    let maxVotes = 0;
+    let isTie = false;
+
+    for (const [candidate, count] of Object.entries(voteCounts)) {
+      if (count > maxVotes) {
+        maxVotes = count;
+        topCandidate = candidate;
+        isTie = false;
+      } else if (count === maxVotes && maxVotes > 0) {
+        isTie = true;
+      }
+    }
+
+    const majorityNeeded = Math.floor(livingPlayers.length / 2) + 1;
+
+    let lynchedPlayerId: string | null = null;
+    let role: TownRole | null = null;
+    let announcement = '';
+
+    if (
+      !topCandidate ||
+      topCandidate === 'SKIP' ||
+      isTie ||
+      maxVotes < majorityNeeded
+    ) {
+      announcement = 'El Pueblo no alcanzó consenso para linchar a nadie hoy.';
+    } else {
+      lynchedPlayerId = topCandidate;
+      this.townPlayerAlive[lynchedPlayerId] = false;
+      role = this.townPlayerRoles[lynchedPlayerId] ?? null;
+      const victim = this.players.find((p) => p.id === lynchedPlayerId);
+      const roleName = role ? TOWN_ROLES[role]?.name ?? role : 'Desconocido';
+      announcement = `${victim?.name ?? 'Un jugador'} ha sido linchado por el Pueblo. Su rol era: ${roleName}.`;
+    }
+
+    this.townLastDayResult = {
+      lynchedPlayerId,
+      role,
+      announcement,
+    };
+    this.lastActionText = announcement;
+
+    // Check win condition
+    const winner = this.evaluateTownWinCondition();
+    if (winner) return;
+
+    // Advance to next Night
+    this.townDayNumber += 1;
+    this.townPhase = 'NIGHT';
+    this.currentPhase = 'TOWN_NIGHT';
+    this.townNightTargets = {};
+    this.townVotes = {};
+    this.townSheriffVerdicts = {};
+  }
+
+  protected evaluateTownWinCondition(): 'TOWN' | 'MAFIA' | null {
+    const playerStatuses = this.players.map((p) => ({
+      id: p.id,
+      role: this.townPlayerRoles[p.id] ?? 'TOWNIE',
+      isAlive: this.townPlayerAlive[p.id] ?? true,
+    }));
+
+    const result = checkTownWinCondition(playerStatuses);
+    if (result) {
+      this.status = 'FINISHED';
+      this.townWinnerFaction = result;
+      this.winnerId = null;
+      if (result === 'TOWN') {
+        this.lastActionText = '¡Victoria del Pueblo! Toda la Mafia ha sido eliminada.';
+      } else {
+        this.lastActionText = '¡Victoria de la Mafia! Han igualado o superado al Pueblo.';
+      }
+      return result;
+    }
+    return null;
+  }
+
+  public advanceTownPhase(): void {
+    if (this.status !== 'IN_PROGRESS') return;
+    if (this.townPhase === 'NIGHT') {
+      this.resolveTownNight();
+    } else if (this.townPhase === 'DAY_CHAT') {
+      this.townPhase = 'DAY_VOTE';
+      this.currentPhase = 'TOWN_DAY_VOTE';
+      this.townVotes = {};
+      this.lastActionText = 'Comienza la votación de linchamiento. Elijan a un sospechoso o voten por no linchar.';
+    } else if (this.townPhase === 'DAY_VOTE') {
+      this.resolveTownDayVote();
+    }
+  }
+
+  public executeTownBotMove(botId: string): void {
+    if (this.status !== 'IN_PROGRESS' || !this.isTownGame()) return;
+    if (!this.townPlayerAlive[botId]) return;
+
+    const role = this.townPlayerRoles[botId];
+    const livingOthers = this.players.filter(
+      (p) => p.id !== botId && (this.townPlayerAlive[p.id] ?? true)
+    );
+    const livingAll = this.players.filter((p) => this.townPlayerAlive[p.id] ?? true);
+
+    if (this.townPhase === 'NIGHT') {
+      if (this.townNightTargets[botId] !== undefined) return;
+
+      if (role === 'MAFIOSO') {
+        const nonMafia = livingOthers.filter((p) => this.townPlayerRoles[p.id] !== 'MAFIOSO');
+        const targetPool = nonMafia.length > 0 ? nonMafia : livingOthers;
+        if (targetPool.length > 0) {
+          const target = targetPool[Math.floor(Math.random() * targetPool.length)];
+          this.executeTownNightAction(botId, { targetPlayerId: target.id });
+        }
+      } else if (role === 'DOCTOR') {
+        if (livingAll.length > 0) {
+          const target = livingAll[Math.floor(Math.random() * livingAll.length)];
+          this.executeTownNightAction(botId, { targetPlayerId: target.id });
+        }
+      } else if (role === 'SHERIFF') {
+        if (livingOthers.length > 0) {
+          const target = livingOthers[Math.floor(Math.random() * livingOthers.length)];
+          this.executeTownNightAction(botId, { targetPlayerId: target.id });
+        }
+      }
+    } else if (this.townPhase === 'DAY_VOTE') {
+      if (this.townVotes[botId] !== undefined) return;
+      if (Math.random() < 0.3 || livingOthers.length === 0) {
+        this.executeTownVote(botId, { targetPlayerId: 'SKIP' });
+      } else {
+        const target = livingOthers[Math.floor(Math.random() * livingOthers.length)];
+        this.executeTownVote(botId, { targetPlayerId: target.id });
+      }
+    }
+  }
+
+  // Testing and inspection helpers
+  public getTownPlayerRole(playerId: string): TownRole | undefined {
+    return this.townPlayerRoles[playerId];
+  }
+
+  public getTownPlayerAlive(playerId: string): boolean {
+    return this.townPlayerAlive[playerId] ?? true;
+  }
+
+  public setTownPlayerRole(playerId: string, role: TownRole): void {
+    this.townPlayerRoles[playerId] = role;
+    const meta = TOWN_ROLES[role];
+    const player = this.players.find((p) => p.id === playerId);
+    if (player && meta) {
+      player.hand = [
+        {
+          id: `role_${playerId}`,
+          type: 'ROLE',
+          color: meta.faction === 'MAFIA' ? 'MAFIA' : 'TOWN',
+          value: role,
+          metadata: {
+            role,
+            faction: meta.faction,
+            name: meta.name,
+            icon: meta.icon,
+            color: meta.color,
+            description: meta.description,
+            nightAbility: meta.nightAbility,
+          },
+        },
+      ];
+    }
+  }
+
+  public setTownPlayerAlive(playerId: string, isAlive: boolean): void {
+    this.townPlayerAlive[playerId] = isAlive;
   }
 }

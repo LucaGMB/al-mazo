@@ -35,6 +35,9 @@ export type ConditionType =
   | 'CAN_SUBMIT'
   | 'ALL_SUBMISSIONS_RECEIVED'
   | 'CAN_PICK_SUBMISSION'
+  | 'IS_ALIVE'
+  | 'IS_NIGHT_PHASE'
+  | 'IS_VOTE_PHASE'
   | 'CUSTOM';
 
 export interface ConditionDefinition {
@@ -101,11 +104,15 @@ export type StandardActionId =
   | 'QUIERO'
   | 'NO_QUIERO'
   | 'REVEAL_CARD'
-  | 'END_GAME'
   | 'SUBMIT_CARDS'
   | 'PICK_SUBMISSION'
   | 'EXCHANGE_CARDS'
-  | 'CONFIRM_PHASE';
+  | 'CONFIRM_PHASE'
+  | 'SUBMIT_NIGHT_ACTION'
+  | 'CAST_VOTE'
+  | 'START_DAY_VOTE'
+  | 'ADVANCE_TOWN_PHASE'
+  | 'END_GAME';
 
 export interface ActionDefinition {
   id: string;
@@ -127,7 +134,7 @@ export interface PhaseDefinition {
 }
 
 export interface WinConditionDefinition {
-  type: 'EMPTY_HAND' | 'SCORE_THRESHOLD' | 'LAST_REMAINING' | 'NONE';
+  type: 'EMPTY_HAND' | 'SCORE_THRESHOLD' | 'LAST_REMAINING' | 'FACTION_ELIMINATION' | 'NONE';
   targetScore?: number;
 }
 

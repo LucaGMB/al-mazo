@@ -11,6 +11,7 @@ export default function Thumb({ className = "w-full h-24 ", gameSlug }: { classN
     "descarte-criollo": { bg: "var(--color-warning)", ink: "#171a35", icon: "pixelarticons:sword", badge: "CRIOLLO", cardArt: true },
     desconectados: { bg: "var(--color-info)", ink: "#171a35", icon: "pixelarticons:message-text", badge: "CHARLA" },
     hdp: { bg: "var(--color-wood-dark)", ink: "#f4f1ff", icon: "pixelarticons:cards", badge: "HDP" },
+    "town-of-salem": { bg: "#2a1b4e", ink: "#ffd23f", icon: "pixelarticons:eye-closed", badge: "SALEM" },
   }[gameSlug ?? ""];
 
   if (gameSlug === "color-match") {

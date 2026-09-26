@@ -21,6 +21,7 @@ import CardView from "@/components/game/CardView";
 import CardBack from "@/components/game/CardBack";
 import DesconectadosTable from "@/components/game/DesconectadosTable";
 import SubmissionTable from "@/components/game/SubmissionTable";
+import TownTable from "@/components/game/TownTable";
 import { useRoom } from "@/lib/room/use-room";
 import { assignSeats } from "@/lib/room/seating";
 import { decodePlayerName } from "@/lib/room/player-name";
@@ -407,14 +408,22 @@ export default function MesaPage() {
           className="relative z-10 animate-bounce text-warning"
         />
         <div className="relative z-10 font-display text-xl font-black text-warning">
-          {isPromptGame
-            ? "Se acabaron las preguntas"
-            : isWinner
-              ? "¡Victoria!"
-              : "Partida Terminada"}
+          {publicState.gameMode === "TOWN"
+            ? publicState.townState?.winnerFaction === "TOWN"
+              ? "¡Victoria del Pueblo!"
+              : "¡Victoria de la Mafia!"
+            : isPromptGame
+              ? "Se acabaron las preguntas"
+              : isWinner
+                ? "¡Victoria!"
+                : "Partida Terminada"}
         </div>
         <div className="relative z-10 text-[14px] text-ink">
-          {isPromptGame ? (
+          {publicState.gameMode === "TOWN" ? (
+            publicState.townState?.winnerFaction === "TOWN"
+              ? "Todos los miembros de la Mafia han sido eliminados."
+              : "La Mafia ha tomado el control del pueblo."
+          ) : isPromptGame ? (
             "Gracias por desconectar un rato y escucharse."
           ) : winner ? (
             <>
@@ -466,6 +475,7 @@ export default function MesaPage() {
   const pendingChoiceForOther = !!publicState.pendingChoice && !pendingChoiceForMe;
   const pendingBet = isTruco ? customState.pendingBet ?? null : null;
   const isPromptGame = gameMode === "PROMPT";
+  const isTownGame = gameMode === "TOWN" || slug === "town-of-salem";
   // Mientras hay un color pendiente de elegir (comodín recién jugado), el
   // turno sigue siendo del mismo jugador pero no puede jugar/robar otra carta
   // hasta resolver el color (ver GameEngine.playCard en el server).
@@ -729,6 +739,14 @@ export default function MesaPage() {
           isActing={isActing}
           onExecuteAction={handlePromptAction}
         />
+      ) : isTownGame ? (
+        <TownTable
+          publicState={publicState}
+          selfPlayerId={selfPlayerId}
+          hand={hand}
+          isActing={isActing}
+          onExecuteAction={executeAction}
+        />
       ) : isTruco ? (
         <div
           className={`flex-1 relative px-3 py-2 ${
@@ -980,7 +998,7 @@ export default function MesaPage() {
         </div>
       )}
 
-      {!isTruco && !isPromptGame && !isSubmission && (
+      {!isTruco && !isPromptGame && !isSubmission && !isTownGame && (
         <div className="flex-none px-3.5 md:px-6 py-1.5 md:py-3 flex items-center justify-between">
           <div className="flex items-center gap-1.5 font-medium text-[11px] md:text-sm text-ink">
  <span className={`w-2 h-2 ${isMyTurn ? "bg-accent" : "bg-ink-faint"}`} />
@@ -1004,7 +1022,7 @@ export default function MesaPage() {
 
       {lastError && <div className="text-[12px] text-danger text-center px-4 pb-2">{lastError}</div>}
 
-      {!isTruco && !isCommunity && !isPromptGame && !isSubmission && self?.cardCount === 1 && !hasShouted && (
+      {!isTruco && !isCommunity && !isPromptGame && !isSubmission && !isTownGame && self?.cardCount === 1 && !hasShouted && (
         <div className="flex-none flex justify-center pb-1">
           <button
             type="button"
@@ -1045,8 +1063,8 @@ export default function MesaPage() {
         </div>
       </div>
 
-      {/* Truco renderiza su propia mano dentro de <TrucoTable />: no duplicar. */}
-      {!isTruco && !isPromptGame && !isSubmission && (
+      {/* Truco, Submission y Town renderizan sus propios elementos en su mesa: no duplicar. */}
+      {!isTruco && !isPromptGame && !isSubmission && !isTownGame && (
         <Hand
           cards={hand}
           canPlay={isCommunity ? canAct : canPlayHandCards}

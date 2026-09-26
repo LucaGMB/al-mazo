@@ -10,7 +10,7 @@ import {
 } from "@/lib/editor/presets";
 
 interface RulesSectionProps {
-  winConditionType: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE";
+  winConditionType: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE" | "FACTION_ELIMINATION";
   targetScore?: number;
   matchingProperties: Array<"color" | "value">;
   allowWildOnAny: boolean;
@@ -23,11 +23,11 @@ interface RulesSectionProps {
   activeZones: ZoneDefinition[];
   phases: PhaseDefinition[];
   turnTimeoutSeconds?: number;
-  gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT";
+  gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT" | "TOWN" | "AUTO";
   submission?: SubmissionConfig;
   requireNormalInitialCard?: boolean;
   onChange: (fields: Partial<{
-    winConditionType: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE";
+    winConditionType: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE" | "FACTION_ELIMINATION";
     targetScore?: number;
     matchingProperties: Array<"color" | "value">;
     allowWildOnAny: boolean;
@@ -40,7 +40,7 @@ interface RulesSectionProps {
     activeZones: ZoneDefinition[];
     phases: PhaseDefinition[];
     turnTimeoutSeconds?: number;
-    gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT" | "AUTO";
+    gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT" | "TOWN" | "AUTO";
     submission?: SubmissionConfig | null;
     requireNormalInitialCard?: boolean;
   }>) => void;
@@ -99,6 +99,10 @@ const ACTION_OPTIONS = [
   { id: "PICK_SUBMISSION", label: "Elegir Ganadora", desc: "El juez elige la respuesta que suma" },
   { id: "EXCHANGE_CARDS", label: "Recambiar Cartas", desc: "El juez cambia cartas antes de la ronda" },
   { id: "CONFIRM_PHASE", label: "Confirmar Fase", desc: "Avanzar de fase (leer consigna, seguir)" },
+  { id: "SUBMIT_NIGHT_ACTION", label: "Acción Nocturna", desc: "Atacar, curar o investigar secretamente durante la noche" },
+  { id: "START_DAY_VOTE", label: "Abrir Votación", desc: "Avanzar del debate diurno a la votación de linchamiento" },
+  { id: "CAST_VOTE", label: "Votar Linchamiento", desc: "Emitir voto contra un jugador vivo o votar saltar" },
+  { id: "ADVANCE_TOWN_PHASE", label: "Avanzar Fase (Pueblo)", desc: "Transición forzada entre fases de noche, debate y votación" },
 ];
 
 export default function RulesSection({
@@ -202,6 +206,12 @@ export default function RulesSection({
               desc: "Cooperativo o conversación: termina por acción del esquema",
               icon: "pixelarticons:coffee",
             },
+            {
+              type: "FACTION_ELIMINATION" as const,
+              label: "Eliminación de Facción",
+              desc: "Pueblo elimina a la Mafia o Mafia iguala/supera al Pueblo",
+              icon: "pixelarticons:users",
+            },
           ].map((item) => {
             const isSelected = winConditionType === item.type;
             return (
@@ -261,13 +271,14 @@ export default function RulesSection({
 
         <div className="flex flex-col gap-2 mt-1">
           <span className="text-xs font-bold text-ink-soft">Modo de Mesa</span>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             {[
               { id: "AUTO" as const, label: "Automático", desc: "El motor lo deduce" },
               { id: "DISCARD" as const, label: "Descarte", desc: "Mazo, pozo y mano" },
               { id: "TRICK" as const, label: "Bazas", desc: "Mesa de bazas y envites" },
               { id: "COMMUNITY" as const, label: "Comunitaria", desc: "Cartas para capturar" },
               { id: "PROMPT" as const, label: "Preguntas", desc: "Revelado público sin manos" },
+              { id: "TOWN" as const, label: "Pueblo", desc: "Día/Noche, roles y votación" },
             ].map((item) => {
               const current = gameMode ?? "AUTO";
               const isSelected = current === item.id;

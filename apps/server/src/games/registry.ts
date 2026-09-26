@@ -10,6 +10,7 @@ import { escobaDefinition } from './escoba/definition.js';
 import { chinchonDefinition } from './chinchon/definition.js';
 import { trucoDefinition } from './truco/definition.js';
 import { hdpDefinition } from './hdp/definition.js';
+import { townOfSalemDefinition } from './town-of-salem/definition.js';
 
 export const officialGames: Record<string, GameSchemaDefinition> = {
   [colorMatchDefinition.slug]: colorMatchDefinition,
@@ -19,6 +20,7 @@ export const officialGames: Record<string, GameSchemaDefinition> = {
   [chinchonDefinition.slug]: chinchonDefinition,
   [trucoDefinition.slug]: trucoDefinition,
   [hdpDefinition.slug]: hdpDefinition,
+  [townOfSalemDefinition.slug]: townOfSalemDefinition,
 };
 
 export function getOfficialGame(slug: string): GameSchemaDefinition | undefined {

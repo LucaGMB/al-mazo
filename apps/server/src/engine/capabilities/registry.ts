@@ -202,6 +202,26 @@ export const BUILTIN_ACTIONS: ActionDefinition[] = [
     requiredConditions: [{ type: 'IS_JUDGE' }],
     effects: [{ type: 'CHANGE_PHASE' }],
   },
+  {
+    id: 'SUBMIT_NIGHT_ACTION',
+    name: 'Acción Nocturna',
+    description: 'Elegir objetivo nocturno (atacar, curar, investigar).',
+    requiredConditions: [{ type: 'IS_ALIVE' }, { type: 'IS_NIGHT_PHASE' }],
+    payloadSchema: { targetPlayerId: 'string?' },
+  },
+  {
+    id: 'CAST_VOTE',
+    name: 'Votar Sospechoso',
+    description: 'Votar a un jugador vivo para lincharlo, o votar Saltear.',
+    requiredConditions: [{ type: 'IS_ALIVE' }, { type: 'IS_VOTE_PHASE' }],
+    payloadSchema: { targetPlayerId: 'string' },
+  },
+  {
+    id: 'START_DAY_VOTE',
+    name: 'Iniciar Votación',
+    description: 'Avanzar de la fase de debate a la fase de votación.',
+    requiredConditions: [{ type: 'IS_ALIVE' }],
+  },
 ];
 
 export const BUILTIN_CONDITIONS: Array<{ type: ConditionType; description: string }> = [
@@ -230,6 +250,9 @@ export const BUILTIN_CONDITIONS: Array<{ type: ConditionType; description: strin
   { type: 'CAN_SUBMIT', description: 'The player still owes an answer in the open submission round.' },
   { type: 'ALL_SUBMISSIONS_RECEIVED', description: 'Every expected player has already submitted an answer.' },
   { type: 'CAN_PICK_SUBMISSION', description: 'The judge can pick a winning answer while judging.' },
+  { type: 'IS_ALIVE', description: 'El jugador debe estar vivo para realizar la acción.' },
+  { type: 'IS_NIGHT_PHASE', description: 'La partida debe encontrarse en fase nocturna.' },
+  { type: 'IS_VOTE_PHASE', description: 'La partida debe encontrarse en fase de votación diurna.' },
 ];
 
 export const BUILTIN_EFFECTS: Array<{ type: EffectType; description: string }> = [
