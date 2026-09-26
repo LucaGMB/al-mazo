@@ -50,6 +50,25 @@ describe('Configurable Draw Cards Stacking (+2 / +4)', () => {
     expect(engine.getPublicState().currentTurnPlayerId).toBe('p1');
   });
 
+  it('tracks which player caused the accumulated draw pile', () => {
+    expect(engine.getPendingDrawByPlayerId()).toBeNull();
+
+    const top = engine.getTopDiscardCard()!;
+    (engine as any).players[0].hand = [
+      { id: 'd2', type: 'ACTION', color: top.color ?? 'RED', value: 'DRAW_2' },
+      { id: 's1', type: 'NUMBER', color: 'RED', value: '1' },
+    ];
+    engine.playCard('p1', 'd2');
+    expect(engine.getPendingDrawByPlayerId()).toBe('p1');
+
+    (engine as any).players[1].hand = [
+      { id: 'd2b', type: 'ACTION', color: 'BLUE', value: 'DRAW_2' },
+      { id: 's2', type: 'NUMBER', color: 'BLUE', value: '1' },
+    ];
+    engine.playCard('p2', 'd2b');
+    expect(engine.getPendingDrawByPlayerId()).toBe('p2');
+  });
+
   it('stacks +4 on +2 and +2 on +4 in ALL mode with color flexibility', () => {
     const top = engine.getTopDiscardCard()!;
     (engine as any).players[0].hand = [

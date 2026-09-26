@@ -118,7 +118,7 @@ export interface ServerToClientEvents {
   'game:started': () => void;
   'game:finished': (data: { winnerId: string | null }) => void;
   'error:notification': (data: { message: string }) => void;
-  'player:forced_draw': (data: { count: number; byPlayerId: string; byName: string }) => void;
+  'player:forced_draw': (data: { count: number; byName: string }) => void;
   'chat:message': (message: ChatMessage) => void;
   'chat:history': (messages: ChatMessage[]) => void;
 }

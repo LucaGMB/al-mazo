@@ -296,7 +296,6 @@ function playBotTurn(io: IoServer, room: GameRoom): void {
         } else {
           modularEngine.drawCard(botId);
           if (pendingBefore > 0) {
-            io.to(room.code).emit('player:forced_draw', { count: pendingBefore, byName: bot.name });
             emitSystemChat(io, room, `💥 ${bot.name} se comió el pozo acumulado de ${pendingBefore} cartas.`);
           }
           if (room.engine.getPublicState().currentTurnPlayerId === botId) {
@@ -675,7 +674,14 @@ export function initializeSocketServer(
         io.to(room.code).emit('room:state', state);
 
         if (pendingBefore > 0) {
-          io.to(room.code).emit('player:forced_draw', { count: pendingBefore, byName: player.name });
+          const attackerId = room.engine.getPendingDrawByPlayerId();
+          const attacker = attackerId ? room.getPlayer(attackerId) : undefined;
+          if (attacker && player.socketId) {
+            io.to(player.socketId).emit('player:forced_draw', {
+              count: pendingBefore,
+              byName: attacker.name,
+            });
+          }
           emitSystemChat(io, room, `💥 ${player.name} se comió el pozo acumulado de ${pendingBefore} cartas.`);
         } else if (state.currentTurnPlayerId !== turnBefore) {
           emitSystemChat(io, room, `🃏 ${player.name} robó una carta (pase automático).`);
