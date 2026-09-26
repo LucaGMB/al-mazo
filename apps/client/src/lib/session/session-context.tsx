@@ -19,6 +19,7 @@ export interface SessionUser {
   name: string;
   isAnonymous: boolean;
   email?: string;
+  role?: string;
 }
 
 interface SessionContextValue {

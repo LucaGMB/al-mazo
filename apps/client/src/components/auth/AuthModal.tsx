@@ -187,7 +187,7 @@ interface AuthModalProps {
   onSuccess?: () => void;
 }
 
-export default function AuthModal({
+export function AuthModal({
   isOpen,
   onClose,
   message,
@@ -244,3 +244,5 @@ export default function AuthModal({
     </div>
   );
 }
+
+export default AuthModal;

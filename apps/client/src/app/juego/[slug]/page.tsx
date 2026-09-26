@@ -7,6 +7,8 @@ import BackButton from "@/components/BackButton";
 import Button from "@/components/Button";
 import Thumb from "@/components/Thumb";
 import { getGame, isSupportedGame, type GameDetail } from "@/lib/api/games";
+import { ReportGameModal } from "@/components/game/ReportGameModal";
+import { AuthModal } from "@/components/auth/AuthModal";
 
 const GAME_SHOWCASE: Record<string, { tagline: string; mechanics: string[] }> = {
   "color-match": {
@@ -92,6 +94,8 @@ export default function GameDetailPage() {
   const router = useRouter();
   const [game, setGame] = useState<GameDetail | null | undefined>(undefined); // undefined = cargando
   const [error, setError] = useState<string | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   useEffect(() => {
     if (slug === "color-match-blitz") {
@@ -160,13 +164,38 @@ export default function GameDetailPage() {
 
           <div className="flex flex-col gap-5">
             <div>
-              <h1 className="font-display text-2xl md:text-4xl font-black leading-tight text-ink">
-                {game.game.title}
-              </h1>
+              <div className="flex items-start justify-between gap-4">
+                <h1 className="font-display text-2xl md:text-4xl font-black leading-tight text-ink">
+                  {game.game.title}
+                </h1>
+                {!game.isOfficial && game.status !== "BANNED" && (
+                  <button
+                    type="button"
+                    onClick={() => setIsReportModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-ink-faint hover:text-danger hover:border-danger/40 border border-subtle bg-statusbar transition-colors cursor-pointer shrink-0 mt-1"
+                    title="Reportar juego por infracción de normas o copyright"
+                  >
+                    <Icon icon="pixelarticons:flag" width={14} height={14} />
+                    <span>Reportar</span>
+                  </button>
+                )}
+              </div>
               {showcase && (
                 <p className="mt-1.5 text-sm md:text-base text-ink-soft">{showcase.tagline}</p>
               )}
             </div>
+
+            {game.status === "BANNED" && (
+              <div className="flex items-start gap-3 border-2 border-danger/40 bg-danger/10 p-4 text-ink">
+                <Icon icon="pixelarticons:alert" width={24} height={24} className="text-danger shrink-0 mt-0.5" />
+                <div className="flex flex-col gap-1">
+                  <span className="font-bold text-sm text-danger">Juego retirado por moderación</span>
+                  <span className="text-xs text-ink-soft leading-relaxed">
+                    Este juego ha sido retirado de la plataforma debido a una infracción de normas comunitarias o derechos de autor. No es posible crear ni disputar partidas en esta mesa.
+                  </span>
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-2">
  <span className="inline-flex items-center gap-2 border border-subtle bg-statusbar px-3 py-1.5 text-[12px] md:text-[13px] font-medium text-ink-soft">
@@ -219,7 +248,7 @@ export default function GameDetailPage() {
               </div>
             )}
 
-            {supported ? (
+            {game.status === "BANNED" ? null : supported ? (
               <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
                 <Button
                   to={`/juego/${game.game.slug}/mesa`}
@@ -250,6 +279,20 @@ export default function GameDetailPage() {
           </div>
         </div>
       </div>
+
+      <ReportGameModal
+        isOpen={isReportModalOpen}
+        gameId={game.id || game.game.slug}
+        gameTitle={game.game.title}
+        onClose={() => setIsReportModalOpen(false)}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        message="Iniciá sesión o registrate para poder enviar reportes sobre juegos comunitarios."
+      />
     </div>
   );
 }

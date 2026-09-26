@@ -6,6 +6,8 @@ import { healthRoutes } from './modules/health/health.routes.js';
 import { gamesRoutes } from './modules/games/games.routes.js';
 import { matchesRoutes } from './modules/matches/matches.routes.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
+import { reportsRoutes } from './modules/reports/reports.routes.js';
+import { adminRoutes } from './modules/admin/admin.routes.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -28,6 +30,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(gamesRoutes);
   await app.register(matchesRoutes);
   await app.register(authRoutes);
+  await app.register(reportsRoutes);
+  await app.register(adminRoutes);
 
   return app;
 }

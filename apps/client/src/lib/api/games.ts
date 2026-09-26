@@ -88,6 +88,26 @@ export async function getGame(slug: string): Promise<GameDetail | null> {
     if (err instanceof ApiError && err.status === 404) {
       return null;
     }
+    if (err instanceof ApiError && err.status === 403) {
+      const body = err.body as { status?: string; message?: string; game?: { title?: string; description?: string } } | undefined;
+      if (body?.status === "BANNED") {
+        return {
+          isOfficial: false,
+          status: "BANNED",
+          id: slug,
+          game: {
+            slug,
+            title: body.game?.title || "Juego retirado",
+            description: body.message || "Este juego ha sido retirado por moderación.",
+            deckConfig: {},
+            rules: {
+              minPlayers: 2,
+              maxPlayers: 4,
+            },
+          },
+        } as GameDetail;
+      }
+    }
     throw err;
   }
 }

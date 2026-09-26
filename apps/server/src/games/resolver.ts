@@ -15,8 +15,9 @@ export async function resolveGameDefinition(
 
   try {
     const record = await prisma.gameDefinition.findFirst({ where: { slug } });
-    const schema = record?.schemaJson as Partial<GameSchemaDefinition> | null | undefined;
-    if (!record || !schema?.deckConfig || !schema?.rules) return undefined;
+    if (!record || record.status === 'BANNED') return undefined;
+    const schema = record.schemaJson as Partial<GameSchemaDefinition> | null | undefined;
+    if (!schema?.deckConfig || !schema?.rules) return undefined;
 
     return {
       ...schema,
