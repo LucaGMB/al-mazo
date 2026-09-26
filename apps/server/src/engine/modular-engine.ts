@@ -182,7 +182,11 @@ export class ModularGameEngine extends GameEngine {
     return this.definition.rules.phases;
   }
 
-  public get isRoundTrickGame(): boolean {
+  /**
+   * Infers the table mode from schema markers when the editor did not set an
+   * explicit `rules.gameMode`.
+   */
+  private detectGameMode(): GameMode {
     const rules = this.definition.rules;
     const hasTrickActions = rules.phases?.some((p) =>
       p.allowedActions.some((a) =>
@@ -195,40 +199,43 @@ export class ModularGameEngine extends GameEngine {
     const isTrucoLike =
       Boolean(rules.cardHierarchy) && (rules.matchingProperties?.length ?? 0) === 0;
 
-    return Boolean(hasTrickActions || hasOnlyTrickZone || isTrucoLike);
-  }
+    if (hasTrickActions || hasOnlyTrickZone || isTrucoLike) return 'TRICK';
 
-  public isCommunityGame(): boolean {
-    return (
-      Boolean(this.definition.rules.zones?.some((z) => z.type === 'COMMUNITY')) ||
-      this.definition.rules.customState?.initialTableCards !== undefined ||
+    const isPrompt = Boolean(
+      rules.phases?.some((phase) => phase.allowedActions.includes('REVEAL_CARD'))
+    );
+    if (isPrompt) return 'PROMPT';
+
+    if (
+      rules.zones?.some((z) => z.type === 'COMMUNITY') ||
+      rules.customState?.initialTableCards !== undefined ||
       this.definition.slug === 'escoba-del-15'
-    );
-  }
+    ) {
+      return 'COMMUNITY';
+    }
 
-  /**
-   * Prompt games reveal public cards instead of playing a hand; they are
-   * detected by the REVEAL_CARD action declared in their phases.
-   */
-  public isPromptGame(): boolean {
-    return Boolean(
-      this.definition.rules.phases?.some((phase) =>
-        phase.allowedActions.includes('REVEAL_CARD')
-      )
-    );
+    return 'DISCARD';
   }
 
   /**
    * Explains to the client which table layout/flow corresponds to this game.
-   * Never infer this on the client from optional state fields: an empty
-   * `tableCards` array is still truthy and made every game render as Escoba.
+   * An explicit `rules.gameMode` from the editor wins over the heuristics so
+   * start/play/bot routing and the client table always agree.
    */
   public get gameMode(): GameMode {
-    if (this.definition.rules.gameMode) return this.definition.rules.gameMode;
-    if (this.isRoundTrickGame) return 'TRICK';
-    if (this.isPromptGame()) return 'PROMPT';
-    if (this.isCommunityGame()) return 'COMMUNITY';
-    return 'DISCARD';
+    return this.definition.rules.gameMode ?? this.detectGameMode();
+  }
+
+  public get isRoundTrickGame(): boolean {
+    return this.gameMode === 'TRICK';
+  }
+
+  public isCommunityGame(): boolean {
+    return this.gameMode === 'COMMUNITY';
+  }
+
+  public get isPromptGame(): boolean {
+    return this.gameMode === 'PROMPT';
   }
 
   public override start(): void {

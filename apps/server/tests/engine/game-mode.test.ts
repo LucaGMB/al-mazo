@@ -72,6 +72,45 @@ describe('PublicGameState.gameMode', () => {
     expect(startEngine(custom).gameMode).toBe('COMMUNITY');
   });
 
+  it('el rules.gameMode explícito manda sobre los heurísticos', () => {
+    const asTrick: GameSchemaDefinition = {
+      ...colorMatchDefinition,
+      slug: 'color-match-as-trick',
+      rules: { ...colorMatchDefinition.rules, gameMode: 'TRICK' },
+    };
+    const asDiscard: GameSchemaDefinition = {
+      ...colorMatchDefinition,
+      slug: 'color-match-as-discard',
+      rules: {
+        ...colorMatchDefinition.rules,
+        gameMode: 'DISCARD',
+        zones: [{ id: 'table', name: 'Mesa', type: 'COMMUNITY', visibility: 'PUBLIC' }],
+        customState: { initialTableCards: 4 },
+      },
+    };
+    const asPrompt: GameSchemaDefinition = {
+      ...colorMatchDefinition,
+      slug: 'color-match-as-prompt',
+      rules: { ...colorMatchDefinition.rules, gameMode: 'PROMPT' },
+    };
+
+    const trick = startEngine(asTrick);
+    expect(trick.isRoundTrickGame).toBe(true);
+    expect(trick.isCommunityGame()).toBe(false);
+    expect(trick.getPublicState().gameMode).toBe('TRICK');
+    expect(trick.getPublicState().currentPhase).toBeDefined();
+
+    const discard = startEngine(asDiscard);
+    expect(discard.isCommunityGame()).toBe(false);
+    expect(discard.getPublicState().gameMode).toBe('DISCARD');
+    expect(discard.getPublicState().currentPhase).toBeDefined();
+
+    const prompt = startEngine(asPrompt);
+    expect(prompt.isPromptGame).toBe(true);
+    expect(prompt.isRoundTrickGame).toBe(false);
+    expect(prompt.getPublicState().gameMode).toBe('PROMPT');
+  });
+
   it('en escoba el pozo inicial no se pisa con el estado inicial del definition', () => {
     const engine = startEngine(escobaDefinition);
     const state = engine.getPublicState();

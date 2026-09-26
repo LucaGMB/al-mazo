@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
 import Button from "@/components/Button";
 import type { GameDefinitionData } from "@/lib/editor/presets";
@@ -17,6 +17,15 @@ export default function JsonModal({ gameData, isOpen, onClose, onImport }: JsonM
   const [copySuccess, setCopySuccess] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
 
+  // Re-sync the textarea every time the modal opens so it reflects the current game.
+  useEffect(() => {
+    if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setJsonText(JSON.stringify(gameData, null, 2));
+      setParseError(null);
+    }
+  }, [isOpen, gameData]);
+
   if (!isOpen) return null;
 
   function handleCopy() {
@@ -27,9 +36,21 @@ export default function JsonModal({ gameData, isOpen, onClose, onImport }: JsonM
 
   function handleApply() {
     try {
-      const parsed = JSON.parse(jsonText);
-      if (!parsed.title || !parsed.rules || !parsed.deckConfig) {
-        throw new Error("El JSON debe contener title, deckConfig y rules.");
+      const parsed = JSON.parse(jsonText) as GameDefinitionData;
+      if (!parsed.title || typeof parsed.title !== "string") {
+        throw new Error("El JSON debe incluir un title válido.");
+      }
+      if (!parsed.deckConfig || !Array.isArray(parsed.deckConfig.templates)) {
+        throw new Error("deckConfig.templates debe ser un array de cartas.");
+      }
+      if (!parsed.rules || typeof parsed.rules !== "object") {
+        throw new Error("El JSON debe incluir rules.");
+      }
+      if (!parsed.rules.winCondition || typeof parsed.rules.winCondition.type !== "string") {
+        throw new Error("rules.winCondition.type es obligatorio.");
+      }
+      if (typeof parsed.rules.minPlayers !== "number" || typeof parsed.rules.maxPlayers !== "number") {
+        throw new Error("rules.minPlayers y rules.maxPlayers deben ser números.");
       }
       setParseError(null);
       onImport(parsed);
