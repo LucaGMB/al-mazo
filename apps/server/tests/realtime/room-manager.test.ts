@@ -240,4 +240,54 @@ describe('RoomManager & GameRoom Lifecycle', () => {
 
     vi.useRealTimers();
   });
+
+  it('configures custom targetScore in room options (e.g. Truco at 15 points)', async () => {
+    const manager = new RoomManager();
+    const { room } = await manager.createRoom(
+      'truco',
+      { id: 'host_1', name: 'Alice', socketId: 'sock_1' },
+      { targetScore: 15 }
+    );
+
+    expect(room.definition.rules.targetScore).toBe(15);
+    expect(room.definition.rules.winCondition.targetScore).toBe(15);
+    expect(room.getPublicState().customState?.targetScore).toBe(15);
+  });
+
+  it('does not inject drawStack into room rules when game has no draw mechanics (e.g. Truco)', async () => {
+    const manager = new RoomManager();
+    const { room } = await manager.createRoom(
+      'truco',
+      { id: 'host_1', name: 'Alice', socketId: 'sock_1' },
+      {
+        drawStack: {
+          rule: 'ALL',
+          endsTurnOnDraw: true,
+          allowAnyColorDraw2OnDraw4: true,
+        },
+      }
+    );
+
+    // Truco does not have drawStack in its base definition nor draw effects; drawStack must not be attached.
+    expect(room.definition.rules.drawStack).toBeUndefined();
+  });
+
+  it('attaches drawStack when game supports draw mechanics (e.g. ColorMatch)', async () => {
+    const manager = new RoomManager();
+    const { room } = await manager.createRoom(
+      'color-match',
+      { id: 'host_1', name: 'Alice', socketId: 'sock_1' },
+      {
+        drawStack: {
+          rule: 'SAME_TYPE',
+          endsTurnOnDraw: false,
+          allowAnyColorDraw2OnDraw4: false,
+        },
+      }
+    );
+
+    expect(room.definition.rules.drawStack).toBeDefined();
+    expect(room.definition.rules.drawStack?.rule).toBe('SAME_TYPE');
+    expect(room.definition.rules.drawStack?.endsTurnOnDraw).toBe(false);
+  });
 });

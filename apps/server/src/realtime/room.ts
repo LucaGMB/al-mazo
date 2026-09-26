@@ -44,12 +44,25 @@ export class GameRoom {
       baseDef = getColorMatchDefinition(mode);
     }
 
+    const hasDrawMechanics =
+      Boolean(baseDef.rules.drawStack) ||
+      Object.values(baseDef.rules.effects ?? {}).some((e) => e?.type === 'DRAW_CARDS');
+
     const effectiveRules = {
       ...baseDef.rules,
       // Editor schemas may omit effects; keep GameRoom.definition valid for all
       // consumers (bots, action checks), mirroring the engine normalization.
       effects: baseDef.rules.effects ?? {},
-      ...(options?.drawStack ? { drawStack: options.drawStack } : {}),
+      ...(hasDrawMechanics && options?.drawStack ? { drawStack: options.drawStack } : {}),
+      ...(options?.targetScore !== undefined
+        ? {
+            targetScore: options.targetScore,
+            winCondition: {
+              ...baseDef.rules.winCondition,
+              targetScore: options.targetScore,
+            },
+          }
+        : {}),
       customState: {
         ...(baseDef.rules.customState ?? {}),
         ...(options?.colorMatchMode ? { colorMatchMode: options.colorMatchMode } : {}),
