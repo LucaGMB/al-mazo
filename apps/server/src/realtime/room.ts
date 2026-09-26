@@ -2,6 +2,7 @@ import { ModularGameEngine } from '../engine/modular-engine.js';
 import { GameSchemaDefinition, PublicGameState, Card } from '../engine/types.js';
 import { getColorMatchDefinition } from '../games/color-match/definition.js';
 import { ChatMessage, DisconnectPolicy, RoomOptions, RoomPlayer } from './types.js';
+import { randomPlayerName } from '@al-mazo/shared';
 
 export class GameRoom {
   public readonly code: string;
@@ -110,7 +111,12 @@ export class GameRoom {
   public addBot(name?: string): RoomPlayer {
     this.botCounter += 1;
     const id = `bot_${this.botCounter}`;
-    return this.addPlayer(id, name ?? `Bot ${this.botCounter}`, null, `bot_token_${id}`, true);
+    const usedNames = new Set(Array.from(this.players.values()).map((p) => p.name));
+    let botName = name ?? randomPlayerName();
+    for (let i = 0; !name && usedNames.has(botName) && i < 20; i += 1) {
+      botName = randomPlayerName();
+    }
+    return this.addPlayer(id, botName, null, `bot_token_${id}`, true);
   }
 
   public removeBot(botId?: string): RoomPlayer {

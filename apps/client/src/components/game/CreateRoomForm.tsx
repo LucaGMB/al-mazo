@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
+import { randomPlayerName } from "@al-mazo/shared";
 import { useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/Button";
 import { createSocket } from "@/lib/socket/client";
@@ -101,21 +102,6 @@ const TURN_PRESETS = [
   { seconds: 40, label: "Pausado", description: "40s para pensar" },
 ] as const;
 
-const FUN_NAMES = [
-  "Ana",
-  "Bruno",
-  "Carla",
-  "Diego",
-  "Elena",
-  "Facu",
-  "Gabi",
-  "Hugo",
-  "Iris",
-  "Juli",
-  "Lola",
-  "Mateo",
-];
-
 // Formulario standalone en /juego/[slug]/mesa (sin roomCode todavía).
 // "Crear sala" abre un socket temporal solo para emitir room:create, guarda
 // las credenciales de reconexión y navega a /mesa/<CODE> (ahí el
@@ -203,8 +189,10 @@ export default function CreateRoomForm({ slug }: { slug: string }) {
   }
 
   function randomizeName() {
-    const options = FUN_NAMES.filter((n) => n !== name.trim());
-    const pick = options[Math.floor(Math.random() * options.length)] ?? FUN_NAMES[0];
+    let pick = randomPlayerName();
+    for (let i = 0; pick === name.trim() && i < 10; i += 1) {
+      pick = randomPlayerName();
+    }
     setName(pick);
   }
 
