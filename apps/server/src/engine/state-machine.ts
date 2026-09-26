@@ -8,7 +8,12 @@ import {
   PublicGameState,
   TurnDirection,
 } from './types.js';
-import { validateCardPlay } from './validator.js';
+import {
+  blocksFinishWithSpecialCard,
+  isSpecialCard,
+  SPECIAL_CARD_BLOCK_REASON,
+  validateCardPlay,
+} from './validator.js';
 
 export interface InternalPlayer {
   id: string;
@@ -240,6 +245,12 @@ export class GameEngine {
       throw new Error(validation.reason ?? 'Invalid card play');
     }
 
+    if (
+      blocksFinishWithSpecialCard(card, currentPlayer.hand, this.definition.rules, this.activeColor)
+    ) {
+      throw new Error(SPECIAL_CARD_BLOCK_REASON);
+    }
+
     // Remove from hand and add to discard pile
     currentPlayer.hand.splice(cardIndex, 1);
     this.discardPile.push(card);
@@ -250,11 +261,19 @@ export class GameEngine {
       this.activeColor = card.color;
     }
 
+    const finishRule = this.definition.rules.finishOnSpecialCard ?? 'ALLOW';
+    const specialFinish =
+      finishRule === 'DRAW_PENALTY' &&
+      this.definition.rules.winCondition.type === 'EMPTY_HAND' &&
+      isSpecialCard(card);
+
     // Check win condition
     if (this.definition.rules.winCondition.type === 'EMPTY_HAND' && currentPlayer.hand.length === 0) {
-      this.status = 'FINISHED';
-      this.winnerId = currentPlayer.id;
-      return;
+      if (!specialFinish || !this.drawPenaltyCards(currentPlayer)) {
+        this.status = 'FINISHED';
+        this.winnerId = currentPlayer.id;
+        return;
+      }
     }
 
     // Handle Card Effects
@@ -287,9 +306,11 @@ export class GameEngine {
         }
       }
       if (this.definition.rules.winCondition.type === 'EMPTY_HAND' && currentPlayer.hand.length === 0) {
-        this.status = 'FINISHED';
-        this.winnerId = currentPlayer.id;
-        return;
+        if (!specialFinish || !this.drawPenaltyCards(currentPlayer)) {
+          this.status = 'FINISHED';
+          this.winnerId = currentPlayer.id;
+          return;
+        }
       }
     }
 
@@ -421,6 +442,21 @@ export class GameEngine {
 
     currentPlayer.hasDrawnThisTurn = false;
     this.advanceTurn(1);
+  }
+
+  /**
+   * DRAW_PENALTY: automatic 2-card penalty for finishing with a special card.
+   * Returns false when no cards could be drawn (deck and discard exhausted),
+   * so the caller lets the win stand instead of stalling.
+   */
+  private drawPenaltyCards(player: InternalPlayer): boolean {
+    if (this.deckManager.count < 2 && this.definition.rules.reshuffleDiscardPile) {
+      this.deckManager.recycleDiscard(this.discardPile);
+    }
+    const drawn = this.deckManager.drawMultiple(2);
+    if (drawn.length === 0) return false;
+    player.hand.push(...drawn);
+    return true;
   }
 
   protected applyCardEffect(effect?: { type: string; params?: { drawCount?: number; skipTarget?: boolean; step?: number } }): void {

@@ -47,6 +47,7 @@ export class GameRoom {
     const hasDrawMechanics =
       Boolean(baseDef.rules.drawStack) ||
       Object.values(baseDef.rules.effects ?? {}).some((e) => e?.type === 'DRAW_CARDS');
+    const hasEmptyHandWin = baseDef.rules.winCondition.type === 'EMPTY_HAND';
 
     const effectiveRules = {
       ...baseDef.rules,
@@ -54,6 +55,9 @@ export class GameRoom {
       // consumers (bots, action checks), mirroring the engine normalization.
       effects: baseDef.rules.effects ?? {},
       ...(hasDrawMechanics && options?.drawStack ? { drawStack: options.drawStack } : {}),
+      ...(hasEmptyHandWin && options?.finishOnSpecialCard
+        ? { finishOnSpecialCard: options.finishOnSpecialCard }
+        : {}),
       ...(options?.targetScore !== undefined
         ? {
             targetScore: options.targetScore,
@@ -66,6 +70,9 @@ export class GameRoom {
       customState: {
         ...(baseDef.rules.customState ?? {}),
         ...(options?.colorMatchMode ? { colorMatchMode: options.colorMatchMode } : {}),
+        ...(hasEmptyHandWin && options?.finishOnSpecialCard
+          ? { finishOnSpecialCard: options.finishOnSpecialCard }
+          : {}),
       },
     };
     const effectiveDefinition = {

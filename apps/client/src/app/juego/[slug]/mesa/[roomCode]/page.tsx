@@ -1025,7 +1025,15 @@ export default function MesaPage() {
           selectedCardId={isCommunity ? selectedHandCardId : null}
           onPlay={isCommunity ? handleHandCardClick : (cardId) => handlePlay(cardId)}
           isCardPlayable={
-            isCommunity ? undefined : (card) => canPlayDiscardCard(card, publicState.topDiscardCard, publicState.activeColor)
+            isCommunity
+              ? undefined
+              : (card) =>
+                  !(
+                    publicState.customState?.finishOnSpecialCard === "BLOCK" &&
+                    hand.length === 1 &&
+                    card.type !== "NUMBER"
+                  ) &&
+                  canPlayDiscardCard(card, publicState.topDiscardCard, publicState.activeColor)
           }
           dragToPlay={!isCommunity}
         />

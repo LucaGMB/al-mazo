@@ -1,5 +1,5 @@
 import { Card, GameRulesConfig } from './types.js';
-import { validateCardPlay } from './validator.js';
+import { blocksFinishWithSpecialCard, validateCardPlay } from './validator.js';
 import { findEscobaCaptures, getEscobaCardValue } from '../games/escoba/definition.js';
 
 export interface BotMove {
@@ -66,6 +66,7 @@ export function decideBotMove(
 
   for (const card of hand) {
     if (!validateCardPlay(card, topDiscardCard, activeColor, rules, pendingDrawCount).isValid) continue;
+    if (blocksFinishWithSpecialCard(card, hand, rules, activeColor)) continue;
     const cardPriority = priority(card);
     if (cardPriority > bestPriority) {
       best = card;

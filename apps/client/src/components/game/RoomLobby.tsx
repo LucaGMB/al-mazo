@@ -33,6 +33,11 @@ export default function RoomLobby({
     | "BLITZ"
     | "CHAOS"
     | undefined;
+  const finishOnSpecialCard = publicState.customState?.finishOnSpecialCard as
+    | "ALLOW"
+    | "BLOCK"
+    | "DRAW_PENALTY"
+    | undefined;
 
   async function handleCopy() {
     await navigator.clipboard?.writeText(window.location.href);
@@ -83,6 +88,19 @@ export default function RoomLobby({
                 : colorMatchMode === "CHAOS"
                 ? "Chaos (Swap & Discard)"
                 : "Clásico"}
+            </span>
+          </div>
+        )}
+        {finishOnSpecialCard && finishOnSpecialCard !== "ALLOW" && (
+          <div className="inline-flex items-center gap-1.5 border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-bold text-accent">
+            <Icon
+              icon={finishOnSpecialCard === "BLOCK" ? "pixelarticons:close" : "pixelarticons:reload"}
+              width={14}
+              height={14}
+            />
+            <span>
+              Carta especial final:{" "}
+              {finishOnSpecialCard === "BLOCK" ? "Bloqueada" : "Roba 2 y sigue"}
             </span>
           </div>
         )}

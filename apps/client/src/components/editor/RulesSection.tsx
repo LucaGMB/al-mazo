@@ -8,6 +8,7 @@ interface RulesSectionProps {
   targetScore?: number;
   matchingProperties: Array<"color" | "value">;
   allowWildOnAny: boolean;
+  finishOnSpecialCard?: "ALLOW" | "BLOCK" | "DRAW_PENALTY";
   drawStack?: {
     rule: "OFF" | "SAME_TYPE" | "HIGHER_OR_EQUAL" | "ALL";
     endsTurnOnDraw?: boolean;
@@ -23,6 +24,7 @@ interface RulesSectionProps {
     targetScore?: number;
     matchingProperties: Array<"color" | "value">;
     allowWildOnAny: boolean;
+    finishOnSpecialCard?: "ALLOW" | "BLOCK" | "DRAW_PENALTY";
     drawStack?: {
       rule: "OFF" | "SAME_TYPE" | "HIGHER_OR_EQUAL" | "ALL";
       endsTurnOnDraw?: boolean;
@@ -92,6 +94,7 @@ export default function RulesSection({
   targetScore,
   matchingProperties,
   allowWildOnAny,
+  finishOnSpecialCard,
   drawStack,
   activeZones,
   phases,
@@ -101,6 +104,7 @@ export default function RulesSection({
   onChange,
 }: RulesSectionProps) {
   const currentActions = phases[0]?.allowedActions || ["PLAY_CARD", "DRAW_CARD", "PASS_TURN"];
+  const currentFinishOnSpecial = finishOnSpecialCard ?? "ALLOW";
   const currentStackRule = drawStack?.rule ?? "ALL";
   const currentEndsTurn = drawStack?.endsTurnOnDraw ?? true;
   const currentAllowAnyColor = drawStack?.allowAnyColorDraw2OnDraw4 ?? true;
@@ -333,6 +337,61 @@ export default function RulesSection({
               <span className="text-[10px] text-ink-faint">Sin comodines ni cartas de acción al inicio</span>
             </div>
           </label>
+        </div>
+      </div>
+
+      {/* Terminar con Carta Especial */}
+      <div className="border border-subtle bg-app/60 p-4 flex flex-col gap-3">
+        <div>
+          <div className="text-xs font-bold text-ink">Terminar con Carta Especial</div>
+          <p className="text-[11px] text-ink-faint">
+            Qué pasa si un jugador vacía su mano con una carta de acción o comodín
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          {[
+            {
+              value: "ALLOW" as const,
+              label: "Permitido",
+              desc: "La carta especial cierra la partida y el jugador gana",
+            },
+            {
+              value: "BLOCK" as const,
+              label: "Bloqueado",
+              desc: "No puede bajar su última carta especial: debe jugar otra o robar",
+            },
+            {
+              value: "DRAW_PENALTY" as const,
+              label: "Roba 2 y sigue",
+              desc: "La carta se juega, pero roba 2 cartas y la partida continúa",
+            },
+          ].map((opt) => {
+            const isSelected = currentFinishOnSpecial === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => onChange({ finishOnSpecialCard: opt.value })}
+                className={`flex flex-col text-left p-3 border transition-all cursor-pointer ${
+                  isSelected
+                    ? "border-accent bg-accent/10 shadow-[0_0_12px_rgba(255,210,63,0.2)] text-ink"
+                    : "border-subtle bg-statusbar/40 text-ink-faint hover:border-medium hover:text-ink"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-black text-ink">{opt.label}</span>
+                  <Icon
+                    icon={isSelected ? "pixelarticons:check" : "pixelarticons:chevron-right"}
+                    width={14}
+                    height={14}
+                    className={isSelected ? "text-accent" : "text-ink-faint"}
+                  />
+                </div>
+                <p className="text-[10px] text-ink-faint leading-tight">{opt.desc}</p>
+              </button>
+            );
+          })}
         </div>
       </div>
 
