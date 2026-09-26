@@ -415,8 +415,24 @@ export function RoomProvider({
 }
 
 // Opciones de sala expuestas como avanzadas/opcionales en el form de creación.
-export const DISCONNECT_POLICIES: { value: NonNullable<RoomOptions["disconnectPolicy"]>; label: string }[] = [
-  { value: "DISCARD_AND_CONTINUE", label: "Descartar su turno y continuar" },
-  { value: "AUTO_PASS", label: "Pasar su turno automáticamente" },
-  { value: "ABORT_MATCH", label: "Cancelar la partida" },
+export const DISCONNECT_POLICIES: {
+  value: NonNullable<RoomOptions["disconnectPolicy"]>;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "DISCARD_AND_CONTINUE",
+    label: "Descartar sus cartas y seguir la partida con los demás",
+    description: "Las cartas del jugador ausente vuelven al pozo y la partida continúa.",
+  },
+  {
+    value: "AUTO_PASS",
+    label: "Saltear su turno hasta que se vuelva a conectar",
+    description: "Cada vez que sea el turno del jugador ausente, se pasa de inmediato.",
+  },
+  {
+    value: "ABORT_MATCH",
+    label: "Cancelar la partida para todos",
+    description: "Finaliza la partida de inmediato si un jugador abandona.",
+  },
 ];

@@ -58,7 +58,7 @@ export default function RoomLobby({
 
       <div className="flex flex-col items-center gap-3">
         <div className="text-[11px] uppercase tracking-[0.25em] text-ink-faint">
-          Código de la sala
+          Código para unirse
         </div>
         <div className="font-mono text-4xl md:text-5xl font-black tracking-[0.3em] text-accent [text-shadow:3px_3px_0_rgba(0,0,0,0.35)]">
           {roomCode}
@@ -93,7 +93,7 @@ export default function RoomLobby({
           </Button>
           <Button variant="outline" onClick={handleWhatsApp}>
             <Icon icon="pixelarticons:whatsapp" width={16} height={16} />
-            Compartir
+            Compartir por WhatsApp
           </Button>
         </div>
       </div>
@@ -120,7 +120,7 @@ export default function RoomLobby({
               {isHostPlayer && (
  <span className="inline-flex items-center gap-1 border-2 border-warning/60 bg-warning/15 px-2 py-0.5 text-[10px] font-bold text-warning">
                   <Icon icon="pixelarticons:crown" width={12} height={12} />
-                  HOST
+                  ANFITRIÓN
                 </span>
               )}
               {p.isBot && (
@@ -150,8 +150,13 @@ export default function RoomLobby({
           {!isFull && (
             <Button variant="outline" fullWidth onClick={onAddBot}>
               <Icon icon="pixelarticons:robot" width={16} height={16} />
-              Agregar Bot
+              Sumar Bot a la mesa
             </Button>
+          )}
+          {publicState.players.length < 2 && (
+            <div className="text-[12px] text-ink-faint">
+              Se necesitan al menos 2 jugadores en la mesa. Podés sumar un bot o compartir el enlace.
+            </div>
           )}
           <Button
             variant="primary"
@@ -165,7 +170,7 @@ export default function RoomLobby({
           </Button>
         </div>
       ) : (
-        <div className="text-[13px] text-ink-faint">Esperando a que el host inicie la partida...</div>
+        <div className="text-[13px] text-ink-faint">Esperando a que el anfitrión inicie la partida...</div>
       )}
     </div>
   );
