@@ -93,4 +93,19 @@ describe('Descarte Criollo Mechanics via GameEngine', () => {
     expect(state.pendingChoice).toBeNull();
     expect(state.currentTurnPlayerId).toBe('p2');
   });
+
+  it('guarantees initial discard card is a normal number card without action effects', () => {
+    for (let i = 0; i < 20; i++) {
+      const matchEngine = new GameEngine(descarteCriolloDefinition);
+      matchEngine.addPlayer('p1', 'Player 1');
+      matchEngine.addPlayer('p2', 'Player 2');
+      matchEngine.start();
+
+      const topCard = matchEngine.getTopDiscardCard();
+      expect(topCard).not.toBeNull();
+      expect(topCard!.type).toBe('NUMBER');
+      expect(descarteCriolloDefinition.rules.effects[String(topCard!.value)]).toBeUndefined();
+      expect(['3', '5', '6', '10', '11']).toContain(String(topCard!.value));
+    }
+  });
 });

@@ -122,12 +122,48 @@ export class GameEngine {
       player.hasDrawnThisTurn = false;
     }
 
-    // Flip top card for discard pile (ensure it's not a wild card initially if possible)
+    // Flip top card for discard pile (ensure it's not a wild card, or require a normal number card if configured)
+    const requireNormal = this.definition.rules.requireNormalInitialCard ?? false;
+    const isInvalidInitial = (card: Card): boolean => {
+      if (card.type === 'WILD') return true;
+      if (requireNormal) {
+        if (card.type !== 'NUMBER') return true;
+        if (
+          this.definition.rules.effects &&
+          ((card.value !== undefined && this.definition.rules.effects[String(card.value)]) ||
+            this.definition.rules.effects[card.type])
+        ) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    const rejectedCards: Card[] = [];
     let initialCard = this.deckManager.draw();
-    while (initialCard && initialCard.type === 'WILD') {
-      // Re-insert wild card and pick another
-      this.deckManager.recycleDiscard([initialCard]);
+    while (initialCard && isInvalidInitial(initialCard)) {
+      rejectedCards.push(initialCard);
+      if (this.deckManager.count === 0) {
+        break;
+      }
       initialCard = this.deckManager.draw();
+    }
+
+    if (!initialCard || isInvalidInitial(initialCard)) {
+      if (initialCard) {
+        rejectedCards.push(initialCard);
+      }
+      // Fallback: pick first non-wild card if possible, else any card
+      const nonWildIndex = rejectedCards.findIndex((c) => c.type !== 'WILD');
+      if (nonWildIndex !== -1) {
+        initialCard = rejectedCards.splice(nonWildIndex, 1)[0];
+      } else {
+        initialCard = rejectedCards.pop() ?? null;
+      }
+    }
+
+    if (rejectedCards.length > 0) {
+      this.deckManager.returnCards(rejectedCards);
     }
 
     if (!initialCard) {

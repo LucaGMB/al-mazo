@@ -52,6 +52,7 @@ export interface GameDefinitionData {
     targetScore?: number;
     turnTimeoutSeconds?: number;
     gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT";
+    requireNormalInitialCard?: boolean;
     effects?: Record<string, { type: string; params?: Record<string, unknown> }>;
   };
 }
