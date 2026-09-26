@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import type {
   Card,
   ConditionDefinition,
@@ -7,6 +8,7 @@ import type {
   PhaseDefinition,
   PlayerPublicInfo,
   PublicGameState,
+  SubmissionRoundState,
 } from './types.js';
 import { GameEngine, InternalPlayer } from './state-machine.js';
 import { getBuiltinAction } from './capabilities/registry.js';
@@ -33,6 +35,24 @@ import {
 export interface ActionResult {
   success: boolean;
   result?: unknown;
+}
+
+export interface InternalSubmissionEntry {
+  id: string;
+  cards: Card[];
+  playerId: string;
+}
+
+export interface InternalSubmissionRoundState {
+  phase: SubmissionRoundState['phase'];
+  judgeId: string;
+  promptCard: Card | null;
+  requiredPicks: number;
+  expectedSubmitters: string[];
+  submittedPlayerIds: string[];
+  submissions: InternalSubmissionEntry[];
+  winnerSubmissionId: string | null;
+  winnerPlayerId: string | null;
 }
 
 export interface TrickPlayEntry {
@@ -124,6 +144,12 @@ export class ModularGameEngine extends GameEngine {
 
   // Truco bet state that was paused because rival responded "El envido está primero"
   protected savedTrucoBet: TrucoBetState | null = null;
+
+  // Judge/submission round state for simultaneous hidden-answer games
+  protected promptPile: Card[] = [];
+  protected promptDiscard: Card[] = [];
+  protected answerDiscard: Card[] = [];
+  protected submissionRound: InternalSubmissionRoundState | null = null;
 
   protected florState: FlorState = {
     state: 'AVAILABLE',
@@ -218,6 +244,14 @@ export class ModularGameEngine extends GameEngine {
     );
   }
 
+  public get isSubmissionGame(): boolean {
+    return Boolean(this.definition.rules.submission);
+  }
+
+  private get submissionConfig(): GameSchemaDefinition['rules']['submission'] | undefined {
+    return this.definition.rules.submission;
+  }
+
   /**
    * Explains to the client which table layout/flow corresponds to this game.
    * Never infer this on the client from optional state fields: an empty
@@ -260,6 +294,27 @@ export class ModularGameEngine extends GameEngine {
 
     if (this.isCommunityGame()) {
       this.syncCommunityState();
+    }
+
+    if (this.submissionConfig) {
+      this.prepareSubmissionDecks();
+      this.submissionRound = {
+        phase: 'PREPARE',
+        judgeId: this.players[this.currentTurnIndex]?.id ?? this.players[0]?.id ?? '',
+        promptCard: null,
+        requiredPicks: Math.max(1, this.submissionConfig.defaultPicks),
+        expectedSubmitters: [],
+        submittedPlayerIds: [],
+        submissions: [],
+        winnerSubmissionId: null,
+        winnerPlayerId: null,
+      };
+      this.currentPhase = null;
+
+      if (!this.phases || this.phases.length === 0) {
+        this.applyEffect({ type: 'DRAW_PROMPT' }, null, {});
+        this.applyEffect({ type: 'OPEN_SUBMISSIONS' }, null, {});
+      }
     }
 
     const phases = this.phases;
@@ -380,6 +435,179 @@ export class ModularGameEngine extends GameEngine {
     }
   }
 
+  /**
+   * Splits the freshly dealt mixed deck into prompt and answer piles,
+   * returning any prompt card accidentally dealt to a hand.
+   */
+  private prepareSubmissionDecks(): void {
+    const config = this.submissionConfig;
+    if (!config) return;
+
+    this.deckManager.recycleAll(this.discardPile);
+    this.promptPile = this.deckManager.extract((card) => card.type === config.promptCardType);
+    this.promptDiscard = [];
+    this.answerDiscard = [];
+
+    const handSize = this.definition.rules.initialHandSize ?? 10;
+    for (const player of this.players) {
+      player.hand = player.hand.filter((card) => card.type !== config.promptCardType);
+      while (player.hand.length < handSize) {
+        const card = this.deckManager.draw();
+        if (!card) break;
+        player.hand.push(card);
+      }
+    }
+  }
+
+  private getPublicSubmissionState(): SubmissionRoundState | null {
+    const round = this.submissionRound;
+    if (!round) return null;
+
+    const isRevealed = round.phase === 'JUDGING' || round.phase === 'RESOLVED';
+    const submissions = isRevealed
+      ? round.submissions.map((entry) => ({
+          id: entry.id,
+          cards: entry.cards.map((card) => ({ ...card })),
+          ...(entry.id === round.winnerSubmissionId ? { playerId: entry.playerId } : {}),
+        }))
+      : [];
+
+    return {
+      phase: round.phase,
+      judgeId: round.judgeId,
+      promptCard: round.promptCard ? { ...round.promptCard } : null,
+      requiredPicks: round.requiredPicks,
+      expectedSubmitters: [...round.expectedSubmitters],
+      submittedPlayerIds: [...round.submittedPlayerIds],
+      submissions,
+      winnerSubmissionId: round.winnerSubmissionId,
+      winnerPlayerId: round.winnerPlayerId,
+    };
+  }
+
+  /** Players who owe an action right now, or undefined for turn-based games. */
+  public getAwaitingPlayerIds(): string[] | undefined {
+    if (!this.isSubmissionGame) return undefined;
+    const round = this.submissionRound;
+    if (!round || this.status !== 'IN_PROGRESS') return [];
+
+    if (round.phase === 'COLLECTING') {
+      return round.expectedSubmitters.filter(
+        (playerId) => !round.submittedPlayerIds.includes(playerId)
+      );
+    }
+    return round.judgeId ? [round.judgeId] : [];
+  }
+
+  private shuffleSubmissions(): void {
+    const submissions = this.submissionRound?.submissions;
+    if (!submissions) return;
+    for (let i = submissions.length - 1; i > 0; i--) {
+      const j = randomInt(i + 1);
+      [submissions[i], submissions[j]] = [submissions[j], submissions[i]];
+    }
+  }
+
+  /**
+   * Deterministic fallback used when a human runs out of turn time.
+   */
+  public executeAutoTurn(playerId: string): void {
+    const round = this.submissionRound;
+    if (!this.isSubmissionGame || !round || this.status !== 'IN_PROGRESS') return;
+    const player = this.players.find((p) => p.id === playerId);
+    if (!player) return;
+
+    if (round.phase === 'COLLECTING' && round.expectedSubmitters.includes(playerId)) {
+      if (!round.submittedPlayerIds.includes(playerId)) {
+        const cardIds = player.hand.slice(0, round.requiredPicks).map((card) => card.id);
+        if (cardIds.length === round.requiredPicks) {
+          this.executeAction(playerId, 'SUBMIT_CARDS', { cardIds });
+        }
+      }
+      return;
+    }
+
+    if (round.judgeId !== playerId) return;
+
+    if (round.phase === 'JUDGING') {
+      const submission = round.submissions[0];
+      if (submission) {
+        this.executeAction(playerId, 'PICK_SUBMISSION', { submissionId: submission.id });
+      }
+      return;
+    }
+
+    this.executeAction(playerId, 'CONFIRM_PHASE');
+  }
+
+  private executeSubmissionBotTurn(bot: InternalPlayer): void {
+    const round = this.submissionRound;
+    if (!round) return;
+
+    if (round.phase === 'COLLECTING' && round.expectedSubmitters.includes(bot.id)) {
+      if (!round.submittedPlayerIds.includes(bot.id)) {
+        const shuffled = [...bot.hand];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = randomInt(i + 1);
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        const cardIds = shuffled.slice(0, round.requiredPicks).map((card) => card.id);
+        if (cardIds.length === round.requiredPicks) {
+          this.executeAction(bot.id, 'SUBMIT_CARDS', { cardIds });
+        }
+      }
+      return;
+    }
+
+    if (round.judgeId !== bot.id) return;
+
+    if (round.phase === 'JUDGING' && round.submissions.length > 0) {
+      const submission = round.submissions[randomInt(round.submissions.length)];
+      this.executeAction(bot.id, 'PICK_SUBMISSION', { submissionId: submission.id });
+      return;
+    }
+
+    this.executeAction(bot.id, 'CONFIRM_PHASE');
+  }
+
+  /**
+   * Keeps a submission round playable when the judge or a submitter leaves:
+   * reassigns the judge, drops their pending answer and closes the round if
+   * every remaining submitter already answered.
+   */
+  private handleSubmissionPlayerRemoval(playerId: string): void {
+    const round = this.submissionRound;
+    if (!round || this.status !== 'IN_PROGRESS') return;
+
+    round.submissions = round.submissions.filter((entry) => entry.playerId !== playerId);
+    round.submittedPlayerIds = round.submittedPlayerIds.filter((id) => id !== playerId);
+    round.expectedSubmitters = round.expectedSubmitters.filter((id) => id !== playerId);
+
+    if (round.judgeId === playerId) {
+      round.judgeId = this.players[0]?.id ?? '';
+      round.winnerSubmissionId = null;
+      round.winnerPlayerId = null;
+    }
+
+    if (round.phase === 'COLLECTING' && round.expectedSubmitters.length > 0) {
+      const allReceived = round.expectedSubmitters.every((id) =>
+        round.submittedPlayerIds.includes(id)
+      );
+      if (allReceived) {
+        round.phase = 'JUDGING';
+        if (this.phases?.length) this.changePhase();
+      }
+    }
+  }
+
+  public override removePlayer(
+    id: string,
+    policy: 'DISCARD_AND_CONTINUE' | 'ABORT_MATCH' = 'DISCARD_AND_CONTINUE'
+  ): void {
+    super.removePlayer(id, policy);
+    this.handleSubmissionPlayerRemoval(id);
+  }
+
   public getStatus(): 'LOBBY' | 'IN_PROGRESS' | 'FINISHED' {
     return this.status;
   }
@@ -390,8 +618,24 @@ export class ModularGameEngine extends GameEngine {
 
   public override getPublicState(): PublicGameState {
     if (!this.isRoundTrickGame) {
+      const base = super.getPublicState();
+
+      if (this.isSubmissionGame) {
+        return {
+          ...base,
+          currentPhase: this.currentPhase,
+          scores: { ...this.scores },
+          customState: { ...this.customState },
+          trickCards: [],
+          activeBets: { ...this.activeBets },
+          discardPileCount: this.answerDiscard.length,
+          awaitingPlayerIds: this.getAwaitingPlayerIds(),
+          submission: this.getPublicSubmissionState(),
+        };
+      }
+
       return {
-        ...super.getPublicState(),
+        ...base,
         currentPhase: this.currentPhase,
         scores: { ...this.scores },
         customState: { ...this.customState },
@@ -1237,6 +1481,11 @@ export class ModularGameEngine extends GameEngine {
     const bot = this.players.find((p) => p.id === botId);
     if (!bot || !bot.isBot) return;
 
+    if (this.isSubmissionGame) {
+      this.executeSubmissionBotTurn(bot);
+      return;
+    }
+
     if (!this.isRoundTrickGame) {
       const move = decideBotMove(
         bot.hand,
@@ -1762,6 +2011,97 @@ export class ModularGameEngine extends GameEngine {
         return this.customState.lastRoundResult;
       }
 
+      case 'OPEN_SUBMISSIONS': {
+        const round = this.submissionRound;
+        const config = this.submissionConfig;
+        if (!round || !config) return null;
+
+        const expected = this.players
+          .filter((player) => !config.excludeJudge || player.id !== round.judgeId)
+          .map((player) => player.id);
+        round.phase = 'COLLECTING';
+        round.expectedSubmitters = expected;
+        round.submittedPlayerIds = [];
+        round.submissions = [];
+        round.winnerSubmissionId = null;
+        round.winnerPlayerId = null;
+
+        if (expected.length === 0 && this.phases?.length) {
+          this.changePhase();
+        }
+        return expected;
+      }
+
+      case 'AWARD_SUBMISSION': {
+        const round = this.submissionRound;
+        if (!round?.winnerPlayerId) return null;
+
+        const amount = Math.max(1, this.submissionConfig?.pointsPerWin ?? 1);
+        this.scores[round.winnerPlayerId] = (this.scores[round.winnerPlayerId] ?? 0) + amount;
+        round.phase = 'RESOLVED';
+
+        const winner = this.players.find((p) => p.id === round.winnerPlayerId);
+        this.lastActionText = `${winner?.name ?? 'Jugador'} se llevó la ronda (+${amount})`;
+        this.checkScoreWin(round.winnerPlayerId);
+        return { playerId: round.winnerPlayerId, amount };
+      }
+
+      case 'REFILL_HANDS': {
+        if (this.status !== 'IN_PROGRESS') return null;
+
+        const target = this.definition.rules.initialHandSize ?? 10;
+        for (const player of this.players) {
+          while (player.hand.length < target) {
+            if (this.deckManager.count === 0) {
+              if (this.answerDiscard.length === 0) break;
+              this.deckManager.recycleAll(this.answerDiscard);
+            }
+            const card = this.deckManager.draw();
+            if (!card) break;
+            player.hand.push(card);
+          }
+        }
+        return target;
+      }
+
+      case 'DRAW_PROMPT': {
+        const round = this.submissionRound;
+        const config = this.submissionConfig;
+        if (!round || !config || this.status !== 'IN_PROGRESS') return null;
+
+        if (round.promptCard) {
+          this.promptDiscard.push(round.promptCard);
+        }
+        if (this.promptPile.length === 0 && this.promptDiscard.length > 0) {
+          this.promptPile.push(...this.promptDiscard);
+          this.promptDiscard = [];
+        }
+
+        const prompt = this.promptPile.pop();
+        if (!prompt) {
+          this.status = 'FINISHED';
+          this.winnerId = this.getLeadingPlayerId();
+          return null;
+        }
+
+        const judgeId = this.players[this.currentTurnIndex]?.id ?? this.players[0]?.id ?? '';
+        this.submissionRound = {
+          phase: 'PREPARE',
+          judgeId,
+          promptCard: prompt,
+          requiredPicks: config.picksFromPrompt
+            ? Math.max(1, Number(prompt.metadata?.picks ?? config.defaultPicks))
+            : Math.max(1, config.defaultPicks),
+          expectedSubmitters: [],
+          submittedPlayerIds: [],
+          submissions: [],
+          winnerSubmissionId: null,
+          winnerPlayerId: null,
+        };
+        this.lastActionText = `${this.players.find((p) => p.id === judgeId)?.name ?? 'El juez'} lee la consigna`;
+        return prompt.id;
+      }
+
       default:
         return null;
     }
@@ -1972,6 +2312,129 @@ export class ModularGameEngine extends GameEngine {
         return { folded: playerId };
       }
 
+      case 'SUBMIT_CARDS': {
+        const round = this.submissionRound;
+        if (!round || round.phase !== 'COLLECTING') {
+          throw new Error('No hay una ronda de respuestas abierta');
+        }
+        if (!round.expectedSubmitters.includes(playerId)) {
+          throw new Error('No te corresponde enviar respuestas en esta ronda');
+        }
+        if (round.submittedPlayerIds.includes(playerId)) {
+          throw new Error('Ya enviaste tus respuestas');
+        }
+
+        const player = this.players.find((p) => p.id === playerId);
+        const cardIds = Array.isArray(payload.cardIds) ? payload.cardIds.map(String) : [];
+        if (!player || cardIds.length !== round.requiredPicks) {
+          throw new Error(`Debés enviar ${round.requiredPicks} carta(s)`);
+        }
+        if (new Set(cardIds).size !== cardIds.length) {
+          throw new Error('No podés repetir la misma carta');
+        }
+
+        const cards: Card[] = [];
+        for (const cardId of cardIds) {
+          const index = player.hand.findIndex((card) => card.id === cardId);
+          if (index === -1) throw new Error('Carta no encontrada en tu mano');
+          cards.push(player.hand.splice(index, 1)[0]);
+        }
+
+        this.answerDiscard.push(...cards);
+        round.submissions.push({
+          id: `sub_${round.submissions.length + 1}_${randomInt(1_000_000)}`,
+          cards,
+          playerId,
+        });
+        round.submittedPlayerIds.push(playerId);
+        this.lastActionText = `${player.name} envió su respuesta`;
+
+        const allReceived = round.expectedSubmitters.every((id) =>
+          round.submittedPlayerIds.includes(id)
+        );
+        if (allReceived) {
+          this.shuffleSubmissions();
+          round.phase = 'JUDGING';
+          if (this.phases?.length) this.changePhase();
+        }
+        return { submitted: cards.length };
+      }
+
+      case 'PICK_SUBMISSION': {
+        const round = this.submissionRound;
+        if (!round || round.phase !== 'JUDGING') {
+          throw new Error('No hay respuestas para juzgar');
+        }
+        const submissionId = String(payload.submissionId ?? '');
+        const chosen = round.submissions.find((entry) => entry.id === submissionId);
+        if (!chosen) throw new Error('Respuesta no encontrada');
+
+        round.winnerSubmissionId = chosen.id;
+        round.winnerPlayerId = chosen.playerId;
+        const winner = this.players.find((p) => p.id === chosen.playerId);
+        this.lastActionText = `El juez eligió la respuesta de ${winner?.name ?? 'un jugador'}`;
+
+        if (!this.phases || this.phases.length === 0) {
+          this.applyEffect({ type: 'AWARD_SUBMISSION' }, null, {});
+          if (this.status === 'IN_PROGRESS') {
+            this.applyEffects(
+              [
+                { type: 'REFILL_HANDS' },
+                { type: 'ADVANCE_TURN', params: { step: 1 } },
+                { type: 'RESET_ROUND' },
+                { type: 'DRAW_PROMPT' },
+                { type: 'OPEN_SUBMISSIONS' },
+              ],
+              null
+            );
+          }
+        }
+
+        return { submissionId: chosen.id, playerId: chosen.playerId };
+      }
+
+      case 'EXCHANGE_CARDS': {
+        const config = this.submissionConfig;
+        if (!config?.judgeExchange) {
+          throw new Error('El recambio de cartas no está habilitado');
+        }
+        if (this.submissionRound?.judgeId !== playerId) {
+          throw new Error('Solo el juez puede recambiar cartas');
+        }
+
+        const player = this.players.find((p) => p.id === playerId);
+        const cardIds = Array.isArray(payload.cardIds) ? payload.cardIds.map(String) : [];
+        if (!player || cardIds.length === 0) {
+          throw new Error('Elegí al menos una carta para recambiar');
+        }
+        if (new Set(cardIds).size !== cardIds.length) {
+          throw new Error('No podés repetir la misma carta');
+        }
+
+        const discarded: Card[] = [];
+        for (const cardId of cardIds) {
+          const index = player.hand.findIndex((card) => card.id === cardId);
+          if (index === -1) throw new Error('Carta no encontrada en tu mano');
+          discarded.push(player.hand.splice(index, 1)[0]);
+        }
+
+        let drawn = 0;
+        while (drawn < discarded.length) {
+          if (this.deckManager.count === 0) {
+            if (this.answerDiscard.length === 0) break;
+            this.deckManager.recycleAll(this.answerDiscard);
+          }
+          const card = this.deckManager.draw();
+          if (!card) break;
+          player.hand.push(card);
+          drawn += 1;
+        }
+
+        this.answerDiscard.push(...discarded);
+        this.lastActionText = `${player.name} recambió ${drawn} carta(s)`;
+        return { exchanged: drawn };
+      }
+
       default:
         return null;
     }
@@ -2069,9 +2532,50 @@ export class ModularGameEngine extends GameEngine {
         return calculateEscobaValues(handCard, tableCards);
       }
 
+      case 'IS_JUDGE':
+        return this.submissionRound?.judgeId === playerId;
+
+      case 'CAN_SUBMIT': {
+        const round = this.submissionRound;
+        return Boolean(
+          round &&
+            round.phase === 'COLLECTING' &&
+            round.expectedSubmitters.includes(playerId) &&
+            !round.submittedPlayerIds.includes(playerId)
+        );
+      }
+
+      case 'ALL_SUBMISSIONS_RECEIVED': {
+        const round = this.submissionRound;
+        return Boolean(
+          round &&
+            round.expectedSubmitters.length > 0 &&
+            round.expectedSubmitters.every((id) => round.submittedPlayerIds.includes(id))
+        );
+      }
+
+      case 'CAN_PICK_SUBMISSION':
+        return Boolean(
+          this.submissionRound?.phase === 'JUDGING' &&
+            this.submissionRound.judgeId === playerId
+        );
+
       default:
         return true;
     }
+  }
+
+  private getLeadingPlayerId(): string | null {
+    let leaderId: string | null = null;
+    let bestScore = Number.NEGATIVE_INFINITY;
+    for (const player of this.players) {
+      const score = this.scores[player.id] ?? 0;
+      if (score > bestScore) {
+        bestScore = score;
+        leaderId = player.id;
+      }
+    }
+    return leaderId;
   }
 
   private checkScoreWin(playerId: string): void {

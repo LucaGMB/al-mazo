@@ -65,6 +65,32 @@ export class DeckManager {
     this.shuffle();
   }
 
+  /**
+   * Removes every card matching the predicate from the draw pile and returns
+   * them, preserving the pile order. Used to split mixed decks into piles
+   * (e.g. prompt cards vs answer cards).
+   */
+  public extract(predicate: (card: Card) => boolean): Card[] {
+    const extracted: Card[] = [];
+    this.cards = this.cards.filter((card) => {
+      if (!predicate(card)) return true;
+      extracted.push(card);
+      return false;
+    });
+    return extracted;
+  }
+
+  /**
+   * Returns every card in the given list to the draw pile (clearing the list)
+   * and reshuffles. Unlike recycleDiscard it recycles the whole list.
+   */
+  public recycleAll(cards: Card[]): number {
+    const recycled = cards.splice(0, cards.length);
+    this.cards.push(...recycled);
+    this.shuffle();
+    return recycled.length;
+  }
+
   public get count(): number {
     return this.cards.length;
   }

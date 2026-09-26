@@ -1,3 +1,5 @@
+import { buildHdpDeckTemplates } from "@/types/shared/hdp-deck";
+
 export interface CardTemplate {
   count: number;
   type: string;
@@ -5,6 +7,28 @@ export interface CardTemplate {
   value?: string | number;
   metadata?: Record<string, unknown>;
 }
+
+export interface SubmissionConfig {
+  promptCardType: string;
+  answerCardType: string;
+  excludeJudge: boolean;
+  picksFromPrompt: boolean;
+  defaultPicks: number;
+  judgeExchange: boolean;
+  refillToHandSize: boolean;
+  pointsPerWin: number;
+}
+
+export const DEFAULT_SUBMISSION_CONFIG: SubmissionConfig = {
+  promptCardType: "PROMPT",
+  answerCardType: "ANSWER",
+  excludeJudge: true,
+  picksFromPrompt: true,
+  defaultPicks: 1,
+  judgeExchange: true,
+  refillToHandSize: true,
+  pointsPerWin: 1,
+};
 
 export interface ZoneDefinition {
   id: string;
@@ -53,6 +77,7 @@ export interface GameDefinitionData {
     turnTimeoutSeconds?: number;
     gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT";
     effects?: Record<string, { type: string; params?: Record<string, unknown> }>;
+    submission?: SubmissionConfig;
   };
 }
 
@@ -158,6 +183,13 @@ export const DECK_PRESET_OPTIONS: DeckPresetOption[] = [
     description: "108 cartas tipo UNO (4 colores, 0-9, reversa, salto, robar +2 y comodines).",
     totalCards: 108,
     templates: () => buildColorMatchTemplates(),
+  },
+  {
+    id: "HDP_DEMO",
+    name: "HDP Demo (Negras y Blancas)",
+    description: "22 consignas y 90 respuestas originales para juegos de jurado con respuestas ocultas.",
+    totalCards: 112,
+    templates: () => buildHdpDeckTemplates(),
   },
 ];
 
@@ -302,6 +334,71 @@ export const TRUCO_GAME_PRESET: GameDefinitionData = {
   },
 };
 
+export const HDP_GAME_PRESET: GameDefinitionData = {
+  slug: "hdp-personalizado",
+  title: "HDP Personalizado",
+  description:
+    "Juego de jurado con respuestas ocultas: un HDP lee la consigna, todos responden en secreto y el HDP elige la respuesta ganadora.",
+  deckConfig: {
+    templates: buildHdpDeckTemplates(),
+  },
+  rules: {
+    minPlayers: 3,
+    maxPlayers: 8,
+    initialHandSize: 10,
+    matchingProperties: [],
+    allowWildOnAny: false,
+    reshuffleDiscardPile: true,
+    winCondition: {
+      type: "SCORE_THRESHOLD",
+      targetScore: 5,
+    },
+    targetScore: 5,
+    zones: [
+      { id: "hand", name: "Mano", type: "HAND", visibility: "PRIVATE_OWNER", perPlayer: true },
+      { id: "prompt_pile", name: "Mazo de Consignas", type: "DRAW_PILE", visibility: "HIDDEN" },
+      { id: "answer_pile", name: "Mazo de Respuestas", type: "DRAW_PILE", visibility: "HIDDEN" },
+      { id: "submission_table", name: "Respuestas Enviadas", type: "REVEALED", visibility: "PUBLIC" },
+    ],
+    phases: [
+      {
+        id: "PREPARE",
+        name: "Consigna del HDP",
+        allowedActions: ["EXCHANGE_CARDS", "CONFIRM_PHASE"],
+        nextPhase: "COLLECT",
+      },
+      {
+        id: "COLLECT",
+        name: "Respuestas Ocultas",
+        allowedActions: ["SUBMIT_CARDS"],
+        nextPhase: "JUDGING",
+      },
+      {
+        id: "JUDGING",
+        name: "El HDP Elige",
+        allowedActions: ["PICK_SUBMISSION"],
+        nextPhase: "SCORING",
+      },
+      {
+        id: "SCORING",
+        name: "Puntaje y Reveal",
+        allowedActions: ["CONFIRM_PHASE"],
+        nextPhase: "PREPARE",
+      },
+    ],
+    submission: {
+      promptCardType: "PROMPT",
+      answerCardType: "ANSWER",
+      excludeJudge: true,
+      picksFromPrompt: true,
+      defaultPicks: 1,
+      judgeExchange: true,
+      refillToHandSize: true,
+      pointsPerWin: 1,
+    },
+  },
+};
+
 export const GAME_PRESETS = [
   {
     id: "default",
@@ -314,6 +411,12 @@ export const GAME_PRESETS = [
     name: "Truco Criollo (Bazas y Envites)",
     description: "Juego de 3 cartas, bazas con jerarquía, envido, truco y puntos a 30.",
     data: TRUCO_GAME_PRESET,
+  },
+  {
+    id: "hdp",
+    name: "HDP (Respuestas Ocultas y Jurado)",
+    description: "Consigna secreta, respuestas anónimas y un HDP que elige la ganadora.",
+    data: HDP_GAME_PRESET,
   },
 ];
 

@@ -75,6 +75,16 @@ const GAME_SHOWCASE: Record<string, { tagline: string; mechanics: string[] }> = 
       "Online o pass-and-play en un mismo dispositivo",
     ],
   },
+  "hdp": {
+    tagline: "Un HDP lee la consigna y todos responden en secreto. Gana la respuesta más zarpada.",
+    mechanics: [
+      "10 cartas de respuesta por jugador",
+      "El HDP rota a la izquierda en cada ronda",
+      "Respuestas anónimas y a ciegas",
+      "Consignas con varios espacios a completar",
+      "Recambio de cartas del HDP y partida a 5 puntos",
+    ],
+  },
 };
 
 export default function GameDetailPage() {

@@ -1,7 +1,13 @@
 "use client";
 
 import { Icon } from "@iconify/react";
-import { DEFAULT_ZONES, type PhaseDefinition, type ZoneDefinition } from "@/lib/editor/presets";
+import {
+  DEFAULT_SUBMISSION_CONFIG,
+  DEFAULT_ZONES,
+  type PhaseDefinition,
+  type SubmissionConfig,
+  type ZoneDefinition,
+} from "@/lib/editor/presets";
 
 interface RulesSectionProps {
   winConditionType: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE";
@@ -17,6 +23,7 @@ interface RulesSectionProps {
   phases: PhaseDefinition[];
   turnTimeoutSeconds?: number;
   gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT";
+  submission?: SubmissionConfig;
   onChange: (fields: Partial<{
     winConditionType: "EMPTY_HAND" | "SCORE_THRESHOLD" | "LAST_REMAINING" | "NONE";
     targetScore?: number;
@@ -31,6 +38,7 @@ interface RulesSectionProps {
     phases: PhaseDefinition[];
     turnTimeoutSeconds?: number;
     gameMode?: "TRICK" | "COMMUNITY" | "DISCARD" | "PROMPT" | "AUTO";
+    submission?: SubmissionConfig | null;
   }>) => void;
 }
 
@@ -78,6 +86,10 @@ const ACTION_OPTIONS = [
   { id: "DROP_CARD", label: "Tirar a la Mesa", desc: "Dejar carta en la mesa comunitaria sin capturar" },
   { id: "REVEAL_CARD", label: "Revelar Carta", desc: "Da vuelta la carta superior del mazo en público y pasa el turno" },
   { id: "END_GAME", label: "Terminar Partida", desc: "Cierra la partida al instante (sin ganador si el efecto se configura así)" },
+  { id: "SUBMIT_CARDS", label: "Enviar Respuestas", desc: "Respuesta oculta del jugador al jurado" },
+  { id: "PICK_SUBMISSION", label: "Elegir Ganadora", desc: "El juez elige la respuesta que suma" },
+  { id: "EXCHANGE_CARDS", label: "Recambiar Cartas", desc: "El juez cambia cartas antes de la ronda" },
+  { id: "CONFIRM_PHASE", label: "Confirmar Fase", desc: "Avanzar de fase (leer consigna, seguir)" },
 ];
 
 export default function RulesSection({
@@ -90,6 +102,7 @@ export default function RulesSection({
   phases,
   turnTimeoutSeconds,
   gameMode,
+  submission,
   onChange,
 }: RulesSectionProps) {
   const currentActions = phases[0]?.allowedActions || ["PLAY_CARD", "DRAW_CARD", "PASS_TURN"];
@@ -497,6 +510,144 @@ export default function RulesSection({
             );
           })}
         </div>
+      </div>
+
+      {/* Modo Jurado / Submissions */}
+      <div className="rounded-xl border border-subtle bg-app/60 p-4 flex flex-col gap-3">
+        <label className="flex items-center justify-between cursor-pointer gap-3">
+          <div>
+            <div className="text-xs font-bold text-ink">Modo Jurado (Respuestas Ocultas)</div>
+            <div className="text-[10px] text-ink-faint">
+              Rondas simultáneas donde un juez rota y elige la respuesta ganadora (estilo HDP).
+            </div>
+          </div>
+          <input
+            type="checkbox"
+            checked={Boolean(submission)}
+            onChange={(event) =>
+              onChange({
+                submission: event.target.checked ? { ...DEFAULT_SUBMISSION_CONFIG } : null,
+              })
+            }
+            className="w-5 h-5 accent-accent rounded cursor-pointer shrink-0"
+          />
+        </label>
+
+        {submission && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-subtle/60 pt-3">
+            <label className="flex flex-col gap-1 text-[11px] font-bold text-ink-soft">
+              Puntos por ronda
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={submission.pointsPerWin}
+                onChange={(event) =>
+                  onChange({
+                    submission: {
+                      ...submission,
+                      pointsPerWin: Math.max(1, Number(event.target.value) || 1),
+                    },
+                  })
+                }
+                className="h-9 rounded-lg border border-subtle bg-statusbar/60 px-2.5 text-[11px] text-ink focus:border-accent focus:outline-none"
+              />
+            </label>
+
+            <label className="flex flex-col gap-1 text-[11px] font-bold text-ink-soft">
+              Respuestas por defecto (si la consigna no define espacios)
+              <input
+                type="number"
+                min={1}
+                max={3}
+                value={submission.defaultPicks}
+                onChange={(event) =>
+                  onChange({
+                    submission: {
+                      ...submission,
+                      defaultPicks: Math.min(3, Math.max(1, Number(event.target.value) || 1)),
+                    },
+                  })
+                }
+                className="h-9 rounded-lg border border-subtle bg-statusbar/60 px-2.5 text-[11px] text-ink focus:border-accent focus:outline-none"
+              />
+            </label>
+
+            <label className="flex flex-col gap-1 text-[11px] font-bold text-ink-soft">
+              Tipo de carta consigna
+              <input
+                type="text"
+                value={submission.promptCardType}
+                onChange={(event) =>
+                  onChange({ submission: { ...submission, promptCardType: event.target.value } })
+                }
+                className="h-9 rounded-lg border border-subtle bg-statusbar/60 px-2.5 text-[11px] text-ink focus:border-accent focus:outline-none"
+              />
+            </label>
+
+            <label className="flex flex-col gap-1 text-[11px] font-bold text-ink-soft">
+              Tipo de carta respuesta
+              <input
+                type="text"
+                value={submission.answerCardType}
+                onChange={(event) =>
+                  onChange({ submission: { ...submission, answerCardType: event.target.value } })
+                }
+                className="h-9 rounded-lg border border-subtle bg-statusbar/60 px-2.5 text-[11px] text-ink focus:border-accent focus:outline-none"
+              />
+            </label>
+
+            <label className="flex items-center gap-2.5 rounded-lg border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+              <input
+                type="checkbox"
+                checked={submission.excludeJudge}
+                onChange={(event) =>
+                  onChange({ submission: { ...submission, excludeJudge: event.target.checked } })
+                }
+                className="w-4 h-4 accent-accent rounded cursor-pointer"
+              />
+              <span className="text-[11px] text-ink-soft">El juez no envía respuesta</span>
+            </label>
+
+            <label className="flex items-center gap-2.5 rounded-lg border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+              <input
+                type="checkbox"
+                checked={submission.picksFromPrompt}
+                onChange={(event) =>
+                  onChange({ submission: { ...submission, picksFromPrompt: event.target.checked } })
+                }
+                className="w-4 h-4 accent-accent rounded cursor-pointer"
+              />
+              <span className="text-[11px] text-ink-soft">Espacios definidos por cada consigna</span>
+            </label>
+
+            <label className="flex items-center gap-2.5 rounded-lg border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+              <input
+                type="checkbox"
+                checked={submission.judgeExchange}
+                onChange={(event) =>
+                  onChange({ submission: { ...submission, judgeExchange: event.target.checked } })
+                }
+                className="w-4 h-4 accent-accent rounded cursor-pointer"
+              />
+              <span className="text-[11px] text-ink-soft">El juez puede recambiar cartas</span>
+            </label>
+
+            <label className="flex items-center gap-2.5 rounded-lg border border-subtle bg-statusbar/60 p-2.5 cursor-pointer hover:border-accent/40">
+              <input
+                type="checkbox"
+                checked={submission.refillToHandSize}
+                onChange={(event) =>
+                  onChange({
+                    submission: { ...submission, refillToHandSize: event.target.checked },
+                  })
+                }
+                className="w-4 h-4 accent-accent rounded cursor-pointer"
+              />
+              <span className="text-[11px] text-ink-soft">Reponer manos al tamaño inicial</span>
+            </label>
+          </div>
+        )}
       </div>
     </div>
   );

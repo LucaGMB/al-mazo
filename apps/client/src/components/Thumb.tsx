@@ -10,6 +10,7 @@ export default function Thumb({ className = "w-full h-24 ", gameSlug }: { classN
     "color-match-chaos": { bg: "var(--color-danger)", ink: "#171a35", icon: "pixelarticons:reload", badge: "CHAOS", cardArt: true },
     "descarte-criollo": { bg: "var(--color-warning)", ink: "#171a35", icon: "pixelarticons:sword", badge: "CRIOLLO", cardArt: true },
     desconectados: { bg: "var(--color-info)", ink: "#171a35", icon: "pixelarticons:message-text", badge: "CHARLA" },
+    hdp: { bg: "var(--color-wood-dark)", ink: "#f4f1ff", icon: "pixelarticons:cards", badge: "HDP" },
   }[gameSlug ?? ""];
 
   if (gameSlug === "color-match") {

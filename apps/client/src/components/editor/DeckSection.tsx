@@ -49,6 +49,37 @@ export default function DeckSection({
     return map;
   }, [templates]);
 
+  // Text cards (prompts/answers) used by judge-style games
+  const textTemplates = useMemo(
+    () =>
+      templates
+        .map((template, index) => ({ template, index }))
+        .filter(({ template }) => template.type === "PROMPT" || template.type === "ANSWER"),
+    [templates]
+  );
+
+  function updateTemplate(index: number, changes: { text?: string; picks?: number }) {
+    onTemplatesChange(
+      templates.map((template, i) => {
+        if (i !== index) return template;
+        const metadata = { ...(template.metadata ?? {}) };
+        if (changes.text !== undefined) metadata.text = changes.text;
+        if (changes.picks !== undefined) metadata.picks = changes.picks;
+        return { ...template, metadata };
+      })
+    );
+  }
+
+  function addTextCard(type: "PROMPT" | "ANSWER") {
+    const metadata =
+      type === "PROMPT" ? { text: "Nueva consigna con ___", picks: 1 } : { text: "Nueva respuesta" };
+    onTemplatesChange([...templates, { count: 1, type, metadata }]);
+  }
+
+  function removeTemplate(index: number) {
+    onTemplatesChange(templates.filter((_, i) => i !== index));
+  }
+
   // Identify active preset if any
   const activePresetId = useMemo(() => {
     for (const preset of DECK_PRESET_OPTIONS) {
@@ -173,6 +204,93 @@ export default function DeckSection({
                   {card.value ?? "Carta"} {card.color ? `(${card.color})` : ""}
                 </span>
                 <span className="text-ink-faint font-bold text-[10px]">x{card.count}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Text Cards Editor (prompts & answers) */}
+      <div className="rounded-xl border border-subtle bg-app/60 p-4 flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="text-xs font-bold text-ink">Cartas de Texto (Consignas &amp; Respuestas)</div>
+            <div className="text-[10px] text-ink-faint">
+              Editá el texto y los espacios a completar. PROMPT es la consigna negra y ANSWER la
+              respuesta blanca.
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => addTextCard("PROMPT")}
+              className="rounded-lg border border-subtle bg-statusbar px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition-colors hover:border-warning hover:text-ink cursor-pointer"
+            >
+              + Consigna
+            </button>
+            <button
+              type="button"
+              onClick={() => addTextCard("ANSWER")}
+              className="rounded-lg border border-subtle bg-statusbar px-2.5 py-1.5 text-[11px] font-bold text-ink-soft transition-colors hover:border-accent hover:text-ink cursor-pointer"
+            >
+              + Respuesta
+            </button>
+          </div>
+        </div>
+
+        {textTemplates.length === 0 ? (
+          <p className="text-[11px] text-ink-faint">
+            Este mazo no tiene cartas de texto. Agregá consignas y respuestas para armar un juego de
+            jurado.
+          </p>
+        ) : (
+          <div className="flex max-h-72 flex-col gap-1.5 overflow-y-auto pr-1">
+            {textTemplates.map(({ template, index }) => (
+              <div key={`${template.type}-${index}`} className="flex items-center gap-2">
+                <span
+                  className={`w-16 shrink-0 rounded px-1.5 py-0.5 text-center text-[9px] font-black uppercase tracking-wide ${
+                    template.type === "PROMPT"
+                      ? "bg-[#15161a] text-white border border-white/20"
+                      : "bg-[#f4f2ea] text-[#15161a] border border-black/20"
+                  }`}
+                >
+                  {template.type === "PROMPT" ? "Negra" : "Blanca"}
+                </span>
+                <input
+                  type="text"
+                  aria-label={`Texto de la carta ${index + 1}`}
+                  value={typeof template.metadata?.text === "string" ? template.metadata.text : ""}
+                  onChange={(event) => updateTemplate(index, { text: event.target.value })}
+                  placeholder="Texto de la carta"
+                  className="h-9 min-w-0 flex-1 rounded-lg border border-subtle bg-statusbar/60 px-2.5 text-[11px] text-ink transition-colors focus:border-accent focus:outline-none"
+                />
+                {template.type === "PROMPT" && (
+                  <label className="flex shrink-0 items-center gap-1 text-[10px] text-ink-faint">
+                    Espacios
+                    <input
+                      type="number"
+                      min={1}
+                      max={3}
+                      aria-label={`Espacios de la consigna ${index + 1}`}
+                      value={Number(template.metadata?.picks ?? 1)}
+                      onChange={(event) =>
+                        updateTemplate(index, { picks: Number(event.target.value) || 1 })
+                      }
+                      className="h-9 w-12 rounded-lg border border-subtle bg-statusbar/60 px-1.5 text-center text-[11px] text-ink focus:border-accent focus:outline-none"
+                    />
+                  </label>
+                )}
+                <span className="w-7 shrink-0 text-right text-[10px] font-bold text-ink-faint">
+                  x{template.count}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeTemplate(index)}
+                  aria-label={`Eliminar carta ${index + 1}`}
+                  className="shrink-0 rounded-lg border border-subtle p-1.5 text-ink-faint transition-colors hover:border-danger/50 hover:text-danger cursor-pointer"
+                >
+                  <Icon icon="pixelarticons:close" width={14} height={14} />
+                </button>
               </div>
             ))}
           </div>

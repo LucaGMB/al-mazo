@@ -45,6 +45,17 @@ const winConditionSchema = z.object({
   targetScore: z.number().optional(),
 });
 
+const submissionSchema = z.object({
+  promptCardType: z.string().min(1),
+  answerCardType: z.string().min(1),
+  excludeJudge: z.boolean(),
+  picksFromPrompt: z.boolean(),
+  defaultPicks: z.number().int().min(1).max(3),
+  judgeExchange: z.boolean(),
+  refillToHandSize: z.boolean(),
+  pointsPerWin: z.number().int().min(1),
+});
+
 const rulesSchema = z.object({
   initialHandSize: z.number().int().nonnegative().optional(),
   minPlayers: z.number().int().min(2),
@@ -62,6 +73,7 @@ const rulesSchema = z.object({
   roundScoring: z.record(z.string(), z.unknown()).optional(),
   gameMode: z.enum(['TRICK', 'COMMUNITY', 'DISCARD', 'PROMPT']).optional(),
   turnTimeoutSeconds: z.number().int().min(0).optional(),
+  submission: submissionSchema.optional(),
 });
 
 const gameSchema = z

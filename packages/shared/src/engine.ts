@@ -62,6 +62,43 @@ export const DEFAULT_DRAW_STACK_CONFIG: DrawStackConfig = {
   allowAnyColorDraw2OnDraw4: true,
 };
 
+export type SubmissionPhase = 'PREPARE' | 'COLLECTING' | 'JUDGING' | 'RESOLVED';
+
+/**
+ * Declarative configuration for judge-based games where everyone answers a
+ * prompt at the same time and a rotating judge picks the winning answer.
+ */
+export interface SubmissionConfig {
+  promptCardType: string;
+  answerCardType: string;
+  excludeJudge: boolean;
+  picksFromPrompt: boolean;
+  defaultPicks: number;
+  judgeExchange: boolean;
+  refillToHandSize: boolean;
+  pointsPerWin: number;
+}
+
+export interface SubmissionEntry {
+  id: string;
+  cards: Card[];
+  /** Only present on the winning entry once the judge has picked it. */
+  playerId?: string;
+}
+
+export interface SubmissionRoundState {
+  phase: SubmissionPhase;
+  judgeId: string;
+  promptCard: Card | null;
+  requiredPicks: number;
+  expectedSubmitters: string[];
+  submittedPlayerIds: string[];
+  /** Hidden while collecting; anonymous until the winning entry is revealed. */
+  submissions: SubmissionEntry[];
+  winnerSubmissionId: string | null;
+  winnerPlayerId: string | null;
+}
+
 export interface GameRulesConfig {
   initialHandSize: number;
   minPlayers: number;
@@ -83,6 +120,7 @@ export interface GameRulesConfig {
   gameMode?: GameMode;
   /** Seconds before the server auto-passes a human turn. 0 disables the timer. */
   turnTimeoutSeconds?: number;
+  submission?: SubmissionConfig;
 }
 
 export interface GameSchemaDefinition {
@@ -126,4 +164,7 @@ export interface PublicGameState {
   tableCards?: Card[];
   /** Modo de mesa que el cliente debe renderizar para este juego. */
   gameMode?: GameMode;
+  /** Players who owe an action right now (simultaneous phases). */
+  awaitingPlayerIds?: string[];
+  submission?: SubmissionRoundState | null;
 }
