@@ -205,6 +205,28 @@ describe('GameEngine State Machine', () => {
     expect(engine.getPublicState().currentTurnPlayerId).toBe('p2');
   });
 
+  it('keeps the turn on the current player when someone before them leaves', () => {
+    engine.start();
+    engine.drawCard('p1');
+    engine.passTurn('p1');
+    expect(engine.getPublicState().currentTurnPlayerId).toBe('p2');
+
+    engine.removePlayer('p1'); // p1 ocupa un índice anterior al turno actual
+
+    expect(engine.getPublicState().currentTurnPlayerId).toBe('p2');
+  });
+
+  it('passes the turn to the next player when the current player leaves', () => {
+    engine.start();
+    engine.drawCard('p1');
+    engine.passTurn('p1');
+    expect(engine.getPublicState().currentTurnPlayerId).toBe('p2');
+
+    engine.removePlayer('p2');
+
+    expect(engine.getPublicState().currentTurnPlayerId).toBe('p3');
+  });
+
   it('handles win condition when last card is played', () => {
     engine.start();
     const p1 = engine.getCurrentPlayer();

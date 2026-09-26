@@ -83,6 +83,21 @@ describe('TrucoEngine', () => {
 
       const state = engine.getPublicState();
       expect(state.scores?.p1).toBe(5);
+      // La cadena empezó con el turno de p1: p1 es quien debe jugar.
+      expect(state.currentTurnPlayerId).toBe('p1');
+    });
+
+    it('keeps the pending turn when the challenged player raises, not the caller', () => {
+      const firstCardId = (engine as any).players[0].hand[0].id;
+      engine.playCard('p1', firstCardId); // ahora el turno es de p2
+
+      engine.executeAction('p2', 'CALL_ENVIDO');
+      engine.executeAction('p1', 'CALL_REAL_ENVIDO');
+      engine.executeAction('p2', 'QUIERO');
+
+      const state = engine.getPublicState();
+      // La cadena empezó con el turno de p2: p2 es quien debe jugar.
+      expect(state.currentTurnPlayerId).toBe('p2');
     });
 
     it('resolves envido tie in favor of Mano', () => {
@@ -134,6 +149,17 @@ describe('TrucoEngine', () => {
 
       const state = engine.getPublicState();
       expect((state.customState as any).truco.points).toBe(4);
+    });
+
+    it('returns the turn to the original player after a Retruco raise chain', () => {
+      engine.executeAction('p1', 'CALL_TRUCO');
+      engine.executeAction('p2', 'CALL_RETRUCO');
+      engine.executeAction('p1', 'QUIERO');
+
+      const state = engine.getPublicState();
+      expect((state.customState as any).truco.points).toBe(3);
+      // La cadena empezó con el turno de p1: p1 es quien debe jugar.
+      expect(state.currentTurnPlayerId).toBe('p1');
     });
   });
 
@@ -358,6 +384,34 @@ describe('TrucoEngine', () => {
       expect((stateAfterTrucoResolved.customState as any).truco.points).toBe(2);
       // Turn returns to P1 to play first card
       expect(stateAfterTrucoResolved.currentTurnPlayerId).toBe('p1');
+    });
+
+    it('restores the original turn when Retruco is suspended by Envido and then accepted', () => {
+      (engine as any).players[0].hand = [
+        c('7', 'ESPADAS', 'c1'),
+        c('6', 'ESPADAS', 'c2'),
+        c('1', 'COPAS', 'c3'),
+      ]; // 33 envido
+      (engine as any).players[1].hand = [
+        c('4', 'BASTOS', 'c4'),
+        c('5', 'BASTOS', 'c5'),
+        c('2', 'OROS', 'c6'),
+      ]; // 29 envido
+
+      engine.executeAction('p1', 'CALL_TRUCO');
+      engine.executeAction('p2', 'CALL_RETRUCO');
+      engine.executeAction('p1', 'EL_ENVIDO_ESTA_PRIMERO');
+      engine.executeAction('p2', 'QUIERO'); // acepta el envido de p1
+
+      // El envido se resolvió: ahora p1 debe responder el Retruco de p2
+      expect(engine.getPublicState().currentTurnPlayerId).toBe('p1');
+
+      engine.executeAction('p1', 'QUIERO'); // acepta el Retruco
+
+      const state = engine.getPublicState();
+      expect((state.customState as any).truco.points).toBe(3);
+      // La cadena original empezó con el turno de p1
+      expect(state.currentTurnPlayerId).toBe('p1');
     });
 
     it('ends game immediately if Envido points reach targetScore during El Envido está primero', () => {

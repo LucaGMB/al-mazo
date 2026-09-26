@@ -102,6 +102,11 @@ export class GameEngine {
         return;
       }
 
+      // Al sacar un jugador anterior al del turno actual, el índice se corre y
+      // sin este ajuste el turno saltaría al siguiente jugador.
+      if (playerIndex < this.currentTurnIndex) {
+        this.currentTurnIndex -= 1;
+      }
       if (this.currentTurnIndex >= this.players.length) {
         this.currentTurnIndex = 0;
       }
