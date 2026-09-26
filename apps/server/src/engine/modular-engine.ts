@@ -927,7 +927,13 @@ export class ModularGameEngine extends GameEngine {
     const history = [...this.envidoState.callHistory, callType];
     const { stake, refused } = this.calculateEnvidoBetPoints(history);
 
-    this.preBetTurnIndex = this.currentTurnIndex;
+    // Solo el primer canto fija el turno a restaurar: una subida de apuesta la
+    // responde el rival, pero el turno pendiente sigue siendo el del cantador
+    // original (si no, al resolver la cadena el turno salta al jugador equivocado).
+    const isRaise = this.envidoState.state === 'PENDING';
+    if (!isRaise) {
+      this.preBetTurnIndex = this.currentTurnIndex;
+    }
     this.envidoState = {
       state: 'PENDING',
       currentCall: callType,
@@ -1165,7 +1171,12 @@ export class ModularGameEngine extends GameEngine {
     const points = level === 'TRUCO' ? 2 : level === 'RETRUCO' ? 3 : 4;
     const pointsIfRefused = level === 'TRUCO' ? 1 : level === 'RETRUCO' ? 2 : 3;
 
-    this.preBetTurnIndex = this.currentTurnIndex;
+    // Igual que en Envido: subir Truco no debe pisar el turno que se estaba
+    // disputando antes de la cadena de cantos.
+    const isRaise = this.trucoState.state === 'PENDING';
+    if (!isRaise) {
+      this.preBetTurnIndex = this.currentTurnIndex;
+    }
     this.trucoState = {
       state: 'PENDING',
       currentLevel: level,
