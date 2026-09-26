@@ -14,6 +14,10 @@ const variantClasses = {
   cta: "btn-panel btn-panel-yellow h-[30px] px-4 border-[4px] font-display font-bold text-[10px] text-[#171a35] shadow-[0_3px_0_0_var(--color-accent-hover)] active:translate-y-[2px] active:shadow-[0_1px_0_0_var(--color-accent-hover)] transition-[transform,box-shadow] duration-100",
   ghost:
     "btn-panel btn-panel-grey h-[30px] px-3.5 border-[4px] font-display text-[10px] text-ink-card shadow-[0_3px_0_0_var(--color-statusbar)] hover:brightness-110 active:translate-y-[2px] active:shadow-[0_1px_0_0_var(--color-statusbar)] transition-[transform,box-shadow] duration-100",
+  success:
+    "btn-panel btn-panel-green h-10 px-4 border-[5px] font-display font-bold text-[12px] text-[#171a35] shadow-[0_4px_0_0_rgba(0,0,0,0.4)] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_1px_0_0_rgba(0,0,0,0.4)] transition-[transform,box-shadow,filter] duration-100",
+  danger:
+    "btn-panel btn-panel-red h-10 px-4 border-[5px] font-display font-bold text-[12px] text-[#171a35] shadow-[0_4px_0_0_rgba(0,0,0,0.4)] hover:brightness-105 active:translate-y-[2px] active:shadow-[0_1px_0_0_rgba(0,0,0,0.4)] transition-[transform,box-shadow,filter] duration-100",
 } as const;
 
 type Variant = keyof typeof variantClasses;

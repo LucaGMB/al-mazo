@@ -4,7 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import type { Card } from "@/types/engine";
 import { Icon } from "@iconify/react";
 import { CARD_COLORS } from "@/lib/game/card-colors";
-import { getUnoCardImageSrc, hasColorFallbackOnly } from "@/lib/game/card-assets";
+import { getUnoCardImageSrc, getSpanishCardImageSrc, hasColorFallbackOnly } from "@/lib/game/card-assets";
 
 const SUIT_ICONS: Record<string, string> = {
   ESPADAS: "pixelarticons:sword",
@@ -130,7 +130,23 @@ export default function CardView({
     );
   }
 
-  // Familia A (naipe español real): sin cambios, mismo render de siempre.
+  // Familia A con asset real (naipe español pixel-art, truco/escoba/chinchón/
+  // descarte-criollo): sprite tal cual, mismo trato que Familia B.
+  const spanishSrc = getSpanishCardImageSrc(card);
+  if (spanishSrc) {
+    return wrapper(
+      `group relative shrink-0 ${SIZE_CLASSES[size]} transition-transform duration-150 ${interactiveClasses} ${selectedClasses}`,
+      <img
+        src={spanishSrc}
+        alt=""
+        draggable={false}
+        className="h-full w-full [image-rendering:pixelated] drop-shadow-[3px_4px_0_rgba(0,0,0,0.4)]"
+      />
+    );
+  }
+
+  // Fallback vectorial (valor/palo sin asset todavía, no debería alcanzarse
+  // con el mazo español completo de arriba).
   const fg = CARD_COLORS[card.color ?? "ANY"] ?? CARD_COLORS.ANY;
   return wrapper(
  `group relative shrink-0 ${SIZE_CLASSES[size]} card-paper border-[3px] border-[#241a44] flex items-center justify-center transition-all duration-150 shadow-[3px_4px_0_0_rgba(0,0,0,0.4)] ${interactiveClasses} ${
