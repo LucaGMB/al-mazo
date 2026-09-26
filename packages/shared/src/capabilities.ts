@@ -31,6 +31,10 @@ export type ConditionType =
   | 'CAN_CALL_CONTRA_FLOR'
   | 'SUM_TARGET'
   | 'VALID_CAPTURE'
+  | 'IS_JUDGE'
+  | 'CAN_SUBMIT'
+  | 'ALL_SUBMISSIONS_RECEIVED'
+  | 'CAN_PICK_SUBMISSION'
   | 'CUSTOM';
 
 export interface ConditionDefinition {
@@ -63,7 +67,11 @@ export type EffectType =
   | 'DEAL_COMMUNITY'
   | 'EVALUATE_ROUND_SCORING'
   | 'REVEAL_CARD'
-  | 'END_GAME';
+  | 'END_GAME'
+  | 'OPEN_SUBMISSIONS'
+  | 'AWARD_SUBMISSION'
+  | 'REFILL_HANDS'
+  | 'DRAW_PROMPT';
 
 export interface EffectDefinition {
   type: EffectType;
@@ -93,7 +101,11 @@ export type StandardActionId =
   | 'QUIERO'
   | 'NO_QUIERO'
   | 'REVEAL_CARD'
-  | 'END_GAME';
+  | 'END_GAME'
+  | 'SUBMIT_CARDS'
+  | 'PICK_SUBMISSION'
+  | 'EXCHANGE_CARDS'
+  | 'CONFIRM_PHASE';
 
 export interface ActionDefinition {
   id: string;

@@ -49,6 +49,25 @@ function getNextPlayer(room: GameRoom, state: PublicGameState): RoomPlayer | und
   return next ? room.getPlayer(next.id) : undefined;
 }
 
+/**
+ * Players who owe an action right now. Simultaneous phases (hidden
+ * submissions) list everyone pending; turn-based games fall back to the
+ * single current turn. Players already removed from the room are ignored.
+ */
+function getActingPlayerIds(room: GameRoom): string[] {
+  const state = room.getPublicState();
+  if (state.status !== 'IN_PROGRESS') return [];
+
+  const awaiting = state.awaitingPlayerIds;
+  const ids =
+    awaiting && awaiting.length > 0
+      ? awaiting
+      : state.currentTurnPlayerId
+        ? [state.currentTurnPlayerId]
+        : [];
+  return ids.filter((id) => room.getPlayer(id));
+}
+
 function specialCardChatMessage(
   card: Card,
   playerName: string,
@@ -95,11 +114,8 @@ function scheduleBotTurn(io: IoServer, room: GameRoom): void {
     room.botTimer = undefined;
   }
 
-  const state = room.getPublicState();
-  if (state.status !== 'IN_PROGRESS') return;
-
-  const current = state.players.find((p) => p.id === state.currentTurnPlayerId);
-  if (!current?.isBot) return;
+  const hasBot = getActingPlayerIds(room).some((id) => room.getPlayer(id)?.isBot);
+  if (!hasBot) return;
 
   const delay =
     BOT_MIN_DELAY_MS + Math.floor(Math.random() * (BOT_MAX_DELAY_MS - BOT_MIN_DELAY_MS + 1));
@@ -125,14 +141,19 @@ function scheduleTurnLifecycle(io: IoServer, room: GameRoom): void {
   const state = room.getPublicState();
   if (state.status !== 'IN_PROGRESS') return;
 
-  const current = state.players.find((p) => p.id === state.currentTurnPlayerId);
-  if (!current) return;
+  const actors = getActingPlayerIds(room);
+  if (actors.length === 0) return;
 
-  if (current.isBot) {
+  const humanActors = actors.filter((id) => !room.getPlayer(id)?.isBot);
+  const botActors = actors.filter((id) => room.getPlayer(id)?.isBot);
+
+  if (botActors.length > 0) {
     scheduleBotTurn(io, room);
-  } else {
+  }
+
+  if (humanActors.length > 0) {
     room.startTurnTimer(() => {
-      handleHumanTurnTimeout(io, room, current.id);
+      handleHumanTurnTimeout(io, room, humanActors);
     });
     io.to(room.code).emit('room:state', room.getPublicState());
   }
@@ -147,82 +168,113 @@ function emitPlayerHands(io: IoServer, room: GameRoom): void {
   }
 }
 
-function handleHumanTurnTimeout(io: IoServer, room: GameRoom, timedOutPlayerId: string): void {
+function handleHumanTurnTimeout(io: IoServer, room: GameRoom, timedOutPlayerIds: string[]): void {
   const state = room.getPublicState();
-  if (state.status !== 'IN_PROGRESS' || state.currentTurnPlayerId !== timedOutPlayerId) return;
-  const player = room.getPlayer(timedOutPlayerId);
-  if (!player) return;
+  if (state.status !== 'IN_PROGRESS') return;
 
-  if (room.engine.isRoundTrickGame) {
+  const acting = getActingPlayerIds(room);
+  const expired = timedOutPlayerIds.filter((id) => acting.includes(id));
+  if (expired.length === 0) return;
+
+  for (const playerId of expired) {
+    const player = room.getPlayer(playerId);
+    if (!player) continue;
+
     try {
-      const pendingBet = state.customState?.pendingBet as
-        | { type?: string; challengedId?: string }
-        | undefined;
-      if (pendingBet?.challengedId === timedOutPlayerId) {
-        // Si no contesta la apuesta, se achica: pierde lo apostado.
-        room.engine.executeAction(
-          timedOutPlayerId,
-          pendingBet.type === 'FLOR' ? 'CON_FLOR_ME_ACHICO' : 'NO_QUIERO'
-        );
-      } else {
-        const hand = room.getPlayerHand(timedOutPlayerId);
+      if (room.definition.rules.submission) {
+        (room.engine as ModularGameEngine).executeAutoTurn(playerId);
+      } else if (room.engine.isRoundTrickGame) {
+        const pendingBet = state.customState?.pendingBet as
+          | { type?: string; challengedId?: string }
+          | undefined;
+        if (pendingBet?.challengedId === playerId) {
+          // Si no contesta la apuesta, se achica: pierde lo apostado.
+          room.engine.executeAction(
+            playerId,
+            pendingBet.type === 'FLOR' ? 'CON_FLOR_ME_ACHICO' : 'NO_QUIERO'
+          );
+        } else {
+          const hand = room.getPlayerHand(playerId);
+          if (hand.length > 0) {
+            room.engine.playCard(playerId, hand[0].id);
+          }
+        }
+      } else if (room.engine.isCommunityGame()) {
+        const hand = room.getPlayerHand(playerId);
         if (hand.length > 0) {
-          room.engine.playCard(timedOutPlayerId, hand[0].id);
+          // Se juega/descarta la primera carta para no trabar la ronda.
+          room.engine.executeAction(playerId, 'PLAY_CARD', { cardId: hand[0].id });
+        }
+      } else {
+        const modularEngine = room.engine as ModularGameEngine;
+        const allowedActions =
+          room.definition.rules.phases?.find((phase) => phase.id === state.currentPhase)
+            ?.allowedActions ?? [];
+        const usesRevealFlow =
+          allowedActions.includes('REVEAL_CARD') || allowedActions.includes('END_GAME');
+        try {
+          if (state.pendingChoice && state.pendingChoice.playerId === playerId) {
+            const defaultChoice =
+              (room.definition.deckConfig.templates.find((t) => t.color && t.color !== 'ANY')?.color) ??
+              'RED';
+            modularEngine.chooseColor(playerId, defaultChoice);
+          } else if (usesRevealFlow) {
+            const action =
+              state.drawPileCount > 0 && allowedActions.includes('REVEAL_CARD')
+                ? 'REVEAL_CARD'
+                : 'END_GAME';
+            modularEngine.executeAction(playerId, action);
+          } else {
+            modularEngine.drawCard(playerId);
+            modularEngine.passTurn(playerId);
+          }
+        } catch {
+          try {
+            modularEngine.passTurn(playerId);
+          } catch {
+            // turn already resolved elsewhere; nothing left to do
+          }
         }
       }
     } catch {
       // turn already resolved elsewhere; nothing left to do
     }
-  } else if (room.engine.isCommunityGame()) {
-    try {
-      const hand = room.getPlayerHand(timedOutPlayerId);
-      if (hand.length > 0) {
-        // Se juega/descarta la primera carta para no trabar la ronda.
-        room.engine.executeAction(timedOutPlayerId, 'PLAY_CARD', { cardId: hand[0].id });
-      }
-    } catch {
-      // turn already resolved elsewhere; nothing left to do
-    }
-  } else {
-    const modularEngine = room.engine as ModularGameEngine;
-    const allowedActions =
-      room.definition.rules.phases?.find((phase) => phase.id === state.currentPhase)
-        ?.allowedActions ?? [];
-    const usesRevealFlow =
-      allowedActions.includes('REVEAL_CARD') || allowedActions.includes('END_GAME');
-    try {
-      if (state.pendingChoice && state.pendingChoice.playerId === timedOutPlayerId) {
-        const defaultChoice =
-          (room.definition.deckConfig.templates.find((t) => t.color && t.color !== 'ANY')?.color) ??
-          'RED';
-        modularEngine.chooseColor(timedOutPlayerId, defaultChoice);
-      } else if (usesRevealFlow) {
-        const action =
-          state.drawPileCount > 0 && allowedActions.includes('REVEAL_CARD')
-            ? 'REVEAL_CARD'
-            : 'END_GAME';
-        modularEngine.executeAction(timedOutPlayerId, action);
-      } else {
-        modularEngine.drawCard(timedOutPlayerId);
-        modularEngine.passTurn(timedOutPlayerId);
-      }
-    } catch {
-      try {
-        modularEngine.passTurn(timedOutPlayerId);
-      } catch {
-        // turn already resolved elsewhere; nothing left to do
-      }
+    emitSystemChat(io, room, `⏳ ${player.name} agotó su tiempo (pase automático)`);
+
+    if (player.socketId) {
+      io.to(player.socketId).emit('error:notification', { message: 'Se agotó tu tiempo de turno' });
     }
   }
 
-  emitSystemChat(io, room, `⏳ ${player.name} agotó su tiempo (pase automático)`);
   emitPlayerHands(io, room);
   const newState = room.getPublicState();
   io.to(room.code).emit('room:state', newState);
 
-  if (player.socketId) {
-    io.to(player.socketId).emit('error:notification', { message: 'Se agotó tu tiempo de turno' });
+  if (newState.status === 'FINISHED') {
+    emitGameFinished(io, room, newState.winnerId);
+  } else {
+    scheduleTurnLifecycle(io, room);
   }
+}
+
+/**
+ * Runs every bot that owes an action in the current simultaneous phase.
+ */
+function playSubmissionBotTurns(io: IoServer, room: GameRoom): void {
+  const actors = getActingPlayerIds(room);
+  let moved = false;
+
+  for (const playerId of actors) {
+    if (!room.getPlayer(playerId)?.isBot) continue;
+    room.engine.executeBotTurn(playerId);
+    moved = true;
+  }
+
+  if (!moved) return;
+
+  broadcastPlayerHands(io, room);
+  const newState = room.getPublicState();
+  io.to(room.code).emit('room:state', newState);
 
   if (newState.status === 'FINISHED') {
     emitGameFinished(io, room, newState.winnerId);
@@ -234,6 +286,11 @@ function handleHumanTurnTimeout(io: IoServer, room: GameRoom, timedOutPlayerId: 
 function playBotTurn(io: IoServer, room: GameRoom): void {
   const state = room.getPublicState();
   if (state.status !== 'IN_PROGRESS') return;
+
+  if (room.definition.rules.submission) {
+    playSubmissionBotTurns(io, room);
+    return;
+  }
 
   const botId = state.currentTurnPlayerId;
   if (!botId) return;

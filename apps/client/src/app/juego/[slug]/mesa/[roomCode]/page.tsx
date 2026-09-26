@@ -20,6 +20,7 @@ import CardFlight from "@/components/game/CardFlight";
 import CardView from "@/components/game/CardView";
 import CardBack from "@/components/game/CardBack";
 import DesconectadosTable from "@/components/game/DesconectadosTable";
+import SubmissionTable from "@/components/game/SubmissionTable";
 import { useRoom } from "@/lib/room/use-room";
 import { assignSeats } from "@/lib/room/seating";
 import { decodePlayerName } from "@/lib/room/player-name";
@@ -78,6 +79,7 @@ export default function MesaPage() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
   const [maxPlayers, setMaxPlayers] = useState<number | undefined>(undefined);
+  const [targetScore, setTargetScore] = useState<number | undefined>(undefined);
   const [hasShouted, setHasShouted] = useState(false);
   const [shoutToast, setShoutToast] = useState(false);
   const { play, muted, toggleMute } = useSound();
@@ -272,7 +274,10 @@ export default function MesaPage() {
     let cancelled = false;
     getGame(slug)
       .then((game) => {
-        if (!cancelled) setMaxPlayers(game?.game.rules.maxPlayers);
+        if (!cancelled) {
+          setMaxPlayers(game?.game.rules.maxPlayers);
+          setTargetScore(game?.game.rules.winCondition?.targetScore);
+        }
       })
       .catch(() => {});
     return () => {
@@ -446,10 +451,17 @@ export default function MesaPage() {
 
   // IN_PROGRESS
   const customState = (publicState.customState ?? {}) as Record<string, unknown>;
+  const isSubmission = Boolean(publicState.submission);
   const { self, others } = assignSeats(publicState.players, selfPlayerId);
   // El server agrega al host primero (GameRoom.addPlayer), mismo criterio que RoomLobby.
   const hostPlayerId = publicState.players[0]?.id;
   const isMyTurn = publicState.currentTurnPlayerId === selfPlayerId;
+  // En fases simultáneas (submissions) la fuente de verdad es awaitingPlayerIds;
+  // en juegos por turnos se mantiene el comportamiento clásico.
+  const isAwaitingAction =
+    publicState.awaitingPlayerIds !== undefined
+      ? Boolean(selfPlayerId && publicState.awaitingPlayerIds.includes(selfPlayerId))
+      : isMyTurn;
   const pendingChoiceForMe = publicState.pendingChoice?.playerId === selfPlayerId;
   const pendingChoiceForOther = !!publicState.pendingChoice && !pendingChoiceForMe;
   const pendingBet = isTruco ? customState.pendingBet ?? null : null;
@@ -457,7 +469,7 @@ export default function MesaPage() {
   // Mientras hay un color pendiente de elegir (comodín recién jugado), el
   // turno sigue siendo del mismo jugador pero no puede jugar/robar otra carta
   // hasta resolver el color (ver GameEngine.playCard en el server).
-  const canAct = isMyTurn && !pendingChoiceForMe && !isActing;
+  const canAct = isAwaitingAction && !pendingChoiceForMe && !isActing;
   const canPlayHandCards = canAct && (!isTruco || !pendingBet);
 
   async function handleTrucoAction(action: string, payload?: Record<string, unknown>) {
@@ -694,7 +706,23 @@ export default function MesaPage() {
         </div>
       </div>
 
-      {isPromptGame ? (
+      {isSubmission ? (
+        <div
+          className={`flex-1 relative px-3 py-2 overflow-y-auto ${
+            isShaking ? "animate-table-shake" : ""
+          }`}
+        >
+          <SubmissionTable
+            key={`${publicState.submission?.promptCard?.id ?? "prompt"}-${publicState.submission?.phase ?? "none"}`}
+            publicState={publicState}
+            selfPlayerId={selfPlayerId}
+            hand={hand}
+            onExecuteAction={handleTrucoAction}
+            isActing={isActing}
+            targetScore={targetScore}
+          />
+        </div>
+      ) : isPromptGame ? (
         <DesconectadosTable
           publicState={publicState}
           selfPlayerId={selfPlayerId}
@@ -952,7 +980,7 @@ export default function MesaPage() {
         </div>
       )}
 
-      {!isTruco && !isPromptGame && (
+      {!isTruco && !isPromptGame && !isSubmission && (
         <div className="flex-none px-3.5 md:px-6 py-1.5 md:py-3 flex items-center justify-between">
           <div className="flex items-center gap-1.5 font-medium text-[11px] md:text-sm text-ink">
  <span className={`w-2 h-2 ${isMyTurn ? "bg-accent" : "bg-ink-faint"}`} />
@@ -976,7 +1004,7 @@ export default function MesaPage() {
 
       {lastError && <div className="text-[12px] text-danger text-center px-4 pb-2">{lastError}</div>}
 
-      {!isTruco && !isCommunity && !isPromptGame && self?.cardCount === 1 && !hasShouted && (
+      {!isTruco && !isCommunity && !isPromptGame && !isSubmission && self?.cardCount === 1 && !hasShouted && (
         <div className="flex-none flex justify-center pb-1">
           <button
             type="button"
@@ -1018,7 +1046,7 @@ export default function MesaPage() {
       </div>
 
       {/* Truco renderiza su propia mano dentro de <TrucoTable />: no duplicar. */}
-      {!isTruco && !isPromptGame && (
+      {!isTruco && !isPromptGame && !isSubmission && (
         <Hand
           cards={hand}
           canPlay={isCommunity ? canAct : canPlayHandCards}

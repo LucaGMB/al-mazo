@@ -173,6 +173,35 @@ export const BUILTIN_ACTIONS: ActionDefinition[] = [
     requiredConditions: [{ type: 'IS_ACTIVE_PLAYER' }],
     payloadSchema: { cardId: 'string' },
   },
+  {
+    id: 'SUBMIT_CARDS',
+    name: 'Enviar Respuestas',
+    description: 'Enviar una o más cartas como respuesta anónima a la consigna del juez.',
+    requiredConditions: [{ type: 'CAN_SUBMIT' }],
+    payloadSchema: { cardIds: 'string[]' },
+  },
+  {
+    id: 'PICK_SUBMISSION',
+    name: 'Elegir Respuesta Ganadora',
+    description: 'El juez elige cuál de las respuestas enviadas gana la ronda.',
+    requiredConditions: [{ type: 'CAN_PICK_SUBMISSION' }, { type: 'ALL_SUBMISSIONS_RECEIVED' }],
+    payloadSchema: { submissionId: 'string' },
+    effects: [{ type: 'CHANGE_PHASE' }],
+  },
+  {
+    id: 'EXCHANGE_CARDS',
+    name: 'Recambiar Cartas',
+    description: 'El juez descarta cartas de su mano y roba la misma cantidad antes de la ronda.',
+    requiredConditions: [{ type: 'IS_JUDGE' }],
+    payloadSchema: { cardIds: 'string[]' },
+  },
+  {
+    id: 'CONFIRM_PHASE',
+    name: 'Confirmar Fase',
+    description: 'Avanza a la siguiente fase de la ronda (usado por el juez para leer o continuar).',
+    requiredConditions: [{ type: 'IS_JUDGE' }],
+    effects: [{ type: 'CHANGE_PHASE' }],
+  },
 ];
 
 export const BUILTIN_CONDITIONS: Array<{ type: ConditionType; description: string }> = [
@@ -187,6 +216,8 @@ export const BUILTIN_CONDITIONS: Array<{ type: ConditionType; description: strin
   { type: 'IS_BET_PENDING', description: 'A bet is awaiting a response.' },
   { type: 'CAN_CALL_ENVIDO', description: 'Envido can only be called in trick 1 while available.' },
   { type: 'CAN_CALL_TRUCO', description: 'Truco can only be called or raised by the player with turn or privilege.' },
+  { type: 'CAN_CALL_FLOR', description: 'Flor can be called in trick 1 if player holds 3 cards of same suit.' },
+  { type: 'CAN_CALL_CONTRA_FLOR', description: 'Contraflor can be called when challenged to Flor.' },
   {
     type: 'SUM_TARGET',
     description: 'The sum of played and selected table cards matches the required target.',
@@ -195,6 +226,10 @@ export const BUILTIN_CONDITIONS: Array<{ type: ConditionType; description: strin
     type: 'VALID_CAPTURE',
     description: 'The selected cards form a valid capture combination.',
   },
+  { type: 'IS_JUDGE', description: 'The acting player is the judge of the current submission round.' },
+  { type: 'CAN_SUBMIT', description: 'The player still owes an answer in the open submission round.' },
+  { type: 'ALL_SUBMISSIONS_RECEIVED', description: 'Every expected player has already submitted an answer.' },
+  { type: 'CAN_PICK_SUBMISSION', description: 'The judge can pick a winning answer while judging.' },
 ];
 
 export const BUILTIN_EFFECTS: Array<{ type: EffectType; description: string }> = [
@@ -233,6 +268,10 @@ export const BUILTIN_EFFECTS: Array<{ type: EffectType; description: string }> =
     description:
       'Finish the match immediately, optionally declaring the actor as winner or leaving the game without one.',
   },
+  { type: 'OPEN_SUBMISSIONS', description: 'Opens a simultaneous round of hidden answers from every non-judge player.' },
+  { type: 'AWARD_SUBMISSION', description: 'Awards the round points to the owner of the judge-picked answer.' },
+  { type: 'REFILL_HANDS', description: 'Tops every hand back up to the initial hand size from the draw pile.' },
+  { type: 'DRAW_PROMPT', description: 'Draws the next prompt card and resets the submission round.' },
 ];
 
 export const BUILTIN_ZONES: ZoneDefinition[] = [

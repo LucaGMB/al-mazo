@@ -1,3 +1,4 @@
+import { buildHdpDeckTemplates } from '@al-mazo/shared';
 import type { CardTemplate, DeckPresetSummary } from '../types.js';
 
 export interface DeckPreset {
@@ -101,11 +102,19 @@ export const COLOR_MATCH_108: DeckPreset = {
   templates: buildColorMatchTemplates(),
 };
 
+export const HDP_DEMO: DeckPreset = {
+  id: 'HDP_DEMO',
+  name: 'HDP Demo (Negras y Blancas)',
+  description: 'Mazo original de consignas y respuestas para juegos de jurado con respuestas ocultas.',
+  templates: buildHdpDeckTemplates(),
+};
+
 export const DECK_PRESETS: DeckPreset[] = [
   SPANISH_40,
   SPANISH_50,
   FRENCH_52,
   COLOR_MATCH_108,
+  HDP_DEMO,
 ];
 
 export function getDeckPreset(presetId: string): DeckPreset | undefined {

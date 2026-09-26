@@ -66,6 +66,21 @@ export class DeckManager {
   }
 
   /**
+   * Removes every card matching the predicate from the draw pile and returns
+   * them, preserving the pile order. Used to split mixed decks into piles
+   * (e.g. prompt cards vs answer cards).
+   */
+  public extract(predicate: (card: Card) => boolean): Card[] {
+    const extracted: Card[] = [];
+    this.cards = this.cards.filter((card) => {
+      if (!predicate(card)) return true;
+      extracted.push(card);
+      return false;
+    });
+    return extracted;
+  }
+
+  /**
    * Return cards back to the deck (draw pile) and shuffle.
    */
   public returnCards(cards: Card[]): void {

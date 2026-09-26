@@ -9,6 +9,7 @@ import { desconectadosDefinition } from './desconectados/definition.js';
 import { escobaDefinition } from './escoba/definition.js';
 import { chinchonDefinition } from './chinchon/definition.js';
 import { trucoDefinition } from './truco/definition.js';
+import { hdpDefinition } from './hdp/definition.js';
 
 export const officialGames: Record<string, GameSchemaDefinition> = {
   [colorMatchDefinition.slug]: colorMatchDefinition,
@@ -17,6 +18,7 @@ export const officialGames: Record<string, GameSchemaDefinition> = {
   [escobaDefinition.slug]: escobaDefinition,
   [chinchonDefinition.slug]: chinchonDefinition,
   [trucoDefinition.slug]: trucoDefinition,
+  [hdpDefinition.slug]: hdpDefinition,
 };
 
 export function getOfficialGame(slug: string): GameSchemaDefinition | undefined {

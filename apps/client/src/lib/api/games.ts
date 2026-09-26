@@ -69,6 +69,7 @@ const gameDetailSchema = z.object({
       turnTimeoutSeconds: z.number().optional(),
       gameMode: z.enum(["TRICK", "COMMUNITY", "DISCARD", "PROMPT"]).optional(),
       customState: z.record(z.string(), z.unknown()).optional(),
+      submission: z.record(z.string(), z.unknown()).optional(),
     }),
   }),
   isOfficial: z.boolean(),
@@ -102,6 +103,7 @@ export const SUPPORTED_GAME_SLUGS = [
   "escoba-del-15",
   "chinchon",
   "desconectados",
+  "hdp",
 ] as const;
 
 export interface GameResponseRecord {

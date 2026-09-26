@@ -4,6 +4,7 @@ import {
   SPANISH_50,
   FRENCH_52,
   COLOR_MATCH_108,
+  HDP_DEMO,
   getDeckPresetsSummary,
 } from '../../src/engine/capabilities/deck-presets.js';
 import { validateGameSchema } from '../../src/modules/games/games.validator.js';
@@ -34,13 +35,25 @@ describe('Editor Presets & Schema Compatibility', () => {
     expect(total).toBe(108);
   });
 
+  it('HDP_DEMO preset ships prompt and answer cards with text metadata', () => {
+    const total = HDP_DEMO.templates.reduce((sum, t) => sum + t.count, 0);
+    expect(total).toBe(112);
+    const prompts = HDP_DEMO.templates.filter((t) => t.type === 'PROMPT');
+    const answers = HDP_DEMO.templates.filter((t) => t.type === 'ANSWER');
+    expect(prompts.length).toBe(22);
+    expect(answers.length).toBe(90);
+    expect(prompts.every((t) => typeof t.metadata?.text === 'string')).toBe(true);
+    expect(answers.every((t) => typeof t.metadata?.text === 'string')).toBe(true);
+  });
+
   it('deck presets summary accurately returns total cards', () => {
     const summary = getDeckPresetsSummary();
-    expect(summary).toHaveLength(4);
+    expect(summary).toHaveLength(5);
     expect(summary.find((s) => s.id === 'SPANISH_40')?.totalCards).toBe(40);
     expect(summary.find((s) => s.id === 'SPANISH_50')?.totalCards).toBe(50);
     expect(summary.find((s) => s.id === 'FRENCH_52')?.totalCards).toBe(52);
     expect(summary.find((s) => s.id === 'COLOR_MATCH_108')?.totalCards).toBe(108);
+    expect(summary.find((s) => s.id === 'HDP_DEMO')?.totalCards).toBe(112);
   });
 
   it('a default newly created editor game schema passes validateGameSchema', () => {

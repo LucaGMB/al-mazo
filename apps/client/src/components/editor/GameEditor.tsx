@@ -619,6 +619,7 @@ export default function GameEditor() {
             phases={gameData.rules.phases ?? []}
             turnTimeoutSeconds={gameData.rules.turnTimeoutSeconds}
             gameMode={gameData.rules.gameMode}
+            submission={gameData.rules.submission}
             requireNormalInitialCard={gameData.rules.requireNormalInitialCard ?? false}
             onChange={(fields) =>
               setGameData((prev) => ({
@@ -646,6 +647,12 @@ export default function GameEditor() {
                   ...(fields.gameMode !== undefined
                     ? { gameMode: fields.gameMode === "AUTO" ? undefined : fields.gameMode }
                     : {}),
+                  submission:
+                    fields.submission === undefined
+                      ? prev.rules.submission
+                      : fields.submission === null
+                        ? undefined
+                        : fields.submission,
                 },
               }))
             }
