@@ -765,8 +765,25 @@ export default function MesaPage() {
             />
           ))}
           {others.length > 3 && (
-            <div className="absolute top-1 right-1 text-[10px] text-ink-faint">
-              +{others.length - 3} más
+            <div className="absolute top-1 right-1 left-1 flex flex-wrap justify-end gap-1">
+              {others.slice(3).map((player) => (
+                <PlayerBadge
+                  key={player.id}
+                  player={player}
+                  position="top"
+                  compact
+                  isHost={player.id === hostPlayerId}
+                  isCurrentTurn={publicState.currentTurnPlayerId === player.id}
+                  turnExpiresAt={
+                    publicState.currentTurnPlayerId === player.id ? publicState.turnExpiresAt : null
+                  }
+                  drawPulse={drawPulses[player.id] ?? null}
+                  score={publicState.scores?.[player.id]}
+                  escobas={
+                    (publicState.customState?.escobas as Record<string, number> | undefined)?.[player.id]
+                  }
+                />
+              ))}
             </div>
           )}
 

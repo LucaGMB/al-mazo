@@ -42,6 +42,7 @@ export default function PlayerBadge({
   escobas,
   capturedCount,
   drawPulse,
+  compact,
 }: {
   player: PlayerPublicInfo;
   position: "top" | "left" | "right" | "self";
@@ -54,6 +55,9 @@ export default function PlayerBadge({
   escobas?: number;
   capturedCount?: number;
   drawPulse?: { amount: number; key: number } | null;
+  // Ficha chica en flujo normal (no absolute), para cuando hay más
+  // oponentes de los que entran en los 3 slots fijos alrededor de la mesa.
+  compact?: boolean;
 }) {
   const { display } = decodePlayerName(player.name);
   const avatarColor = player.isBot
@@ -100,9 +104,13 @@ export default function PlayerBadge({
   return (
     <div
       data-player-id={player.id}
- className={`absolute flex items-center gap-2 md:gap-3 bg-statusbar border-2 border-subtle py-1 md:py-1.5 shadow-[3px_3px_0_0_rgba(0,0,0,0.35)] ${POSITION_CLASSES[position]} ${ringClasses}`}
+      className={
+        compact
+          ? `flex items-center gap-1.5 bg-statusbar border-2 border-subtle py-0.5 pl-1 pr-2 shadow-[2px_2px_0_0_rgba(0,0,0,0.35)] ${ringClasses}`
+ : `absolute flex items-center gap-2 md:gap-3 bg-statusbar border-2 border-subtle py-1 md:py-1.5 shadow-[3px_3px_0_0_rgba(0,0,0,0.35)] ${POSITION_CLASSES[position]} ${ringClasses}`
+      }
     >
-      {recentMessage && (
+      {!compact && recentMessage && (
         <div
           key={recentMessage}
  className="absolute -top-7 left-1/2 -translate-x-1/2 z-30 pointer-events-none whitespace-nowrap border-2 border-accent bg-statusbar/95 px-2.5 py-0.5 text-[11px] font-bold text-accent shadow-[0_0_12px_rgba(255,210,63,0.4)] animate-bubble-pop"
@@ -118,14 +126,14 @@ export default function PlayerBadge({
           ni relieve simulado. */}
       <div
  className={`relative shrink-0 border-[3px] border-[#0b0812] flex items-center justify-center ${
-          isSelf ? "w-7 h-7 md:w-9 md:h-9" : "w-6 h-6 md:w-8 md:h-8"
+          compact ? "w-4 h-4" : isSelf ? "w-7 h-7 md:w-9 md:h-9" : "w-6 h-6 md:w-8 md:h-8"
         } ${!player.isConnected ? "opacity-40" : ""}`}
         style={{ backgroundColor: avatarColor }}
       >
         <Icon
           icon={avatarIcon}
-          width={isSelf ? 16 : 14}
-          height={isSelf ? 16 : 14}
+          width={compact ? 10 : isSelf ? 16 : 14}
+          height={compact ? 10 : isSelf ? 16 : 14}
           className="text-[#f4f1ff]"
           aria-hidden
         />
@@ -159,29 +167,35 @@ export default function PlayerBadge({
         )}
       </div>
       <div>
-        <div className="font-medium text-[11px] md:text-sm text-ink inline-flex items-center gap-1">
+        <div
+          className={`font-medium text-ink inline-flex items-center gap-1 ${
+            compact ? "text-[10px] max-w-[72px] truncate" : "text-[11px] md:text-sm"
+          }`}
+        >
           {display}
           {player.isBot && (
-            <Icon icon="pixelarticons:robot" width={13} height={13} className="text-accent" aria-label="Bot" />
+            <Icon icon="pixelarticons:robot" width={13} height={13} className="text-accent shrink-0" aria-label="Bot" />
           )}
           {isSelf ? " (vos)" : ""}
         </div>
-        <div className="flex items-center gap-1 text-[10px] md:text-xs text-ink-faint">
-          <Icon icon="pixelarticons:notes" width={11} height={11} aria-hidden />
-          <span>{player.cardCount} en mano</span>
-          {typeof score === "number" && (
-            <span className="font-bold text-warning ml-0.5">· {score} pts</span>
-          )}
-          {typeof escobas === "number" && escobas > 0 && (
-            <span className="text-accent ml-0.5" title="Escobas">🧹{escobas}</span>
-          )}
-          {!player.isConnected && (
-            <span className="inline-flex items-center gap-0.5 text-danger">
+        {!compact && (
+          <div className="flex items-center gap-1 text-[10px] md:text-xs text-ink-faint">
+            <Icon icon="pixelarticons:notes" width={11} height={11} aria-hidden />
+            <span>{player.cardCount} en mano</span>
+            {typeof score === "number" && (
+              <span className="font-bold text-warning ml-0.5">· {score} pts</span>
+            )}
+            {typeof escobas === "number" && escobas > 0 && (
+              <span className="text-accent ml-0.5" title="Escobas">🧹{escobas}</span>
+            )}
+            {!player.isConnected && (
+              <span className="inline-flex items-center gap-0.5 text-danger">
  <span className="h-1.5 w-1.5 animate-pulse bg-danger" />
-              desconectado
-            </span>
-          )}
-        </div>
+                desconectado
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
